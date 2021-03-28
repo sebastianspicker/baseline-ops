@@ -3,10 +3,13 @@
 A working tree for win-mdm-security-hardening-kit with an evolving implementation history.
 
 ## Overview
-win-mdm-security-hardening-kit keeps the active bootstrap push work visible.
+win-mdm-security-hardening-kit tracks the practical state of the current maintenance pass.
 
 ## Status
-Lifecycle stage: bootstrap.
+Project phase: bootstrap.
 
 ## Usage
 - Rewrote the the main flow explanation around the maintained behavior.
+
+## Notes
+- Align docs and templates after cleanup of non-committable artifacts.
