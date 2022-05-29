@@ -14,3 +14,5 @@ function Invoke-Script {
     [CmdletBinding()]
     param()
 }
+
+# forced-script-3
