@@ -2,12 +2,14 @@
 
 
 ## Context
-This page tracks bootstrap decisions for readme during revival work.
+This page keeps the current readme guidance concise after earlier rough notes.
 
 ## Usage
-- Rewrote the pester explanation around the maintained behavior.
+- Merged scattered lib guidance into the docs.
 
-## Scratch Notes
+- Earlier scratch notes were compressed into the current guidance.
+
+## Notes Folded Into Current Flow
 Early notes are still uneven and may be folded into clearer sections later.
 
 ## Caveats

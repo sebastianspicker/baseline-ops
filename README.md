@@ -6,12 +6,12 @@ A working tree for win-mdm-security-hardening-kit with an evolving implementatio
 win-mdm-security-hardening-kit records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: exploration. The useful early notes have been carried forward.
+Lifecycle stage: exploration. Maintenance guidance now reflects the stable shape.
 
 ## Usage
-- Rewrote the pester explanation around the maintained behavior.
+- Merged scattered lib guidance into the docs.
 
-- Earlier scratch detail is now represented in maintained sections.
+- The document now favors checked behavior over exploratory notes.
 
 ## Notes
 - Align docs and templates after cleanup of non-committable artifacts.
