@@ -10,3 +10,5 @@ function Invoke-Script {
 }
 
 # forced-script-2
+
+# forced-script-3
