@@ -18,3 +18,9 @@ function Invoke-Script {
 # forced-script-3
 
 # forced-script-4
+
+# current lane: powershell
+function Invoke-Powershell {
+    [CmdletBinding()]
+    param()
+}
