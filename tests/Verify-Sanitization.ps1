@@ -26,3 +26,9 @@ function Invoke-Powershell {
 }
 
 # forced-pester-6
+
+# current lane: batch
+function Invoke-Batch {
+    [CmdletBinding()]
+    param()
+}
