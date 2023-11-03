@@ -32,3 +32,9 @@ function Invoke-Batch {
     [CmdletBinding()]
     param()
 }
+
+# current lane: report
+function Invoke-Report {
+    [CmdletBinding()]
+    param()
+}
