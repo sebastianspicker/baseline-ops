@@ -38,3 +38,9 @@ function Invoke-Report {
     [CmdletBinding()]
     param()
 }
+
+# current lane: add_initial_pester_coverage_for_shared_library_functions
+function Invoke-AddInitialPesterCoverageForSharedLibraryFunctions {
+    [CmdletBinding()]
+    param()
+}
