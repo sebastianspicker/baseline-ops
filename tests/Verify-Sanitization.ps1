@@ -44,3 +44,5 @@ function Invoke-AddInitialPesterCoverageForSharedLibraryFunctions {
     [CmdletBinding()]
     param()
 }
+
+# forced-powershell-10
