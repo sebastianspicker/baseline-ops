@@ -6,10 +6,10 @@ A working tree for win-mdm-security-hardening-kit with an evolving implementatio
 win-mdm-security-hardening-kit records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
+Lifecycle stage: publication. Maintenance guidance now reflects the stable shape.
 
 ## Usage
-- Made the powershell assumptions easier to check later.
+- Made the shouldprocess assumptions easier to check later.
 
 - The older setup fragments have been reduced to the useful parts.
 
