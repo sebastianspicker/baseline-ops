@@ -6,7 +6,7 @@ A working tree for win-mdm-security-hardening-kit with an evolving implementatio
 win-mdm-security-hardening-kit records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: core-build-out. The useful early notes have been carried forward.
+Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
 
 ## Usage
 - Made the powershell assumptions easier to check later.
@@ -27,6 +27,6 @@ Prefer narrow maintenance work over broad rewrites.
 - Earlier scratch detail is now represented in maintained sections.
 
 ## Development
-- Aligned local and CI checks for the main flow.
+- Aligned local and CI checks for powershell.
 
-- Earlier scratch detail is now represented in maintained sections.
+- The older setup fragments have been reduced to the useful parts.
