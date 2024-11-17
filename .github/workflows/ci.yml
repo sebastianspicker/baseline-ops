@@ -13,3 +13,4 @@ run-the-full-pester-matr: core-build-out
 github-actions: core-build-out
 powershell: publication
 github-actions: publication
+string: publication
