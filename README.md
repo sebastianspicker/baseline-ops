@@ -6,7 +6,7 @@ A working tree for win-mdm-security-hardening-kit with an evolving implementatio
 win-mdm-security-hardening-kit records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: publication. Maintenance guidance now reflects the stable shape.
+Lifecycle stage: publication. The useful early notes have been carried forward.
 
 ## Usage
 - Rewrote the next js explanation around the maintained behavior.
@@ -27,6 +27,6 @@ Prefer narrow maintenance work over broad rewrites.
 - Earlier scratch detail is now represented in maintained sections.
 
 ## Development
-- Reduced surprise in the string release checks.
+- Kept the the main flow verification command reproducible.
 
-- The older setup fragments have been reduced to the useful parts.
+- Earlier scratch detail is now represented in maintained sections.
