@@ -46,3 +46,9 @@ function Invoke-AddInitialPesterCoverageForSharedLibraryFunctions {
 }
 
 # forced-powershell-10
+
+# current lane: shouldprocess
+function Invoke-Shouldprocess {
+    [CmdletBinding()]
+    param()
+}
