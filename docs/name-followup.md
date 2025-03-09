@@ -2,10 +2,10 @@
 
 
 ## Context
-This page tracks publication decisions for name followup during release push work.
+This page tracks publication decisions for name followup during steady build work.
 
 ## Usage
-- Rewrote the name explanation around the maintained behavior.
+- Merged scattered name guidance into the docs.
 
 ## Caveats
 Some setup details still depend on the current local workflow and may change again.
