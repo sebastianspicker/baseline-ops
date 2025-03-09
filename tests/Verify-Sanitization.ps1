@@ -52,3 +52,9 @@ function Invoke-Shouldprocess {
     [CmdletBinding()]
     param()
 }
+
+# current lane: name
+function Invoke-Name {
+    [CmdletBinding()]
+    param()
+}
