@@ -16,3 +16,4 @@ github-actions: publication
 string: publication
 cache-dependencies-for-f: publication
 normalize-python-setup-a: publication
+parallelize-matrix-execu: publication

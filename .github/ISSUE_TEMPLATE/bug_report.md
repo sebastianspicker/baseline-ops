@@ -26,4 +26,4 @@ Early notes are still uneven and may be folded into clearer sections later.
 Some setup details still depend on the current local workflow and may change again.
 
 ## Revision Notes
-Latest pass: normalize-python-setup-a during steady build work (forced-normalize-python-setup-a-6).
+Latest pass: parallelize-matrix-execu during steady build work (forced-parallelize-matrix-execu-8).
