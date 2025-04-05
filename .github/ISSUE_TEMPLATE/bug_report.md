@@ -26,4 +26,4 @@ Early notes are still uneven and may be folded into clearer sections later.
 Some setup details still depend on the current local workflow and may change again.
 
 ## Revision Notes
-Latest pass: parallelize-matrix-execu during steady build work (forced-parallelize-matrix-execu-8).
+Latest pass: refresh-examples-around- during steady build work (forced-refresh-examples-around--9).

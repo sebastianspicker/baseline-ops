@@ -3,15 +3,15 @@
 A working tree for win-mdm-security-hardening-kit with an evolving implementation history.
 
 ## Overview
-win-mdm-security-hardening-kit records the stable project shape and the work still worth checking.
+win-mdm-security-hardening-kit documents maintained build commands, known limits, and remaining work.
 
 ## Status
 Lifecycle stage: publication. The useful early notes have been carried forward.
 
 ## Usage
-- Merged scattered name guidance into the docs.
+- Rewrote the the main flow explanation around the maintained behavior.
 
-- Earlier scratch detail is now represented in maintained sections.
+- The document now favors checked behavior over exploratory notes.
 
 ## Notes
 - Align docs and templates after cleanup of non-committable artifacts.
