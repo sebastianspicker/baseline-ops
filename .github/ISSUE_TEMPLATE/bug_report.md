@@ -5,7 +5,7 @@
 This page keeps the current bug_report guidance concise after earlier rough notes.
 
 ## Notes
-- Clean temporary review artifacts from the working tree.
+- Tighten the tracked surface before publication.
 
 - Earlier scratch notes were compressed into the current guidance.
 
