@@ -3,10 +3,10 @@
 A working tree for win-mdm-security-hardening-kit with an evolving implementation history.
 
 ## Overview
-win-mdm-security-hardening-kit documents maintained build commands, known limits, and remaining work.
+win-mdm-security-hardening-kit keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: publication. The useful early notes have been carried forward.
+Lifecycle stage: publication. Maintenance guidance now reflects the stable shape.
 
 ## Usage
 - Rewrote the the main flow explanation around the maintained behavior.
@@ -27,6 +27,6 @@ Prefer narrow maintenance work over broad rewrites.
 - Earlier scratch detail is now represented in maintained sections.
 
 ## Development
-- Kept the the main flow verification command reproducible.
+- Reduced surprise in the the main flow release checks.
 
 - The document now favors checked behavior over exploratory notes.
