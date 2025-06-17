@@ -13,7 +13,7 @@ This page keeps the current bug_report guidance concise after earlier rough note
 Early notes are still uneven and may be folded into clearer sections later.
 
 ## Usage
-- Rewrote the the main flow explanation around the maintained behavior.
+- Made the the main flow assumptions easier to check later.
 
 - Earlier scratch notes were compressed into the current guidance.
 
