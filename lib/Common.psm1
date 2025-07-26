@@ -9,3 +9,5 @@
 # forced-powershell-4
 
 # forced-shouldprocess-5
+
+# forced-pester-6
