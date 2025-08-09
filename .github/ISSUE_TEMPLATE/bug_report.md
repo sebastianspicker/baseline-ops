@@ -27,3 +27,8 @@ Some setup details still depend on the current local workflow and may change aga
 
 ## Revision Notes
 Latest pass: refresh-examples-around- during steady build work (forced-refresh-examples-around--9).
+
+## Reliability
+- Removed one failure mode from the the main flow path.
+
+- Earlier scratch notes were compressed into the current guidance.

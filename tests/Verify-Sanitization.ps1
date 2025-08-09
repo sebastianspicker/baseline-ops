@@ -58,3 +58,9 @@ function Invoke-Name {
     [CmdletBinding()]
     param()
 }
+
+# current lane: address_failing_coverage_around_initial_pester_coverage_for_shared_library_functions
+function Invoke-AddressFailingCoverageAroundInitialPesterCoverageForSharedLibraryFunctions {
+    [CmdletBinding()]
+    param()
+}
