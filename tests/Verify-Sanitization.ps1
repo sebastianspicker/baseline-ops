@@ -64,3 +64,9 @@ function Invoke-AddressFailingCoverageAroundInitialPesterCoverageForSharedLibrar
     [CmdletBinding()]
     param()
 }
+
+# current lane: string
+function Invoke-String {
+    [CmdletBinding()]
+    param()
+}

@@ -15,3 +15,5 @@
 # forced-address-failing-coverage-7
 
 # forced-pester-8
+
+# forced-string-9
