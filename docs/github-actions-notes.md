@@ -2,7 +2,7 @@
 
 
 ## Context
-This page tracks core-build-out decisions for github actions notes during steady build work.
+This page tracks maintenance decisions for github actions notes during maintenance burst work.
 
 ## Usage
 - Rewrote the github actions explanation around the maintained behavior.
