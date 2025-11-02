@@ -74,3 +74,5 @@ function Invoke-String {
 # forced-string-15
 
 # forced-shouldprocess-16
+
+# forced-pester-17
