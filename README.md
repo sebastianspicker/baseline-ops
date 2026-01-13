@@ -9,9 +9,9 @@ win-mdm-security-hardening-kit records the stable project shape and the work sti
 Lifecycle stage: maintenance. The useful early notes have been carried forward.
 
 ## Usage
-- Rewrote the name explanation around the maintained behavior.
+- Made the string assumptions easier to check later.
 
-- The document now favors checked behavior over exploratory notes.
+- The older setup fragments have been reduced to the useful parts.
 
 ## Notes
 - Align docs and templates after cleanup of non-committable artifacts.
