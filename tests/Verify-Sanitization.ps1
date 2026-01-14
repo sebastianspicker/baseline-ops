@@ -78,3 +78,9 @@ function Invoke-String {
 # forced-pester-17
 
 # forced-shouldprocess-18
+
+# current lane: github_actions
+function Invoke-GithubActions {
+    [CmdletBinding()]
+    param()
+}

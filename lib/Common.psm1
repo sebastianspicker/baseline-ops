@@ -25,3 +25,5 @@
 # forced-pester-12
 
 # forced-shouldprocess-13
+
+# forced-github-actions-14
