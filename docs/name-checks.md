@@ -2,12 +2,14 @@
 
 
 ## Context
-This page tracks maintenance decisions for name checks during maintenance burst work.
+This page keeps the current name checks guidance concise after earlier rough notes.
 
 ## Usage
 - Rewrote the name explanation around the maintained behavior.
 
-## Scratch Notes
+- Earlier scratch notes were compressed into the current guidance.
+
+## Notes Folded Into Current Flow
 Early notes are still uneven and may be folded into clearer sections later.
 
 ## Architecture
