@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Performs an IOC (Indicator of Compromise) sweep on the local Windows host, optionally runs a Microsoft Defender on-demand scan, optionally collects evidence, and writes an audit-ready JSON proof file.
@@ -146,29 +147,23 @@ param(
   [switch]$PassThru
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 $ErrorActionPreference = 'Stop'
 
 # -----------------------------
 # Globals / Defaults (anonymized)
 # -----------------------------
-$EventSource  = 'IOC-Sweep-Defender'
-$EventLogName = 'Application'
-
 $DefaultProofOutFile = "PATH/TO/PROOF/IOC-Sweep.json"
 $DefaultEvidenceDir  = "PATH/TO/EVIDENCE"
 
 # -----------------------------
 # Console helpers (host-only)
 # -----------------------------
-function Write-UiLine {
-  param(
-    [Parameter(Mandatory=$true)][string]$Text,
-    [ConsoleColor]$Color = [ConsoleColor]::Gray,
-    [switch]$NoNewLine
-  )
-  if ($NoNewLine) { Write-Host $Text -ForegroundColor $Color -NoNewline }
-  else { Write-Host $Text -ForegroundColor $Color }
-}
 
 function Write-UiRule {
   param([ConsoleColor]$Color = [ConsoleColor]::DarkGray)
@@ -228,43 +223,7 @@ function Write-Info {
 # -----------------------------
 # Core helpers
 # -----------------------------
-function Test-IsAdmin {
-  try {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch { return $false }
-}
 
-function Ensure-EventSource {
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($EventSource)) {
-      if (Test-IsAdmin) {
-        New-EventLog -LogName $EventLogName -Source $EventSource -ErrorAction Stop
-      }
-    }
-  } catch { }
-}
-
-function Write-HealthEvent {
-  param(
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')] [string]$Level='Information'
-  )
-  try {
-    Write-EventLog -LogName $EventLogName -Source $EventSource -EntryType $Level -EventId $Id -Message $Msg -ErrorAction Stop
-  } catch {
-    Write-UiStatus -Label "EventLog write" -State "WARN" -Detail $Msg
-  }
-}
-
-function Ensure-Dir([string]$Path){
-  if (-not $Path) { return }
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -ItemType Directory -Path $Path -Force | Out-Null
-  }
-}
 
 function Save-Json([object]$Obj,[string]$Path){
   Ensure-Dir (Split-Path -Parent $Path)
@@ -487,8 +446,8 @@ try {
           if ($expanded.Count -gt 0) {
             $results = @()
             foreach ($item in $expanded) {
-              $args = @("-Scan","-ScanType","3","-File",$item)
-              $p = Start-Process -FilePath $mp -ArgumentList $args -PassThru -Wait -WindowStyle Hidden
+              $scanArgs = @("-Scan","-ScanType","3","-File",$item)
+              $p = Start-Process -FilePath $mp -ArgumentList $scanArgs -PassThru -Wait -WindowStyle Hidden
               $results += ("custom:{0} exit:{1}" -f $item, $p.ExitCode)
             }
             $scanInfo.Result = ($results -join "; ")
@@ -499,8 +458,8 @@ try {
       } else {
         $type = 2
         if ($ScanType -eq 'Quick') { $type = 1 }
-        $args = @("-Scan","-ScanType", "$type")
-        $p = Start-Process -FilePath $mp -ArgumentList $args -PassThru -Wait -WindowStyle Hidden
+        $scanArgs = @("-Scan","-ScanType", "$type")
+        $p = Start-Process -FilePath $mp -ArgumentList $scanArgs -PassThru -Wait -WindowStyle Hidden
         $scanInfo.Result = "exit:$($p.ExitCode)"
       }
     }

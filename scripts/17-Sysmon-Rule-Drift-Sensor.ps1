@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
 Detects Sysmon event rule drift within a configurable time window and reports anomalies.
@@ -207,6 +208,12 @@ param(
   [switch]$PassThru
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version Latest
 
 # -----------------------------
@@ -222,14 +229,6 @@ $script:MaxEventMessageLength  = 30000
 # -----------------------------
 # Console helpers (no pipeline output)
 # -----------------------------
-function Write-ConsoleLine {
-  param(
-    [string]$Text,
-    [ValidateSet('Gray','White','Cyan','Green','Yellow','Red','Magenta')]
-    [string]$Color = 'Gray'
-  )
-  Write-Host $Text -ForegroundColor $Color
-}
 
 function Write-ConsoleSeparator {
   param([string]$Char = '=', [int]$Width = 78, [string]$Color = 'Cyan')
@@ -287,13 +286,6 @@ function ConvertTo-Hashtable {
 # -----------------------------
 # Utility: File IO (safe)
 # -----------------------------
-function Ensure-Directory {
-  param([Parameter(Mandatory)][string]$Path)
-  $dir = Split-Path -Parent $Path
-  if ($dir -and -not (Test-Path -LiteralPath $dir)) {
-    New-Item -Path $dir -ItemType Directory -Force | Out-Null
-  }
-}
 
 function Read-JsonFile {
   param([Parameter(Mandatory)][string]$Path)
@@ -374,18 +366,6 @@ function Load-CatalogOrDefault {
 # -----------------------------
 # Event Log (audit)
 # -----------------------------
-function Ensure-EventSource {
-  param([string]$SourceName, [string]$LogName)
-
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($SourceName)) {
-      # Creating a new event source typically requires admin rights.
-      New-EventLog -LogName $LogName -Source $SourceName -ErrorAction Stop
-    }
-  } catch {
-    # Non-fatal; console output remains available.
-  }
-}
 
 function Limit-EventMessage {
   param([Parameter(Mandatory)][string]$Message)
@@ -414,15 +394,6 @@ function Write-AuditEvent {
 # -----------------------------
 # Sysmon channel probe
 # -----------------------------
-function Test-IsAdministrator {
-  try {
-    $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $wp = New-Object Security.Principal.WindowsPrincipal($wi)
-    return $wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch {
-    return $false
-  }
-}
 
 function Get-SysmonChannelStatus {
   $info = [pscustomobject]@{
@@ -443,7 +414,7 @@ function Get-SysmonChannelStatus {
 
     $enabledText = $null
     try { $enabledText = $x.channel.enabled.'#text' } catch { $enabledText = $null }
-    if ($enabledText -ne $null -and $enabledText -ne '') {
+    if ($null -ne $enabledText -and $enabledText -ne '') {
       $info.Enabled = [bool]::Parse([string]$enabledText)
     }
 
@@ -776,21 +747,21 @@ try {
     }
 
     $ratio = $null
-    if ($priorBase -ne $null -and $priorBase -ge [double]$MinBaselineToCompare -and $priorBase -gt 0) {
+    if ($null -ne $priorBase -and $priorBase -ge [double]$MinBaselineToCompare -and $priorBase -gt 0) {
       $ratio = [math]::Round($count / $priorBase, 2)
     }
 
     $status = 'OK'
     if ($isCritical -and $count -eq 0) { $status = 'HARDZERO' }
-    elseif ($minWin -ne $null -and $count -lt $minWin) { $status = 'LOW' }
-    elseif ($ratio -ne $null -and $ratio -lt $RatioFloor) { $status = 'DRIFT_DOWN' }
-    elseif ($IncludeSurge -and $ratio -ne $null -and $ratio -gt $RatioUpper) { $status = 'SURGE' }
+    elseif ($null -ne $minWin -and $count -lt $minWin) { $status = 'LOW' }
+    elseif ($null -ne $ratio -and $ratio -lt $RatioFloor) { $status = 'DRIFT_DOWN' }
+    elseif ($IncludeSurge -and $null -ne $ratio -and $ratio -gt $RatioUpper) { $status = 'SURGE' }
 
     if ($status -ne 'OK') { $overallStatus = 'ANOMALIES_DETECTED' }
 
     # EMA baseline update
     $newBase = [double]$count
-    if (-not $Rebaseline -and $priorBase -ne $null) {
+    if (-not $Rebaseline -and $null -ne $priorBase) {
       $newBase = [double]::Round(($Alpha * $count) + ((1 - $Alpha) * $priorBase), 2)
     }
     $baseline["$id"] = $newBase

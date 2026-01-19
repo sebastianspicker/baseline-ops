@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Collects endpoint artifacts and packages them into a structured incident-response bundle.
@@ -119,6 +120,12 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
@@ -128,19 +135,11 @@ $InformationPreference = 'Continue'
 # -------------------------
 # Globals
 # -------------------------
-$EventSource   = 'IR-Grabber'
 $ScriptVersion = '2025.12.22-ps51'
 
 # -------------------------
 # Console helpers (no pipeline output)
 # -------------------------
-function Write-UiLine {
-  param(
-    [int]$Width = 78,
-    [ConsoleColor]$Color = 'DarkGray'
-  )
-  Write-Host (''.PadLeft($Width,'-')) -ForegroundColor $Color
-}
 
 function Write-UiHeader {
   param(
@@ -188,39 +187,11 @@ function Write-UiStatus {
 # -------------------------
 # Logging helpers
 # -------------------------
-function Ensure-EventSource {
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($EventSource)) {
-      New-EventLog -LogName Application -Source $EventSource -ErrorAction Stop | Out-Null
-    }
-  } catch {
-    # best-effort
-  }
-}
 
-function Write-HealthEvent {
-  param(
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')]
-    [string]$Level = 'Information'
-  )
-  try {
-    Write-EventLog -LogName Application -Source $EventSource -EntryType $Level -EventId $Id -Message $Msg
-  } catch {
-    Write-Host ("[{0}][{1}] {2}" -f $Level,$Id,$Msg) -ForegroundColor DarkGray
-  }
-}
 
 # -------------------------
 # Generic helpers
 # -------------------------
-function Ensure-Dir([string]$Path) {
-  if (-not $Path) { return }
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -ItemType Directory -Path $Path -Force | Out-Null
-  }
-}
 
 function Expand-Env([string]$p) {
   try { [Environment]::ExpandEnvironmentVariables($p) } catch { $p }
@@ -591,15 +562,15 @@ function Collect-NetworkNetstatFallback {
         $remote = $parts[2]
 
         $state = $null
-        $pid = $null
+        $processId = $null
 
         if ($proto -eq 'TCP') {
           if ($parts.Count -ge 5) {
             $state = $parts[3]
-            $pid = $parts[4]
+            $processId = $parts[4]
           }
         } else {
-          $pid = $parts[3]
+          $processId = $parts[3]
         }
 
         $la=$null;$lp=$null;$ra=$null;$rp=$null
@@ -614,7 +585,7 @@ function Collect-NetworkNetstatFallback {
           RemoteAddress = $ra
           RemotePort    = $rp
           State         = $state
-          OwningProcess = $pid
+          OwningProcess = $processId
         }
       }
     }
@@ -963,7 +934,6 @@ $catalogNote = $null
 try {
   Write-Information ("IR Grabber starting (v{0})" -f $ScriptVersion)
 
-  $catRef = [ref]$null
   $cat = Load-Catalog -CatalogPath $CatalogPath -ConfigPath $ConfigPath -CatalogLoadNote ([ref]$catalogNote)
   if (-not $cat) { $cat = New-BaseClone $DefaultCatalog }
 

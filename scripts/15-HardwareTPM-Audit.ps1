@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Audits Windows hardware security posture (TPM, Secure Boot, BitLocker, BIOS) and evaluates it against a simple baseline catalog.
@@ -129,6 +130,11 @@ param(
   [string]$ConfigPath = "PATH/TO/CONFIG.json"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version 2.0
 
 # Anonymized defaults
@@ -140,52 +146,6 @@ $DefaultOutFile = "PATH/TO/PROOF/HardwareCompliance.json"
 # Helpers (no pipeline formatting)
 # -----------------------------
 
-function Test-IsAdmin {
-  try {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch { return $false }
-}
-
-function Ensure-EventSource {
-  param(
-    [Parameter(Mandatory=$true)][string]$Source,
-    [Parameter(Mandatory=$true)][string]$LogName
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      # Source creation usually needs admin rights; writing does not necessarily.
-      New-EventLog -LogName $LogName -Source $Source -ErrorAction Stop
-    }
-    return $true
-  } catch {
-    return $false
-  }
-}
-
-function Write-HealthEvent {
-  param(
-    [Parameter(Mandatory=$true)][int]$Id,
-    [Parameter(Mandatory=$true)][string]$Message,
-    [ValidateSet('Information','Warning','Error')]
-    [string]$Level = 'Information',
-    [Parameter(Mandatory=$true)][string]$Source,
-    [Parameter(Mandatory=$true)][string]$LogName
-  )
-  try {
-    Write-EventLog -LogName $LogName -Source $Source -EntryType $Level -EventId $Id -Message $Message -ErrorAction Stop
-  } catch {
-    Write-Host ("[{0}][{1}] {2}" -f $Level, $Id, $Message)
-  }
-}
-
-function Ensure-Directory {
-  param([Parameter(Mandatory=$true)][string]$Path)
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -Path $Path -ItemType Directory -Force | Out-Null
-  }
-}
 
 function Save-Json {
   param(

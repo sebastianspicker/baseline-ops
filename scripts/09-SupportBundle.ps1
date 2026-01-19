@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Generates a timestamped support bundle (ZIP) that collects system diagnostics, selected Windows event logs, optional proof files, and optional Microsoft Defender information.
@@ -257,7 +258,8 @@ function SB_NewRecord {
     [bool]$Ok,
     [string]$ArtifactPath,
     [string]$Note,
-    [string]$Error
+    [Alias('Error')]
+    [string]$ErrorText
   )
 
   [pscustomobject]@{
@@ -265,7 +267,7 @@ function SB_NewRecord {
     Ok           = [bool]$Ok
     ArtifactPath = $ArtifactPath
     Note         = $Note
-    Error        = $Error
+    Error        = $ErrorText
     Time         = (Get-Date).ToString('s')
   }
 }

@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Checks the local machine for missing security patches by comparing installed KBs against a curated JSON feed, then reports missing Critical and Zero-Day items.
@@ -120,6 +121,14 @@ param(
   [switch]$UseInformationStream
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
+$script:UseInformationStream = [bool]$UseInformationStream
+
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -164,39 +173,6 @@ function Ensure-FolderForFile {
   }
 }
 
-function Write-UiLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][AllowEmptyString()][string]$Message,
-    [ValidateSet('Default','Info','Ok','Warn','Err','Title','Dim')]
-    [string]$Style = 'Default',
-    [switch]$NoNewLine
-  )
-
-  # Allow empty string on purpose (blank lines). This avoids ParameterBindingValidationException.
-  if ($UseInformationStream) {
-    # Information stream is preference-controlled; force visibility with -InformationAction Continue.
-    Write-Information -MessageData $Message -InformationAction Continue
-    return
-  }
-
-  $fg = $null
-  switch ($Style) {
-    'Title' { $fg = 'Cyan' }
-    'Ok'    { $fg = 'Green' }
-    'Warn'  { $fg = 'Yellow' }
-    'Err'   { $fg = 'Red' }
-    'Info'  { $fg = 'Gray' }
-    'Dim'   { $fg = 'DarkGray' }
-    default { $fg = $null }
-  }
-
-  if ($null -ne $fg) {
-    Write-Host $Message -ForegroundColor $fg -NoNewline:$NoNewLine
-  } else {
-    Write-Host $Message -NoNewline:$NoNewLine
-  }
-}
 
 function New-ConsoleLine {
   [CmdletBinding()]
@@ -204,46 +180,6 @@ function New-ConsoleLine {
   ($Char * $Width)
 }
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param(
-    [string]$Source = 'PatchReminder',
-    [string]$Log    = 'Application'
-  )
-
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      try { New-EventLog -LogName $Log -Source $Source } catch { return $false }
-    }
-    return $true
-  } catch {
-    return $false
-  }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][int]$Id,
-    [Parameter(Mandatory)][string]$Msg,
-    [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
-    [switch]$CanEventLog,
-    [string]$Source = 'PatchReminder'
-  )
-
-  $Msg = ($Msg -replace "\r?\n", " | ").Trim()
-
-  if ($CanEventLog) {
-    try {
-      Write-EventLog -LogName Application -Source $Source -EntryType $Level -EventId $Id -Message $Msg
-      return
-    } catch {
-      # Fall back to UI output.
-    }
-  }
-
-  Write-UiLine -Message ("[$Level][$Id] " + $Msg) -Style Info
-}
 
 function Save-JsonUtf8NoBom {
   [CmdletBinding()]

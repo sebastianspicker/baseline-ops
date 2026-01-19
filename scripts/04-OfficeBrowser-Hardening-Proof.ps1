@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Evaluates and (optionally) enforces a hardened baseline for Microsoft Office, Microsoft Edge, and Mozilla Firefox, with drift detection and proof generation.
@@ -123,6 +124,12 @@ param(
   [string]$ConfigPath = "PATH/TO/CONFIG.json"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'   # Information stream shown by default
@@ -176,36 +183,6 @@ $DefaultCatalogJson = @"
 # Utilities
 # -----------------------------
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Source,
-    [Parameter(Mandatory)][string]$Log
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {  # may require admin rights
-      New-EventLog -LogName $Log -Source $Source -ErrorAction Stop
-    }
-  } catch {
-    # Event source creation requires elevation; ignore on failure.
-  }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][int]$Id,
-    [Parameter(Mandatory)][string]$Msg,
-    [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
-    [Parameter(Mandatory)][string]$Source,
-    [Parameter(Mandatory)][string]$Log
-  )
-  try {
-    Write-EventLog -LogName $Log -Source $Source -EntryType $Level -EventId $Id -Message $Msg
-  } catch {
-    Write-Host "[$Level][$Id] $Msg" -ForegroundColor Yellow
-  }
-}
 
 function Is-Admin {
   [CmdletBinding()]
@@ -219,14 +196,6 @@ function Is-Admin {
   }
 }
 
-function Ensure-Dir {
-  [CmdletBinding()]
-  param([string]$Path)
-  if ([string]::IsNullOrWhiteSpace($Path)) { return }
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -ItemType Directory -Path $Path -Force | Out-Null
-  }
-}
 
 function Ensure-Key {
   [CmdletBinding()]
@@ -297,20 +266,6 @@ function Save-Json {
   [System.IO.File]::WriteAllText($Path, $json, $utf8NoBOM)
 }
 
-function Get-RegValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Path,
-    [Parameter(Mandatory)][string]$Name
-  )
-  try {
-    $p = Get-ItemProperty -Path $Path -ErrorAction Stop
-    if ($null -ne $p.PSObject.Properties[$Name]) { return $p.$Name }
-    return $null
-  } catch {
-    return $null
-  }
-}
 
 function Convert-RegValue {
   [CmdletBinding()]

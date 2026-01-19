@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Immediately isolates a Windows host during an incident by enforcing a "block all" network posture using Windows Firewall,
@@ -108,6 +109,12 @@ param(
   [string]$ConfigJsonRaw
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
@@ -186,10 +193,6 @@ function Add-RunError {
 }
 
 # ---------- Console helpers (never write to pipeline)
-function Write-UiLine {
-  param([string]$Text = '', [ConsoleColor]$Color = 'Gray')
-  Write-Host $Text -ForegroundColor $Color
-}
 
 function Write-UiHeader {
   param([string]$Title)
@@ -217,10 +220,6 @@ function Write-UiBool {
   Write-UiKV -Key $Key -Value $Value -ValueColor $c
 }
 
-function Test-IsAdmin {
-  $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-  $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
 
 function Try-LoadConfigJson {
   param([string]$Path,[string]$Raw)
@@ -261,36 +260,6 @@ function Get-ConfigValue {
   return $p.Value
 }
 
-function Ensure-EventSource {
-  param([string]$Source,[string]$Log)
-
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source
-    }
-  } catch {
-    Add-RunError "Event source check/create failed: $($_.Exception.Message)"
-  }
-}
-
-function Write-HealthEvent {
-  param(
-    [string]$Log,
-    [string]$Source,
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')]
-    [string]$Level = 'Information'
-  )
-
-  try {
-    Write-EventLog -LogName $Log -Source $Source -EntryType $Level -EventId $Id -Message $Msg
-    $Run.Actions.EventLogWritten = $true
-  } catch {
-    Add-RunError "Event write failed: $($_.Exception.Message)"
-    Write-Host "[$Level][$Id] $Msg" -ForegroundColor Yellow
-  }
-}
 
 function Set-QuarantineFlag {
   param(

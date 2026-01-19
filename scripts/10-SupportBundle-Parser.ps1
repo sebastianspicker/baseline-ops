@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
 Parses the newest SupportBundle ZIP in a folder, extracts key metadata, and returns a single structured result object for automation.
@@ -193,6 +194,10 @@ param(
   [switch]$NoColor
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+
+
 Set-StrictMode -Version Latest
 
 # -------------------- Console helpers (no pipeline output) --------------------
@@ -218,75 +223,6 @@ function Get-ConsoleColor {
   }
 }
 
-function Write-ConsoleLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [AllowEmptyString()]
-    [string]$Text,
-
-    [Parameter()]
-    [ValidateSet('Header','Key','Value','Ok','Warn','Error','Muted')]
-    [string]$Role = 'Value'
-  )
-
-  if ($null -eq $Text) { $Text = '' }
-
-  if ($script:ConsoleMode -eq 'Information') {
-    Write-Information -MessageData $Text -InformationAction Continue
-    return
-  }
-
-  $c = Get-ConsoleColor -Role $Role
-  if ($c) { Write-Host $Text -ForegroundColor $c } else { Write-Host $Text }  # Display-only output.
-}
-
-function Write-ConsoleHeader {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$Title
-  )
-
-  Write-ConsoleLine -Text "============================================================" -Role Header
-  Write-ConsoleLine -Text $Title -Role Header
-  Write-ConsoleLine -Text "------------------------------------------------------------" -Role Header
-}
-
-function Write-ConsoleKV {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$Key,
-
-    [Parameter()]
-    [AllowNull()]
-    [object]$Value,
-
-    [Parameter()]
-    [ValidateSet('Value','Ok','Warn','Error','Muted')]
-    [string]$ValueRole = 'Value'
-  )
-
-  $k = ('{0,-12}: ' -f $Key)
-
-  $v = $Value
-  if ($null -eq $v) { $v = '' }
-  $v = "$v"
-
-  if ($script:ConsoleMode -eq 'Information') {
-    Write-Information -MessageData ($k + $v) -InformationAction Continue
-    return
-  }
-
-  $keyColor = Get-ConsoleColor -Role Key
-  if ($keyColor) { Write-Host $k -ForegroundColor $keyColor -NoNewline } else { Write-Host $k -NoNewline }
-
-  $valueColor = if ($script:NoColor) { $null } else { Get-ConsoleColor -Role $ValueRole }
-  if ($valueColor) { Write-Host $v -ForegroundColor $valueColor } else { Write-Host $v }
-}
 
 function ConvertTo-SafeDisplayPath {
   [CmdletBinding()]

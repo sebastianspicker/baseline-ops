@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Audits and optionally remediates a Windows Firewall baseline (profiles, logging, and selected local firewall rules) using a JSON catalog or built-in defaults.
@@ -131,6 +132,12 @@ param(
   [switch]$ShowOkInConsole = $false
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -138,47 +145,11 @@ $ErrorActionPreference = 'Stop'
 # Event log helpers
 # -------------------------
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Source,
-    [Parameter(Mandatory)][string]$LogName
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $LogName -Source $Source -ErrorAction SilentlyContinue
-    }
-  } catch { }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][int]$Id,
-    [Parameter(Mandatory)][string]$Message,
-    [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
-    [Parameter(Mandatory)][string]$Source,
-    [Parameter(Mandatory)][string]$LogName
-  )
-  try {
-    Write-EventLog -LogName $LogName -Source $Source -EntryType $Level -EventId $Id -Message $Message
-  } catch {
-    Write-Information ("[$Level][$Id] $Message") -InformationAction Continue
-  }
-}
 
 # -------------------------
 # Console UI helpers (no pipeline output)
 # -------------------------
 
-function Write-UiLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Text,
-    [ConsoleColor]$Color = [ConsoleColor]::Gray
-  )
-  Write-Host $Text -ForegroundColor $Color
-}
 
 function Write-UiHeader {
   [CmdletBinding()]
@@ -220,17 +191,6 @@ function Write-UiItem {
 # Generic helpers
 # -------------------------
 
-function Test-IsAdmin {
-  [CmdletBinding()]
-  param()
-  try {
-    $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object System.Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch {
-    return $false
-  }
-}
 
 function Expand-EnvPath {
   [CmdletBinding()]
@@ -241,9 +201,9 @@ function Expand-EnvPath {
 
 function Normalize-ProfileValue {
   [CmdletBinding()]
-  param([AllowNull()]$Profile)
-  if ($null -eq $Profile) { return @() }
-  $parts = @($Profile.ToString().Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+  param([AllowNull()]$ProfileValue)
+  if ($null -eq $ProfileValue) { return @() }
+  $parts = @($ProfileValue.ToString().Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
   @($parts | Sort-Object -Unique)
 }
 
@@ -557,8 +517,8 @@ function Disable-InboundByNameLike {
   foreach ($pat in $Patterns) {
     if ([string]::IsNullOrWhiteSpace($pat)) { continue }
 
-    $matches = @($allInbound | Where-Object { $_.DisplayName -like $pat })
-    foreach ($r in $matches) {
+    $matchingRules = @($allInbound | Where-Object { $_.DisplayName -like $pat })
+    foreach ($r in $matchingRules) {
       if ($r.Enabled -eq 'True') {
         $out += (New-ResultItem -Category InboundRuleDisable -Target $pat -Status Drift -Message "Inbound rule enabled" -Name $r.Name -DisplayName $r.DisplayName)
 

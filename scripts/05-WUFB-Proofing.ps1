@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Audits and optionally remediates Windows Update policy registry settings to enforce a desired update source
@@ -109,6 +110,11 @@ param(
   [switch]$Strict,
   [switch]$PassThru
 )
+
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
@@ -223,37 +229,6 @@ function Write-ConsoleSummary {
 # Event log (best-effort)
 # -----------------------------
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param(
-    [string]$Source = 'WUfB-Proofing',
-    [string]$Log    = 'Application'
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source -ErrorAction Stop | Out-Null
-    }
-    return $true
-  } catch {
-    return $false
-  }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][int]$Id,
-    [Parameter(Mandatory)][string]$Msg,
-    [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
-    [string]$Source = 'WUfB-Proofing'
-  )
-  try {
-    Write-EventLog -LogName Application -Source $Source -EntryType $Level -EventId $Id -Message $Msg
-    return $true
-  } catch {
-    return $false
-  }
-}
 
 # -----------------------------
 # Security / registry / file helpers
@@ -268,13 +243,6 @@ function Is-Admin {
   } catch { return $false }
 }
 
-function Ensure-Dir {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -ItemType Directory -Path $Path -Force | Out-Null
-  }
-}
 
 function Ensure-Key {
   [CmdletBinding()]

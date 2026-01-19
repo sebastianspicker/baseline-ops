@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Audits Windows Scheduled Tasks for health and security hygiene, optionally remediates issues, and produces evidence.
@@ -129,6 +130,12 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
@@ -142,10 +149,6 @@ $DefaultProofOutFile   = 'PATH/TO/PROOF/E5-Tasks.json'
 # =========================
 # Console (pretty)
 # =========================
-function Write-UiLine {
-  param([string]$Text = "", [ConsoleColor]$Color = [ConsoleColor]::Gray)
-  Write-Host $Text -ForegroundColor $Color
-}
 
 function Write-UiHeader {
   param([string]$Title)
@@ -187,28 +190,7 @@ function Write-UiStatus {
 # =========================
 # Helpers
 # =========================
-function Ensure-EventSource {
-  param([string]$Source, [string]$Log='Application')
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source -ErrorAction SilentlyContinue
-    }
-  } catch { }
-}
 
-function Write-HealthEvent {
-  param(
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')]$Level='Information',
-    [string]$Source
-  )
-  try {
-    Write-EventLog -LogName Application -Source $Source -EntryType $Level -EventId $Id -Message $Msg
-  } catch {
-    Write-Host "[$Level][$Id] $Msg"
-  }
-}
 
 function Is-Admin {
   try {
@@ -217,11 +199,6 @@ function Is-Admin {
   } catch { return $false }
 }
 
-function Ensure-Dir {
-  param([string]$Path)
-  if ([string]::IsNullOrWhiteSpace($Path)) { return }
-  if (-not (Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
-}
 
 function Save-Json {
   param([object]$Obj,[string]$Path)

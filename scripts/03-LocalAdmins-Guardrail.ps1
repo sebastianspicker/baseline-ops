@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
 Local Administrators Guardrail - detect and optionally remediate unexpected members in the local Administrators group.
@@ -134,6 +135,12 @@ param(
   [switch]$NoPipelineOutput
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
+$script:Quiet = [bool]$Quiet
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -149,36 +156,6 @@ $script:DefaultAllowList = @()
 
 # ---------------- Helper Functions ----------------
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] [string]$Source,
-    [Parameter(Mandatory)] [string]$LogName
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $LogName -Source $Source -ErrorAction SilentlyContinue
-    }
-  } catch {
-    # Best effort only; may be blocked by policy/permissions.
-  }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] [int]$Id,
-    [Parameter(Mandatory)] [string]$Message,
-    [ValidateSet('Information','Warning','Error')] [string]$Level = 'Information'
-  )
-  try {
-    Write-EventLog -LogName $script:EventLogName -Source $script:EventSource -EntryType $Level -EventId $Id -Message $Message
-  } catch {
-    if (-not $Quiet) {
-      Write-Information ("EventLog fallback: [{0}][{1}] {2}" -f $Level, $Id, $Message) -InformationAction Continue
-    }
-  }
-}
 
 function Try-ReadJsonFile {
   [CmdletBinding()]
@@ -455,7 +432,7 @@ function Write-ColorLine {
     [Parameter(Mandatory)] [string]$Text,
     [ValidateSet('Default','Gray','Green','Yellow','Red','Cyan','White')] [string]$Color = 'Default'
   )
-  if ($Quiet) { return }
+  if ($script:Quiet) { return }
 
   switch ($Color) {
     'Gray'   { Write-Host $Text -ForegroundColor DarkGray }
@@ -714,6 +691,6 @@ try {
 }
 
 # Pipeline output: exactly one structured object (unless suppressed)
-#if (-not $NoPipelineOutput) {
-#  $result
-#}
+if (-not $NoPipelineOutput) {
+  $result
+}

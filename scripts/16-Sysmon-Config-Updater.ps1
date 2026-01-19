@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Applies a desired Sysmon configuration in an idempotent, auditable way and reports drift/compliance.
@@ -164,52 +165,17 @@ param(
   [switch]$NoColor
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version Latest
 
 # -----------------------------
 # Helper functions (EN comments for GitHub)
 # -----------------------------
 
-function Test-IsAdmin {
-  try {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-  } catch { return $false }
-}
-
-function Ensure-EventSource {
-  param(
-    [string]$Source = 'Sysmon-Config-Updater',
-    [string]$Log = 'Application'
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source -ErrorAction Stop
-    }
-  } catch {
-    # Soft-fail: event source registration often needs elevation; console output remains available.
-  }
-}
-
-function Write-HealthEvent {
-  param(
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')]$Level = 'Information',
-    [string]$Source = 'Sysmon-Config-Updater'
-  )
-  try {
-    Write-EventLog -LogName Application -Source $Source -EntryType $Level -EventId $Id -Message $Msg
-  } catch {
-    Write-Host "[$Level][$Id] $Msg"
-  }
-}
-
-function Ensure-Dir([string]$p){
-  if ([string]::IsNullOrWhiteSpace($p)) { return }
-  if (-not (Test-Path -LiteralPath $p)) { New-Item -ItemType Directory -Force -Path $p | Out-Null }
-}
 
 function Get-FileSha256([string]$p){
   if (-not $p -or -not (Test-Path -LiteralPath $p)) { return $null }
@@ -467,8 +433,10 @@ function Write-PrettySummary {
     [switch]$NoColor
   )
 
+  $useColor = -not $NoColor
+
   function _Color([string]$Text, [ConsoleColor]$Color) {
-    if ($NoColor) { Write-Host $Text; return }
+    if (-not $useColor) { Write-Host $Text; return }
     Write-Host $Text -ForegroundColor $Color
   }
 

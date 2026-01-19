@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Performs a health check and optional self-healing actions for WinGet on a Windows device.
@@ -143,6 +144,15 @@ param(
   [switch]$PassThruRecords
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
+$script:NoConsole = [bool]$NoConsole
+$script:PassThruRecords = [bool]$PassThruRecords
+
+
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
@@ -160,47 +170,6 @@ $EventLogName = "Application"
 
 # ---------------- Console Helpers ----------------
 
-function Write-ConsoleLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Text,
-    [ValidateSet('Gray','Green','Yellow','Red','Cyan','White')] [string]$Color = 'Gray',
-    [switch]$NoNewline
-  )
-
-  if ($script:NoConsole) { return }
-
-  $fg = $Color
-  if ($NoNewline) {
-    Write-Host $Text -ForegroundColor $fg -NoNewline
-  } else {
-    Write-Host $Text -ForegroundColor $fg
-  }
-}
-
-function Write-ConsoleHeader {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Title)
-
-  if ($script:NoConsole) { return }
-
-  Write-Host ""
-  Write-Host ("==== {0} ====" -f $Title) -ForegroundColor Cyan
-}
-
-function Write-ConsoleKV {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowEmptyString()][string]$Value,
-    [ValidateSet('Gray','Green','Yellow','Red','Cyan','White')] [string]$ValueColor = 'White'
-  )
-
-  if ($script:NoConsole) { return }
-
-  Write-Host ("{0}: " -f $Key) -NoNewline -ForegroundColor Gray
-  Write-Host ("" + $Value) -ForegroundColor $ValueColor
-}
 
 function Get-StatusColor {
   [CmdletBinding()]
@@ -217,37 +186,6 @@ function Get-StatusColor {
 
 # ---------------- Event Log Helpers ----------------
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param([string]$Source,[string]$LogName)
-
-  # Creating an event source requires admin rights on modern Windows. [web:2]
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $LogName -Source $Source -ErrorAction Stop
-    }
-  } catch { }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')] [string]$Level = 'Information',
-    [string]$Source,
-    [string]$LogName
-  )
-
-  try {
-    Write-EventLog -LogName $LogName -Source $Source -EntryType $Level -EventId $Id -Message $Msg -ErrorAction Stop
-  } catch {
-    # If event writing fails (missing source/permissions), do not fail the run.
-    if (-not $script:NoConsole) {
-      Write-Host ("[EventLog:{0}:{1}] {2}" -f $Level, $Id, $Msg) -ForegroundColor DarkGray
-    }
-  }
-}
 
 # ---------------- Structured Output Helpers ----------------
 
@@ -381,13 +319,13 @@ function Invoke-Winget {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$WingetPath,
-    [Parameter(Mandatory)][string[]]$Args,
+    [Parameter(Mandatory)][string[]]$WingetArgs,
     [int]$TimeoutSec = 120
   )
 
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $WingetPath
-  $psi.Arguments = ($Args | ForEach-Object { ConvertTo-QuotedArg $_ }) -join ' '
+  $psi.Arguments = ($WingetArgs | ForEach-Object { ConvertTo-QuotedArg $_ }) -join ' '
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError  = $true
   $psi.UseShellExecute = $false
@@ -403,7 +341,7 @@ function Invoke-Winget {
       ExitCode = 408
       StdOut   = ''
       StdErr   = "Timeout after $TimeoutSec s"
-      Args     = $Args
+      Args     = $WingetArgs
     }
   }
 
@@ -411,7 +349,7 @@ function Invoke-Winget {
     ExitCode = $p.ExitCode
     StdOut   = $p.StandardOutput.ReadToEnd()
     StdErr   = $p.StandardError.ReadToEnd()
-    Args     = $Args
+    Args     = $WingetArgs
   }
 }
 
@@ -432,7 +370,7 @@ function Get-WingetErrorText {
   )
 
   try {
-    $res = Invoke-Winget -WingetPath $WingetPath -Args @('error','--input',"$ExitCode") -TimeoutSec 30
+    $res = Invoke-Winget -WingetPath $WingetPath -WingetArgs @('error','--input',"$ExitCode") -TimeoutSec 30
     $t = ($res.StdOut + "`n" + $res.StdErr).Trim()
     if ($t) { return $t }
   } catch { }
@@ -479,7 +417,7 @@ function Test-WingetSupportsAcceptSourceAgreements {
   param([Parameter(Mandatory)][string]$WingetPath)
 
   try {
-    $h = Invoke-Winget -WingetPath $WingetPath -Args @('source','update','--help') -TimeoutSec 30
+    $h = Invoke-Winget -WingetPath $WingetPath -WingetArgs @('source','update','--help') -TimeoutSec 30
     $t = ($h.StdOut + "`n" + $h.StdErr)
     if ($t -match '--accept-source-agreements') { return $true }
   } catch { }
@@ -496,10 +434,10 @@ function Invoke-WingetSourceUpdate {
   )
 
   # Use "-n <name>" for compatibility with documented syntax. [web:12]
-  $args = @('source','update')
-  if ($SourceName) { $args += @('-n', $SourceName) }
-  if ($SupportAcceptSourceAgreements) { $args += '--accept-source-agreements' }
-  return Invoke-Winget -WingetPath $WingetPath -Args $args
+  $wingetArgs = @('source','update')
+  if ($SourceName) { $wingetArgs += @('-n', $SourceName) }
+  if ($SupportAcceptSourceAgreements) { $wingetArgs += '--accept-source-agreements' }
+  return Invoke-Winget -WingetPath $WingetPath -WingetArgs $wingetArgs
 }
 
 # ---------------- VC++ Helpers ----------------
@@ -530,13 +468,13 @@ function Install-VcRedist {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$Path,
-    [string]$Args = "/install /quiet /norestart"
+    [string]$InstallArgs = "/install /quiet /norestart"
   )
 
   if (-not (Test-Path -LiteralPath $Path)) { return $false, "Installer not found: $Path" }
 
   try {
-    $p = Start-Process -FilePath $Path -ArgumentList $Args -Wait -PassThru -WindowStyle Hidden
+    $p = Start-Process -FilePath $Path -ArgumentList $InstallArgs -Wait -PassThru -WindowStyle Hidden
     if ($p.ExitCode -eq 0) { return $true, "OK" }
     return $false, "ExitCode=$($p.ExitCode)"
   } catch { return $false, $_.Exception.Message }
@@ -551,13 +489,13 @@ function Test-WingetSourcePresent {
     [Parameter(Mandatory)][string]$Name
   )
 
-  $res = Invoke-Winget -WingetPath $WingetPath -Args @('source','list','-n',$Name)
+  $res = Invoke-Winget -WingetPath $WingetPath -WingetArgs @('source','list','-n',$Name)
   if ($res.ExitCode -eq 0) {
     if ($res.StdOut -match [regex]::Escape($Name)) { return $true, "Found via 'source list -n'" }
     return $true, "ExitCode=0 (assumed present)"
   }
 
-  $res2 = Invoke-Winget -WingetPath $WingetPath -Args @('source','list')
+  $res2 = Invoke-Winget -WingetPath $WingetPath -WingetArgs @('source','list')
   if ($res2.ExitCode -eq 0 -and $res2.StdOut -match ("(?im)^\s*" + [regex]::Escape($Name) + "\b")) {
     return $true, "Found via 'source list'"
   }
@@ -592,7 +530,7 @@ function Ensure-PrivateSource {
   if (-not $DoIt) { return $false, "Missing (no remediation). Detail: $detail" }
   if ([string]::IsNullOrWhiteSpace($Url)) { return $false, "Missing and no URL configured. Detail: $detail" }
 
-  $add = Invoke-Winget -WingetPath $WingetPath -Args @(
+  $add = Invoke-Winget -WingetPath $WingetPath -WingetArgs @(
     'source','add',
     '-n', $Name,
     '-t', $Type,
@@ -659,7 +597,7 @@ try {
   } else {
     $env:WINGET_SUPPRESS_PROMPT = "1"
 
-    $verRes = Invoke-Winget -WingetPath $wg -Args @('--version')
+  $verRes = Invoke-Winget -WingetPath $wg -WingetArgs @('--version')
     $v = Parse-Version $verRes.StdOut
     $wingetVersionRaw = ($verRes.StdOut.Trim())
 
@@ -690,7 +628,7 @@ try {
     if ($Remediate) {
       if ($vcX64Path) {
         $r = $false; $m = $null
-        $r, $m = Install-VcRedist -Path $vcX64Path -Args $vcArgs
+        $r, $m = Install-VcRedist -Path $vcX64Path -InstallArgs $vcArgs
         $st = 'Error'; $ms = 'Install failed.'
         if ($r) { $st = 'OK'; $ms = 'Installed.' }
         Add-Record -List $records -Record (New-CheckRecord -Name 'VcRedistX64Remediation' -Status $st -Message $ms -Data @{
@@ -712,7 +650,7 @@ try {
     Add-Record -List $records -Record (New-CheckRecord -Name 'VcRedistX86' -Status 'Warning' -Message 'Not installed (optional).')
     if ($Remediate -and $vcX86Path) {
       $r = $false; $m = $null
-      $r, $m = Install-VcRedist -Path $vcX86Path -Args $vcArgs
+      $r, $m = Install-VcRedist -Path $vcX86Path -InstallArgs $vcArgs
       $st = 'Error'; $ms = 'Install failed.'
       if ($r) { $st = 'OK'; $ms = 'Installed.' }
       Add-Record -List $records -Record (New-CheckRecord -Name 'VcRedistX86Remediation' -Status $st -Message $ms -Data @{
@@ -811,17 +749,7 @@ try {
   }
 
   # ---- Pipeline output (structured) ----
-#   $result = [pscustomobject]@{
-#     Time                 = (Get-Date).ToString('s')
-#     OverallStatus        = if ($overallOk) { 'OK' } else { 'NOT_OK' }
-#     Remediate            = [bool]$Remediate
-#     RequirePrivateSource = $RequirePrivateSource
-#     ConfigPath           = 'PATH/TO/JSON'
-#     WingetVersion        = $wingetVersionRaw
-#     Records              = $records.ToArray()
-#   }
-
-#  if ($PassThruRecords) { $result.Records } else { $result }
+  if ($script:PassThruRecords) { $records.ToArray() }
 
   if ($overallOk) { exit 0 } else { exit 1 }
 }

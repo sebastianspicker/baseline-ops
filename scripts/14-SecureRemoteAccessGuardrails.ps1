@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Audits and optionally enforces secure “remote access guardrails” on a Windows endpoint by aligning RDP, Remote Assistance, Windows Firewall, and local group membership to a defined policy.
@@ -130,6 +131,12 @@ param(
   [string]$ProofPath  = "PATH/TO/JSON/proof/14-SecureRemoteAccessGuardrails.json"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version 2.0
 
 # ----------------------------
@@ -167,16 +174,6 @@ $DefaultCatalogJson = @"
 # ----------------------------
 # UI helpers (console only)
 # ----------------------------
-function Write-UiLine {
-  param(
-    [Parameter(Mandatory=$true)][string]$Text,
-    [ValidateSet('Gray','DarkGray','White','Green','Yellow','Red','Cyan','Magenta')][string]$Color = 'Gray',
-    [switch]$NoNewLine
-  )
-  $fg = [ConsoleColor]::$Color
-  if ($NoNewLine) { Write-Host $Text -ForegroundColor $fg -NoNewline }
-  else { Write-Host $Text -ForegroundColor $fg }
-}
 
 function Write-UiSeparator {
   param([string]$Title = '')
@@ -205,30 +202,7 @@ function Write-UiList {
 # ----------------------------
 # Generic helpers (no console formatting here)
 # ----------------------------
-function Ensure-EventSource {
-  param([string]$Source,[string]$LogName)
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $LogName -Source $Source -ErrorAction Stop | Out-Null
-    }
-  } catch { }
-}
 
-function Write-HealthEvent {
-  param(
-    [int]$Id,
-    [string]$Message,
-    [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
-    [string]$Source = $ScriptEventSource,
-    [string]$LogName = $ScriptEventLog
-  )
-  try {
-    Write-EventLog -LogName $LogName -Source $Source -EntryType $Level -EventId $Id -Message $Message -ErrorAction Stop
-  } catch {
-    # Fall back to console only; do not write to pipeline.
-    Write-Host "[$Level][$Id] $Message"
-  }
-}
 
 function Test-IsElevated {
   try {
@@ -261,14 +235,6 @@ function Get-RegDword {
   catch { return $null }
 }
 
-function Set-RegDword {
-  param([string]$Path,[string]$Name,[int]$Value)
-  try {
-    New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
-    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force -ErrorAction Stop | Out-Null
-    return $true
-  } catch { return $false }
-}
 
 function ConvertFrom-JsonSafe {
   param([string]$JsonText)

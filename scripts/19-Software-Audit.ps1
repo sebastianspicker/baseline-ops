@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Audits installed Windows software against a JSON-based whitelist/blacklist catalog and returns a structured audit result.
@@ -104,6 +105,11 @@ param(
   [string]$ConfigPath = "PATH\TO\JSON\config.json"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version 2.0
 
 # -------------------- Settings --------------------
@@ -156,21 +162,6 @@ function Get-PropInt {
 }
 
 # -------------------- Helpers: filesystem + JSON --------------------
-function Ensure-Directory {
-  [CmdletBinding()]
-  param([Parameter(Mandatory=$true)][string]$Path)
-
-  if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
-
-  try {
-    if (-not (Test-Path -LiteralPath $Path)) {
-      New-Item -ItemType Directory -Path $Path -Force | Out-Null
-    }
-    return $true
-  } catch {
-    return $false
-  }
-}
 
 function Read-JsonFile {
   [CmdletBinding()]
@@ -218,8 +209,8 @@ function New-CatalogWrapper {
     if ($CatalogObject.PSObject.Properties.Match('Blacklist').Count -gt 0 -and $CatalogObject.Blacklist) { $bl = @($CatalogObject.Blacklist) }
   }
 
-  if ($wl -eq $null) { $wl = @() }
-  if ($bl -eq $null) { $bl = @() }
+  if ($null -eq $wl) { $wl = @() }
+  if ($null -eq $bl) { $bl = @() }
 
   [pscustomobject]@{
     Meta      = [pscustomobject]@{ Source = $Source; Loaded = $Loaded }
@@ -258,49 +249,7 @@ function Load-Catalog {
 }
 
 # -------------------- Event logging (best effort) --------------------
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param(
-    [string]$Source = $Script:EventSourceName,
-    [string]$Log    = $Script:EventLogName
-  )
 
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source -ErrorAction Stop
-    }
-    return $true
-  } catch {
-    return $false
-  }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory=$true)][int]$Id,
-    [Parameter(Mandatory=$true)][string]$Msg,
-    [ValidateSet('Information','Warning','Error')]$Level = 'Information',
-    [string]$Source = $Script:EventSourceName,
-    [string]$FallbackPath = $Script:FallbackEventLog
-  )
-
-  # Write-EventLog requires -Message to be a string.
-  $safeMsg = [string]$Msg
-
-  try {
-    Write-EventLog -LogName $Script:EventLogName -Source $Source -EntryType $Level -EventId $Id -Message $safeMsg -ErrorAction Stop
-    return $true
-  } catch {
-    try {
-      $dir = Split-Path -Parent $FallbackPath
-      if ($dir) { Ensure-Directory -Path $dir | Out-Null }
-      ("{0} [{1}] [{2}] {3}" -f (Get-Date).ToString('s'), $Level, $Id, $safeMsg) |
-        Add-Content -Encoding UTF8 -LiteralPath $FallbackPath
-    } catch {}
-    return $false
-  }
-}
 
 # -------------------- Inventory (pipeline-friendly) --------------------
 function Get-InstalledSoftware {

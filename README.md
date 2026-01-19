@@ -19,6 +19,12 @@ Typical use cases:
 - Administrator rights for scripts that change system settings.
 - Optional: Sysmon, Microsoft Defender, BitLocker, WinGet (depending on script).
 
+## Shared modules (lib)
+Common helper functions live in `lib/` to keep scripts consistent and deduplicated:
+- `Common.psm1`, `Output.psm1`, `Registry.psm1`, `Config.psm1`, `EventLog.psm1`, `Results.psm1`
+- Findings are standardized via `Results.psm1` (Code/Severity/Message + optional metadata)
+See `lib/README.md` for details and the recommended import pattern.
+
 ## Quick start (safe defaults)
 ### 1) Clone
 ```

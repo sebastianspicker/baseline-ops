@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Checks Local Administrator Password Solution (LAPS) health on a Windows device and optionally triggers a Windows LAPS password rotation.
@@ -111,6 +112,11 @@ param(
   [int]$MinDaysBeforeRotate = 0,
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
+
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
 
 Set-StrictMode -Version 2.0
 
@@ -241,35 +247,6 @@ function ConvertTo-BoolSafe {
   }
 }
 
-function Write-UiLine {
-  [CmdletBinding()]
-  param(
-    [AllowNull()]
-    [AllowEmptyString()]
-    [string]$Text = '',
-    [ValidateSet('Default','Title','Good','Warn','Bad','Dim')]
-    [string]$Style = 'Default'
-  )
-
-  if (-not $Config.Console.Enabled) { return }
-  if ($null -eq $Text) { $Text = '' }
-
-  $color = 'Gray'
-  switch ($Style) {
-    'Title' { $color = 'Cyan' }
-    'Good'  { $color = 'Green' }
-    'Warn'  { $color = 'Yellow' }
-    'Bad'   { $color = 'Red' }
-    'Dim'   { $color = 'DarkGray' }
-    default { $color = 'Gray' }
-  }
-
-  if ($Config.Console.UseWriteInformation) {
-    Write-Information $Text -InformationAction Continue
-  } else {
-    Write-Host $Text -ForegroundColor $color
-  }
-}
 
 function Write-UiSeparator {
   [CmdletBinding()]
@@ -306,18 +283,6 @@ function Get-StyleForBool {
 
 # --------------------------- Event Log Helpers -------------------------------------
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Source,
-    [Parameter(Mandatory)][string]$LogName
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $LogName -Source $Source -ErrorAction Stop
-    }
-  } catch { }
-}
 
 function Try-WriteHealthEvent {
   [CmdletBinding()]
@@ -679,7 +644,7 @@ try {
     $result.BackupDirectory = Convert-BackupDirectoryToText -BackupDirectory $bd
   }
 
-  if ($result.PolicyPasswordAgeDays -ne $null) {
+  if ($null -ne $result.PolicyPasswordAgeDays) {
     $result.ThresholdDays = [math]::Max(0, ([int]$result.PolicyPasswordAgeDays - [int]$MinDaysBeforeRotate))
   }
 
@@ -691,17 +656,17 @@ try {
       $result.NeedsRotate = $true
     }
 
-    if ($result.PasswordAgeDays -eq $null) {
+    if ($null -eq $result.PasswordAgeDays) {
       $reasonsList.Add("PasswordLastSet unknown (source=$($adminInfo.Source))")
       if ($isWin) { $result.NeedsRotate = $true }
     } else {
-      if ($result.ThresholdDays -ne $null -and $result.PasswordAgeDays -ge $result.ThresholdDays) {
+      if ($null -ne $result.ThresholdDays -and $result.PasswordAgeDays -ge $result.ThresholdDays) {
         $reasonsList.Add("Password age $($result.PasswordAgeDays) d >= threshold $($result.ThresholdDays) d")
         $result.NeedsRotate = $true
       }
     }
 
-    if ($isWin -and ($result.BackupDirectoryRaw -eq $null -or $result.BackupDirectoryRaw -eq 0)) {
+    if ($isWin -and ($null -eq $result.BackupDirectoryRaw -or $result.BackupDirectoryRaw -eq 0)) {
       $reasonsList.Add("BackupDirectory is not configured or disabled")
     }
   }
@@ -730,7 +695,7 @@ try {
 
   $ok = $true
   if (-not $active) { $ok = $false }
-  if ($isWin -and ($result.BackupDirectoryRaw -eq $null -or $result.BackupDirectoryRaw -eq 0)) { $ok = $false }
+  if ($isWin -and ($null -eq $result.BackupDirectoryRaw -or $result.BackupDirectoryRaw -eq 0)) { $ok = $false }
   if ($Remediate -and $isWin -and $result.NeedsRotate -and -not $result.Rotated) { $ok = $false }
   if ($Remediate -and $isLeg -and $result.NeedsRotate) { $ok = $false; $reasonsList.Add("Remediation for Legacy LAPS is not implemented") }
 
@@ -748,8 +713,8 @@ $eventMessage = @(
   "LAPS Hygiene",
   "PolicyType=$($result.PolicyType) Mechanism=$($result.PolicyMechanism) Root=$($result.PolicyRoot)",
   "Account=$($result.ManagedAccount) Exists=$($result.ManagedAccountExists) Enabled=$($result.ManagedAccountEnabled)",
-  "PasswordLastSet=$(To-Iso $result.PasswordLastSet) AgeDays=$(if ($result.PasswordAgeDays -ne $null) { $result.PasswordAgeDays } else { 'n/a' })",
-  "PolicyAgeDays=$($result.PolicyPasswordAgeDays) MinDaysBeforeRotate=$($result.MinDaysBeforeRotate) ThresholdDays=$(if ($result.ThresholdDays -ne $null) { $result.ThresholdDays } else { 'n/a' })",
+  "PasswordLastSet=$(To-Iso $result.PasswordLastSet) AgeDays=$(if ($null -ne $result.PasswordAgeDays) { $result.PasswordAgeDays } else { 'n/a' })",
+  "PolicyAgeDays=$($result.PolicyPasswordAgeDays) MinDaysBeforeRotate=$($result.MinDaysBeforeRotate) ThresholdDays=$(if ($null -ne $result.ThresholdDays) { $result.ThresholdDays } else { 'n/a' })",
   "BackupDirectory=$($result.BackupDirectory)",
   "Joined: AAD=$($result.AADJoined) AD=$($result.ADJoined)",
   "NeedsRotate=$($result.NeedsRotate) Remediate=$($result.Remediate) Rotated=$($result.Rotated) Via=$($result.RotationMethod)",
@@ -784,16 +749,16 @@ Write-UiKv -Key "Account exists"  -Value ([string]$result.ManagedAccountExists) 
 Write-UiKv -Key "Account enabled" -Value ([string]$result.ManagedAccountEnabled) -ValueStyle (Get-StyleForBool $result.ManagedAccountEnabled)
 
 Write-UiKv -Key "Pwd last set"    -Value ([string](To-Iso $result.PasswordLastSet)) -ValueStyle 'Dim'
-Write-UiKv -Key "Pwd age (days)"  -Value ([string]($(if ($result.PasswordAgeDays -ne $null) { $result.PasswordAgeDays } else { 'n/a' }))) -ValueStyle 'Default'
+Write-UiKv -Key "Pwd age (days)"  -Value ([string]($(if ($null -ne $result.PasswordAgeDays) { $result.PasswordAgeDays } else { 'n/a' }))) -ValueStyle 'Default'
 
 Write-UiSeparator -Char '-' -Width $Config.Console.Width -Style 'Dim'
 
 Write-UiKv -Key "Policy age (d)"  -Value ([string]$result.PolicyPasswordAgeDays) -ValueStyle 'Default'
-Write-UiKv -Key "Threshold (d)"   -Value ([string]($(if ($result.ThresholdDays -ne $null) { $result.ThresholdDays } else { 'n/a' }))) -ValueStyle 'Default'
+Write-UiKv -Key "Threshold (d)"   -Value ([string]($(if ($null -ne $result.ThresholdDays) { $result.ThresholdDays } else { 'n/a' }))) -ValueStyle 'Default'
 
 $bdStyle = 'Dim'
 if ($result.PolicyType -eq 'WindowsLAPS') {
-  if ($result.BackupDirectoryRaw -eq $null -or $result.BackupDirectoryRaw -eq 0) { $bdStyle = 'Bad' } else { $bdStyle = 'Good' }
+  if ($null -eq $result.BackupDirectoryRaw -or $result.BackupDirectoryRaw -eq 0) { $bdStyle = 'Bad' } else { $bdStyle = 'Good' }
 }
 Write-UiKv -Key "BackupDirectory" -Value $result.BackupDirectory -ValueStyle $bdStyle
 

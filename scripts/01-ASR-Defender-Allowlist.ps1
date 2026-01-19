@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Synchronizes Microsoft Defender Antivirus exclusions, Attack Surface Reduction (ASR) Only Exclusions, and Controlled Folder Access (CFA) allowlists from a JSON definition.
@@ -120,6 +121,10 @@ param(
   [string]$BaselineMode = 'Minimum'
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -222,40 +227,6 @@ function Get-Config {
   return $null
 }
 
-function Ensure-EventSource {
-  [CmdletBinding()]
-  param([string]$Source='Defender-Allowlist-Sync',[string]$Log='Application')
-
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source | Out-Null
-    }
-    return $true
-  } catch {
-    return $false
-  }
-}
-
-function Write-HealthEvent {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory=$true)][int]$Id,
-    [Parameter(Mandatory=$true)][string]$Msg,
-    [ValidateSet('Information','Warning','Error')][string]$Level='Information',
-    [string]$Source='Defender-Allowlist-Sync',
-    [bool]$EventLogReady = $false
-  )
-
-  try {
-    if ($EventLogReady) {
-      Write-EventLog -LogName Application -Source $Source -EntryType $Level -EventId $Id -Message $Msg
-    } else {
-      throw "EventLog source not available."
-    }
-  } catch {
-    Write-Host "[$Level][$Id] $Msg"
-  }
-}
 
 function Write-AuditJson {
   [CmdletBinding()]
@@ -280,14 +251,15 @@ function Write-AuditJson {
 function To-NormList {
   [CmdletBinding()]
   param(
-    [object]$Input,
+    [Alias('Input')]
+    [object]$InputValue,
     [ValidateSet('path','process','ext','generic','cfaapp')][string]$Kind='generic'
   )
 
-  if (-not $Input) { return @() }
+  if (-not $InputValue) { return @() }
 
   $arr = New-Object System.Collections.Generic.List[string]
-  foreach ($v in @($Input)) {
+  foreach ($v in @($InputValue)) {
     if ($null -eq $v) { continue }
     $s = ([string]$v).Trim()
     if ([string]::IsNullOrWhiteSpace($s)) { continue }
@@ -488,10 +460,6 @@ function Write-ConsoleSummary {
     Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "Per-category diff:" -ForegroundColor DarkGray
     foreach ($row in ($Result.PerCategory | Sort-Object Name)) {
-      $aColor = if ($row.Add -gt 0) { 'Yellow' } else { 'DarkGray' }
-      $rColor = if ($row.Remove -gt 0) { 'Yellow' } else { 'DarkGray' }
-      $xColor = if ($row.Rejected -gt 0) { 'Yellow' } else { 'DarkGray' }
-
       Write-Host ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
       if ($row.Add -gt 0 -or $row.Remove -gt 0 -or $row.Rejected -gt 0) {
         # Optional: highlight lines with changes (second line in color to avoid pipeline)

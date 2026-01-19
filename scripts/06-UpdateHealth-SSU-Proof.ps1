@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
 Generates a compliance-style proof report for Microsoft Update Health Tools (UHT), Servicing Stack (SSU), and core Windows Update services, with optional remediation.
@@ -110,33 +111,18 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 # ------------------------------------ Globals --------------------------------------
 $script:EventSource = 'UpdateHealth-SSU-Proof'
 $script:EventLog    = 'Application'
 $script:FallbackLog = "PATH/TO/JSON/logs/UpdateHealth-SSU-Proof.log"
 
 # -------------------------------- Console helpers ----------------------------------
-function Write-UiLine {
-  param(
-    [string]$Text,
-    [ValidateSet('Default','Info','Ok','Warn','Err','Dim','Header')]
-    [string]$Style = 'Default'
-  )
-
-  $fg = $null
-  switch ($Style) {
-    'Header' { $fg = 'Cyan' }
-    'Ok'     { $fg = 'Green' }
-    'Info'   { $fg = 'Gray' }
-    'Warn'   { $fg = 'Yellow' }
-    'Err'    { $fg = 'Red' }
-    'Dim'    { $fg = 'DarkGray' }
-    default  { $fg = $null }
-  }
-
-  if ($fg) { Write-Host $Text -ForegroundColor $fg }  # Write-Host supports ForegroundColor.
-  else { Write-Host $Text }
-}
 
 function Write-UiKeyValue {
   param(
@@ -149,11 +135,6 @@ function Write-UiKeyValue {
 }
 
 # ------------------------------------ Helpers --------------------------------------
-function Ensure-Dir {
-  param([string]$Path)
-  if ([string]::IsNullOrWhiteSpace($Path)) { return }
-  if (-not (Test-Path -LiteralPath $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
-}
 
 function Write-FallbackLogLine {
   param([string]$Line)
@@ -163,39 +144,6 @@ function Write-FallbackLogLine {
   } catch { }
 }
 
-function Ensure-EventSource {
-  param(
-    [string]$Source = $script:EventSource,
-    [string]$Log    = $script:EventLog
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source -ErrorAction Stop
-    }
-    return $true
-  } catch {
-    Write-FallbackLogLine ("EventSource init failed (Source={0}, Log={1}): {2}" -f $Source,$Log,$_.Exception.Message)
-    return $false
-  }
-}
-
-function Write-HealthEvent {
-  param(
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')]
-    [string]$Level = 'Information',
-    [string]$Source = $script:EventSource,
-    [string]$LogName = $script:EventLog
-  )
-  try {
-    Write-EventLog -LogName $LogName -Source $Source -EntryType $Level -EventId $Id -Message $Msg -ErrorAction Stop
-    return $true
-  } catch {
-    Write-FallbackLogLine ("EventLog write failed ({0}/{1}): {2} | Error: {3}" -f $Level,$Id,$Msg,$_.Exception.Message)
-    return $false
-  }
-}
 
 function Is-Admin {
   try {
@@ -220,7 +168,7 @@ function Save-Json {
 
 function Get-SafeString {
   param($Value,[string]$Default)
-  if ($Value -eq $null) { return $Default }
+  if ($null -eq $Value) { return $Default }
   $s = [string]$Value
   if ([string]::IsNullOrWhiteSpace($s)) { return $Default }
   return $s
@@ -279,7 +227,7 @@ function Add-ArrayList {
 
 function Add-ArrayListMany {
   param([System.Collections.ArrayList]$List,$Items)
-  if ($Items -eq $null) { return }
+  if ($null -eq $Items) { return }
   foreach($i in @($Items)) { [void]$List.Add($i) }
 }
 
@@ -634,7 +582,7 @@ try {
   $evidence.UpdateHealthTools = $u
 
   $uhtRequire = $true
-  if ($cat -and $cat.UpdateHealthTools -and ($cat.UpdateHealthTools.Require -ne $null)) { $uhtRequire = [bool]$cat.UpdateHealthTools.Require }
+  if ($cat -and $cat.UpdateHealthTools -and ($null -ne $cat.UpdateHealthTools.Require)) { $uhtRequire = [bool]$cat.UpdateHealthTools.Require }
 
   if ($uhtRequire -and -not $u.Installed) {
     Add-ArrayList $findings (New-Finding -Area 'UHT' -Severity 'Error' -Message 'Not installed.')
@@ -649,7 +597,7 @@ try {
 
     if ($have) {
       $cmp = Compare-Version $have $minUht
-      if ($cmp -eq $null) {
+      if ($null -eq $cmp) {
         Add-ArrayList $findings (New-Finding -Area 'UHT' -Severity 'Warning' -Message ("Version compare failed ({0}='{1}' vs Min='{2}')." -f $haveSrc,$have,$minUht))
       } elseif ($cmp -lt 0) {
         Add-ArrayList $findings (New-Finding -Area 'UHT' -Severity 'Warning' -Message ("{0} {1} < Min {2}." -f $haveSrc,$have,$minUht))
@@ -695,7 +643,7 @@ try {
     }
 
     $ensureTasks = $true
-    if ($cat -and $cat.UpdateHealthTools -and ($cat.UpdateHealthTools.EnsureTasksEnabled -ne $null)) { $ensureTasks = [bool]$cat.UpdateHealthTools.EnsureTasksEnabled }
+    if ($cat -and $cat.UpdateHealthTools -and ($null -ne $cat.UpdateHealthTools.EnsureTasksEnabled)) { $ensureTasks = [bool]$cat.UpdateHealthTools.EnsureTasksEnabled }
     if ($ensureTasks) {
       $taskFolder = '\Microsoft\UpdateHealthService\'
       if ($cat -and $cat.UpdateHealthTools -and $cat.UpdateHealthTools.TaskFolder) { $taskFolder = [string]$cat.UpdateHealthTools.TaskFolder }
@@ -717,7 +665,7 @@ try {
   if ($minSsu) {
     if ($s.Version) {
       $cmp = Compare-Version $s.Version $minSsu
-      if ($cmp -eq $null) {
+      if ($null -eq $cmp) {
         Add-ArrayList $findings (New-Finding -Area 'SSU' -Severity 'Warning' -Message ("Version compare failed (Have='{0}' vs Min='{1}', Source={2})." -f $s.Version,$minSsu,$s.Source))
       } elseif ($cmp -lt 0) {
         Add-ArrayList $findings (New-Finding -Area 'SSU' -Severity 'Warning' -Message ("{0} < Min {1} (Source={2})." -f $s.Version,$minSsu,$s.Source))

@@ -1,3 +1,4 @@
+#requires -version 5.1
 <#
 .SYNOPSIS
   Audits and (optionally) remediates Windows hardening controls related to LSASS protection, virtualization-based security, and driver abuse prevention.
@@ -117,44 +118,16 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON"
 )
 
+$script:LibPath = Join-Path $PSScriptRoot 'lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+
+
 # -----------------------------
 # Helper functions (PS 5.1 compatible)
 # -----------------------------
-function Test-IsAdmin {
-  try {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch { return $false }
-}
 
-function Ensure-EventSource {
-  param(
-    [string]$Source = 'WinSecBaseline',
-    [string]$Log    = 'Application'
-  )
-  try {
-    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
-      New-EventLog -LogName $Log -Source $Source -ErrorAction Stop
-    }
-  } catch {
-    # Best effort only.
-  }
-}
-
-function Write-HealthEvent {
-  param(
-    [int]$Id,
-    [string]$Msg,
-    [ValidateSet('Information','Warning','Error')]$Level = 'Information',
-    [string]$Source = 'WinSecBaseline'
-  )
-  try {
-    Write-EventLog -LogName Application -Source $Source -EntryType $Level -EventId $Id -Message $Msg -ErrorAction Stop
-  } catch {
-    Write-Host ("[{0}][{1}] {2}" -f $Level,$Id,$Msg)
-  }
-}
 
 function Get-RegDword {
   param(
@@ -169,18 +142,6 @@ function Get-RegDword {
   } catch { return $null }
 }
 
-function Set-RegDword {
-  param(
-    [string]$Path,
-    [string]$Name,
-    [int]$Value
-  )
-  try {
-    New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
-    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force -ErrorAction Stop | Out-Null
-    return $true
-  } catch { return $false }
-}
 
 function Get-DeviceGuardInfo {
   try {
@@ -574,13 +535,13 @@ try {
         $result.RebootRequired = $true
       }
     }
-    if (($result.Dg_RequirePlatformSec -eq $null) -or ($result.Dg_RequirePlatformSec -eq 0) -or ($result.Dg_RequirePlatformSec -ne [int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)) {
+    if (($null -eq $result.Dg_RequirePlatformSec) -or ($result.Dg_RequirePlatformSec -eq 0) -or ($result.Dg_RequirePlatformSec -ne [int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)) {
       if (Set-RegDword -Path $dgRoot -Name 'RequirePlatformSecurityFeatures' -Value ([int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)) {
         $result.RemediationActions += ("Set RequirePlatformSecurityFeatures={0}" -f [int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)
         $result.RebootRequired = $true
       }
     }
-    if (($result.Dg_Locked -eq $null) -or ($result.Dg_Locked -ne [int]$cfg.Baseline_Vbs_Locked)) {
+    if (($null -eq $result.Dg_Locked) -or ($result.Dg_Locked -ne [int]$cfg.Baseline_Vbs_Locked)) {
       if (Set-RegDword -Path $dgRoot -Name 'Locked' -Value ([int]$cfg.Baseline_Vbs_Locked)) {
         $result.RemediationActions += ("Set DeviceGuard Locked={0}" -f [int]$cfg.Baseline_Vbs_Locked)
         $result.RebootRequired = $true
@@ -602,7 +563,7 @@ try {
         $result.RebootRequired = $true
       }
     }
-    if (($result.Hvci_Locked -eq $null) -or ($result.Hvci_Locked -ne [int]$cfg.Baseline_Hvci_Locked)) {
+    if (($null -eq $result.Hvci_Locked) -or ($result.Hvci_Locked -ne [int]$cfg.Baseline_Hvci_Locked)) {
       if (Set-RegDword -Path $scHVCI -Name 'Locked' -Value ([int]$cfg.Baseline_Hvci_Locked)) {
         $result.RemediationActions += ("Set HVCI Locked={0}" -f [int]$cfg.Baseline_Hvci_Locked)
         $result.RebootRequired = $true
