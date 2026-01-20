@@ -52,6 +52,19 @@ Stop-Transcript
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\NAME_OF_SCRIPT.ps1
 ```
 
+## Deployment helpers
+Two helper scripts are included to pull the latest repo and run scripts from a local staging path:
+- `scripts/00-Copy-Local.ps1`: Pulls the latest repo (default URL) into `C:\install\mdm\ps1\_repo` and copies `scripts/` + `lib/` to `C:\install\mdm\ps1\`.
+- `scripts/00-Run-Local.ps1`: Runs a script from `C:\install\mdm\ps1\scripts\` by name or number.
+
+Examples:
+```
+.\scripts\00-Copy-Local.ps1
+.\scripts\00-Copy-Local.ps1 -RepoUrl https://github.com/org/repo.git
+.\scripts\00-Run-Local.ps1 -ScriptNumber 18
+.\scripts\00-Run-Local.ps1 -ScriptName 31-PowerShell-Logging-Baseline.ps1 -ScriptArgs @('-Mode','AuditOnly')
+```
+
 ### Batch wrapper (CMD)
 ```
 @echo off
