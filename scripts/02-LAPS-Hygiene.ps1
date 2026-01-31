@@ -113,7 +113,7 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
@@ -140,7 +140,7 @@ $Defaults = [pscustomobject]@{
   }
   Console = [pscustomobject]@{
     Enabled            = $true
-    UseWriteInformation= $false  # colors only via Write-Host
+    UseWriteInformation= $false  # colors only via Write-UiLine
     ShowConfigPath     = $false
     Width              = 60
   }
@@ -248,26 +248,7 @@ function ConvertTo-BoolSafe {
 }
 
 
-function Write-UiSeparator {
-  [CmdletBinding()]
-  param([string]$Char = '-', [int]$Width = 60, [string]$Style = 'Dim')
-  if ($Width -lt 10) { $Width = 10 }
-  Write-UiLine -Text ($Char * $Width) -Style $Style
-}
 
-function Write-UiKv {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()]
-    [AllowEmptyString()]
-    [string]$Value = '',
-    [ValidateSet('Default','Good','Warn','Bad','Dim')]
-    [string]$ValueStyle = 'Default'
-  )
-  if ($null -eq $Value) { $Value = '' }
-  Write-UiLine -Text ("{0,-18}: {1}" -f $Key, $Value) -Style $ValueStyle
-}
 
 function Get-StyleForOk {
   param([AllowNull()]$Ok)

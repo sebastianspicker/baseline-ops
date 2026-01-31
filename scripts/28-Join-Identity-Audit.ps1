@@ -5,7 +5,7 @@ Audit device identity (hostname, domain/workgroup, domain role, OS base data).
 
 .DESCRIPTION
 Pipeline: emits exactly one structured object (no strings, no formatting objects).
-Console: prints a human-readable summary using Write-Host only (not the pipeline). [web:135]
+Console: prints a human-readable summary using Write-UiLine only (not the pipeline). [web:135]
 
 .PARAMETER ExpectedDomain
 Optional. If provided (or loaded from JSON), deviations are reported as findings.
@@ -37,7 +37,8 @@ param(
   [switch]$NoConsoleSummary
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 Set-StrictMode -Version Latest
@@ -90,29 +91,7 @@ function Import-JsonConfig {
   }
 }
 
-function Write-ColorLine {
-  [CmdletBinding()]
-  param(
-    # Allow empty lines for pretty console output without validation errors.
-    [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
-    [ValidateSet('Gray','DarkGray','Green','Yellow','Red','Cyan','White')][string]$Color = 'Gray'
-  )
 
-  Write-Host $Text -ForegroundColor $Color
-}
-
-function Write-KeyValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Key,
-    [AllowNull()][object]$Value,
-    [ValidateSet('Gray','DarkGray','Green','Yellow','Red','Cyan','White')][string]$ValueColor = 'Gray'
-  )
-
-  $v = if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) { '<none>' } else { [string]$Value }
-  Write-Host ("{0,-14}: " -f $Key) -NoNewline -ForegroundColor DarkGray
-  Write-Host $v -ForegroundColor $ValueColor
-}
 
 function Get-SeverityRank {
   param([string]$Severity)

@@ -55,7 +55,7 @@
 
 .PARAMETER UseInformationStream
   Changes how the console report is written.
-  - Default: uses Write-Host (always visible; does not produce pipeline objects).
+  - Default: uses Write-UiLine (always visible; does not produce pipeline objects).
   - When set: uses Write-Information for console output (visibility depends on InformationPreference).
 
 .OUTPUTS
@@ -121,7 +121,7 @@ param(
   [switch]$UseInformationStream
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 

@@ -6,7 +6,7 @@ Triggers certificate autoenrollment, queries AutoEnrollment-related events, and 
 .DESCRIPTION
 Output model (best practice):
 - Pipeline output: structured object(s) only (PSCustomObject) unless -Quiet is used.
-- Console output: pretty summary via Write-Host only (no "pretty text" in the pipeline). [web:142][web:102]
+- Console output: pretty summary via Write-UiLine only (no "pretty text" in the pipeline). [web:142][web:102]
 
 .PARAMETER WarnDays
 Certificates expiring within <= WarnDays are reported.
@@ -63,7 +63,8 @@ param(
   [switch]$Quiet
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 
 
@@ -200,19 +201,6 @@ function Get-HealthStatus {
   'OK'
 }
 
-function Write-ColorValue {
-  param(
-    [Parameter(Mandatory)][string]$Label,
-    [Parameter(Mandatory)][string]$Value,
-    [ConsoleColor]$LabelColor = 'Gray',
-    [ConsoleColor]$ValueColor = 'Gray'
-  )
-
-  $pad = 28
-  $left = ($Label + ':').PadRight($pad)
-  Write-Host $left -NoNewline -ForegroundColor $LabelColor
-  Write-Host $Value -ForegroundColor $ValueColor
-}
 
 function Show-ConsoleSummary {
   param([Parameter(Mandatory)]$ResultObject)
@@ -226,18 +214,18 @@ function Show-ConsoleSummary {
   $headline = "Certificate AutoEnrollment Health"
   $line = ('=' * ($headline.Length + 10))
 
-  Write-Host ""
-  Write-Host $line -ForegroundColor DarkGray
-  Write-Host ("===  {0}  ===" -f $headline) -ForegroundColor Cyan
-  Write-Host $line -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine $line -ForegroundColor DarkGray
+  Write-UiLine ("===  {0}  ===" -f $headline) -ForegroundColor Cyan
+  Write-UiLine $line -ForegroundColor DarkGray
 
   Write-ColorValue -Label 'Status' -Value $status -LabelColor Gray -ValueColor $statusColor
   Write-ColorValue -Label 'ComputerName' -Value $ResultObject.ComputerName -LabelColor Gray -ValueColor White
   Write-ColorValue -Label 'Timestamp' -Value ([string]$ResultObject.Timestamp) -LabelColor Gray -ValueColor White
 
-  Write-Host ""
-  Write-Host "Configuration" -ForegroundColor Cyan
-  Write-Host ('-' * 40) -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine "Configuration" -ForegroundColor Cyan
+  Write-UiLine ('-' * 40) -ForegroundColor DarkGray
 
   $cfgLoadedColor = 'DarkYellow'
   if ($ResultObject.ConfigLoaded) { $cfgLoadedColor = 'Green' }
@@ -247,9 +235,9 @@ function Show-ConsoleSummary {
     Write-ColorValue -Label 'ConfigPath' -Value $ResultObject.ConfigPath -ValueColor DarkGray
   }
 
-  Write-Host ""
-  Write-Host "AutoEnrollment" -ForegroundColor Cyan
-  Write-Host ('-' * 40) -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine "AutoEnrollment" -ForegroundColor Cyan
+  Write-UiLine ('-' * 40) -ForegroundColor DarkGray
 
   if ($ResultObject.NoPulse) {
     Write-ColorValue -Label 'Pulse' -Value 'Skipped (NoPulse)' -ValueColor DarkGray
@@ -263,9 +251,9 @@ function Show-ConsoleSummary {
     }
   }
 
-  Write-Host ""
-  Write-Host "Event Log" -ForegroundColor Cyan
-  Write-Host ('-' * 40) -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine "Event Log" -ForegroundColor Cyan
+  Write-UiLine ('-' * 40) -ForegroundColor DarkGray
 
   $modeColor = 'DarkYellow'
   if ($ResultObject.EventQueryMode -eq 'Operational') { $modeColor = 'Green' }
@@ -283,9 +271,9 @@ function Show-ConsoleSummary {
     Write-ColorValue -Label 'EventQueryError' -Value $ResultObject.EventQueryError -ValueColor DarkYellow
   }
 
-  Write-Host ""
-  Write-Host "Certificates (LocalMachine\\My)" -ForegroundColor Cyan
-  Write-Host ('-' * 40) -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine "Certificates (LocalMachine\\My)" -ForegroundColor Cyan
+  Write-UiLine ('-' * 40) -ForegroundColor DarkGray
 
   Write-ColorValue -Label 'WarnDays' -Value ([string]$ResultObject.WarnDays) -ValueColor White
   Write-ColorValue -Label 'IncludeExpired' -Value ([string]$ResultObject.IncludeExpired) -ValueColor White
@@ -299,9 +287,9 @@ function Show-ConsoleSummary {
     Write-ColorValue -Label 'CertificateReadError' -Value $ResultObject.CertificateReadError -ValueColor Red
   }
 
-  Write-Host ""
-  Write-Host "Export" -ForegroundColor Cyan
-  Write-Host ('-' * 40) -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine "Export" -ForegroundColor Cyan
+  Write-UiLine ('-' * 40) -ForegroundColor DarkGray
 
   if ($ResultObject.ExportBasePath) {
     Write-ColorValue -Label 'CSV Export' -Value 'Enabled' -ValueColor Green
@@ -310,8 +298,8 @@ function Show-ConsoleSummary {
     Write-ColorValue -Label 'CSV Export' -Value 'Disabled' -ValueColor DarkGray
   }
 
-  Write-Host $line -ForegroundColor DarkGray
-  Write-Host ""
+  Write-UiLine $line -ForegroundColor DarkGray
+  Write-UiLine ""
 }
 
 # Defaults + optional JSON config

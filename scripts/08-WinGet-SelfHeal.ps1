@@ -27,7 +27,7 @@
 
   Output conventions:
   - Pipeline output is always structured objects only (no formatted strings).
-  - Console output uses Write-Host / Write-Information only and is suppressed with -NoConsole.
+  - Console output uses Write-UiLine / Write-Information only and is suppressed with -NoConsole.
 
 .PARAMETER Remediate
   Enables remediation actions.
@@ -144,7 +144,7 @@ param(
   [switch]$PassThruRecords
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
@@ -739,12 +739,12 @@ try {
   if ($wingetVersionRaw) { Write-ConsoleKV -Key 'WinGetVersion' -Value $wingetVersionRaw -ValueColor 'White' }
 
   if (-not $script:NoConsole) {
-    Write-Host ""
-    Write-Host "Checks:" -ForegroundColor Cyan
+    Write-UiLine ""
+    Write-UiLine "Checks:" -ForegroundColor Cyan
     foreach ($r in $records) {
       $c = Get-StatusColor -Status $r.Status
       $msg = Get-TextOrEmpty $r.Message
-      Write-Host ("- {0,-32} {1,-8} {2}" -f $r.Name, $r.Status, $msg) -ForegroundColor $c
+      Write-UiLine ("- {0,-32} {1,-8} {2}" -f $r.Name, $r.Status, $msg) -ForegroundColor $c
     }
   }
 

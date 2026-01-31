@@ -118,7 +118,8 @@ param(
   [string]$ConfigPath
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -242,21 +243,6 @@ function Get-StatusColor {
   }
 }
 
-function Write-Kv {
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][object]$Value,
-    [ConsoleColor]$ValueColor = [ConsoleColor]::Gray,
-    [int]$KeyWidth = 28
-  )
-  $k = ($Key + ':').PadRight($KeyWidth)
-  Write-Host $k -NoNewline -ForegroundColor DarkGray
-  if ($null -eq $Value -or ([string]$Value).Length -eq 0) {
-    Write-Host "<null>" -ForegroundColor DarkGray
-  } else {
-    Write-Host ([string]$Value) -ForegroundColor $ValueColor
-  }
-}
 
 function Write-SummaryToConsole {
   param(
@@ -272,10 +258,10 @@ function Write-SummaryToConsole {
   $titleColor = if ($PrettyConsole) { [ConsoleColor]::White } else { [ConsoleColor]::Gray }
   $lineColor  = if ($PrettyConsole) { [ConsoleColor]::DarkGray } else { [ConsoleColor]::Gray }
 
-  Write-Host ""
-  Write-Host ("=" * 60) -ForegroundColor $lineColor
-  Write-Host "BitLocker audit summary" -ForegroundColor $titleColor
-  Write-Host ("=" * 60) -ForegroundColor $lineColor
+  Write-UiLine ""
+  Write-UiLine ("=" * 60) -ForegroundColor $lineColor
+  Write-UiLine "BitLocker audit summary" -ForegroundColor $titleColor
+  Write-UiLine ("=" * 60) -ForegroundColor $lineColor
 
   Write-Kv -Key 'ComputerName'         -Value $Result.ComputerName -ValueColor ([ConsoleColor]::Gray)
   Write-Kv -Key 'MountPoint'           -Value $Result.MountPoint -ValueColor ([ConsoleColor]::Gray)
@@ -295,11 +281,11 @@ function Write-SummaryToConsole {
   }
 
   if (-not [string]::IsNullOrWhiteSpace($Result.Findings)) {
-    Write-Host ("-" * 60) -ForegroundColor $lineColor
+    Write-UiLine ("-" * 60) -ForegroundColor $lineColor
     Write-Kv -Key 'Finding(s)' -Value $Result.Findings -ValueColor ([ConsoleColor]::Yellow) -KeyWidth 28
   }
 
-  Write-Host ("-" * 60) -ForegroundColor $lineColor
+  Write-UiLine ("-" * 60) -ForegroundColor $lineColor
 
   $gbvState = if ([string]::IsNullOrWhiteSpace($Result.GetBitLockerVolumeError)) { 'OK' } else { 'ERROR' }
   $gbvColor = if ($gbvState -eq 'OK') { [ConsoleColor]::Green } else { [ConsoleColor]::Red }
@@ -327,8 +313,8 @@ function Write-SummaryToConsole {
 
   Write-Kv -Key 'Timestamp' -Value $Result.Timestamp -ValueColor ([ConsoleColor]::Gray)
 
-  Write-Host ("=" * 60) -ForegroundColor $lineColor
-  Write-Host ""
+  Write-UiLine ("=" * 60) -ForegroundColor $lineColor
+  Write-UiLine ""
 }
 
 # -------------------------
@@ -497,7 +483,7 @@ if (-not [string]::IsNullOrWhiteSpace($effectiveExportPath)) {
 # Console summary (no pipeline pollution)
 # -------------------------
 if ($cfg.SummaryToHost) {
-  # Write-Host supports ForegroundColor/BackgroundColor for human-friendly output. [web:154]
+  # Write-UiLine supports ForegroundColor/BackgroundColor for human-friendly output. [web:154]
   Write-SummaryToConsole -Result $result -EffectiveExportPath $effectiveExportPath -PrettyConsole $cfg.PrettyConsole
 }
 

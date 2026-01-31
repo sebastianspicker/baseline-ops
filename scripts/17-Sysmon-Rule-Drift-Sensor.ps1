@@ -208,7 +208,7 @@ param(
   [switch]$PassThru
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -230,11 +230,6 @@ $script:MaxEventMessageLength  = 30000
 # Console helpers (no pipeline output)
 # -----------------------------
 
-function Write-ConsoleSeparator {
-  param([string]$Char = '=', [int]$Width = 78, [string]$Color = 'Cyan')
-  if ($Width -lt 10) { $Width = 10 }
-  Write-Host ($Char * $Width) -ForegroundColor $Color
-}
 
 function Get-StatusColor {
   param([string]$Status)
@@ -387,7 +382,7 @@ function Write-AuditEvent {
     Write-EventLog -LogName $script:EventLogName -Source $script:EventSourceName -EventId $EventId -EntryType $Level -Message $msg -ErrorAction Stop
   } catch {
     # Console fallback, do not emit pipeline output.
-    Write-Host ("[{0}][{1}] {2}" -f $Level,$EventId,$msg)
+    Write-UiLine ("[{0}][{1}] {2}" -f $Level,$EventId,$msg)
   }
 }
 
@@ -634,7 +629,7 @@ function Show-ConsoleSummary {
   if ($Result.Rules -and $Result.Rules.Count -gt 0) {
     $bad = $Result.Rules | Where-Object { $_.Status -ne 'OK' } | Sort-Object Status, Id
     if ($bad.Count -gt 0) {
-      Write-Host ""
+      Write-UiLine ""
       Write-ConsoleLine -Text "Top anomalies:" -Color 'Cyan'
 
       $bad | Select-Object -First 20 | ForEach-Object {
@@ -657,7 +652,7 @@ function Show-ConsoleSummary {
 
   # Next steps hints (only for humans)
   if ($Result.Status -eq 'CHANNEL_UNAVAILABLE') {
-    Write-Host ""
+    Write-UiLine ""
     Write-ConsoleLine -Text "Next steps:" -Color 'Cyan'
     Write-ConsoleLine -Text "  - Check if Sysmon is installed and running (Sysmon/Sysmon64 service)." -Color 'Gray'
     Write-ConsoleLine -Text "  - List logs: wevtutil el | findstr /i sysmon" -Color 'Gray'
@@ -665,7 +660,7 @@ function Show-ConsoleSummary {
   }
 
   Write-ConsoleSeparator -Char '=' -Width 78 -Color 'Cyan'
-  Write-Host ""
+  Write-UiLine ""
 }
 
 # -----------------------------

@@ -6,7 +6,7 @@ Backup/Restore readiness baseline audit (no third-party tools).
 .DESCRIPTION
 Best-practice split:
 - Pipeline output: only one structured object (Summary, Findings, Indicators, VssRaw).
-- Console output: pretty, colorized human output using Write-Host / Write-Information only.
+- Console output: pretty, colorized human output using Write-UiLine / Write-Information only.
 
 Checks:
 - OS disk free space (rough signal).
@@ -41,7 +41,8 @@ param(
   [string]$ConfigJsonPath
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 Set-StrictMode -Version 3.0
@@ -61,7 +62,7 @@ function Get-DefaultConfig {
     VssFailedErrorSeverity    = 'High'
 
     ConsoleTopFindings        = 10
-    ConsoleUseInformation     = $false  # If $true, prefer Write-Information; Write-Host used for colors anyway.
+    ConsoleUseInformation     = $false  # If $true, prefer Write-Information; Write-UiLine used for colors anyway.
   }
 }
 
@@ -251,21 +252,6 @@ function Get-SeverityColor {
   }
 }
 
-function Write-PrettyLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] [string]$Text,
-    [ConsoleColor]$Color = [ConsoleColor]::Gray,
-    [switch]$NoNewline
-  )
-
-  if ($NoNewline) {
-    Write-Host $Text -ForegroundColor $Color -NoNewline
-  }
-  else {
-    Write-Host $Text -ForegroundColor $Color
-  }
-}
 
 function Write-ConsoleSummary {
   [CmdletBinding()]
@@ -277,7 +263,7 @@ function Write-ConsoleSummary {
   )
 
   # Keep formatting off the success output stream (pipeline). [page:0]
-  Write-Host ''
+  Write-UiLine ''
   Write-PrettyLine -Text ('=' * 46) -Color DarkGray
   Write-PrettyLine -Text ' Backup Readiness Audit (Baseline)' -Color White
   Write-PrettyLine -Text ('=' * 46) -Color DarkGray
@@ -288,7 +274,7 @@ function Write-ConsoleSummary {
   $badgeColor = if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' }
   Write-PrettyLine -Text (" Findings : {0}" -f $Summary.FindingsCount) -Color $badgeColor
 
-  Write-Host ''
+  Write-UiLine ''
   Write-PrettyLine -Text ' Indicators' -Color White
   Write-PrettyLine -Text ('-' * 46) -Color DarkGray
 
@@ -315,13 +301,13 @@ function Write-ConsoleSummary {
   $fhColor = if ($Indicators.FileHistoryKey) { 'Green' } else { 'Gray' }
   Write-PrettyLine -Text (" FileHist : {0}" -f $Indicators.FileHistoryKey) -Color $fhColor
 
-  Write-Host ''
+  Write-UiLine ''
   Write-PrettyLine -Text ' Findings' -Color White
   Write-PrettyLine -Text ('-' * 46) -Color DarkGray
 
   if ($Findings.Count -eq 0) {
     Write-PrettyLine -Text ' No findings.' -Color Green
-    Write-Host ''
+    Write-UiLine ''
     return
   }
 
@@ -344,11 +330,11 @@ function Write-ConsoleSummary {
   }
 
   if ($Findings.Count -gt $Config.ConsoleTopFindings) {
-    Write-Host ''
+    Write-UiLine ''
     Write-PrettyLine -Text (" Showing top {0} of {1} findings." -f $Config.ConsoleTopFindings, $Findings.Count) -Color DarkGray
   }
 
-  Write-Host ''
+  Write-UiLine ''
 }
 
 function Invoke-Export {

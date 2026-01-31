@@ -44,6 +44,9 @@ param(
   [string]$RootPath = 'C:\install\mdm\ps1'
 )
 
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -62,7 +65,7 @@ if ($PSCmdlet.ParameterSetName -eq 'ByNumber') {
   }
   if ($matches.Count -gt 1) {
     $names = ($matches | Select-Object -ExpandProperty Name) -join ', '
-    throw "Multiple scripts match number $prefix: $names"
+    throw "Multiple scripts match number ${prefix}: $names"
   }
   $scriptPath = $matches[0].FullName
 } else {

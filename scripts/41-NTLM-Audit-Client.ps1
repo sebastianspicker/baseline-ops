@@ -9,7 +9,7 @@ creates findings, optionally exports CSV, and prints a human-friendly console su
 
 Design goals:
 - Pipeline output: structured objects only (works cleanly with Export-Csv / ConvertTo-Json / Where-Object).
-- Console output: display-only formatting via Write-Host / Write-Information (never via pipeline strings). [web:102][web:106]
+- Console output: display-only formatting via Write-UiLine / Write-Information (never via pipeline strings). [web:102][web:106]
 
 .PARAMETER MinimumLevel
 Minimum accepted level (0..5). Default is 3.
@@ -52,7 +52,8 @@ param(
   [string]$ConfigPath
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -199,17 +200,6 @@ function Get-SeverityColor {
   }
 }
 
-function Write-KvLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] [string]$Key,
-    [Parameter(Mandatory)] [string]$Value,
-    [ConsoleColor]$ValueColor = [ConsoleColor]::Gray
-  )
-
-  Write-Host ("{0,-22}: " -f $Key) -NoNewline
-  Write-Host $Value -ForegroundColor $ValueColor
-}
 
 function Write-ConsoleSummary {
   [CmdletBinding()]
@@ -229,10 +219,10 @@ function Write-ConsoleSummary {
     elseif ($top.Severity -eq 'Low') { $bannerColor = 'Cyan' }
   }
 
-  Write-Host ''
-  Write-Host ('=' * 34) -ForegroundColor DarkGray
-  Write-Host 'NTLM Audit (LmCompatibilityLevel)' -ForegroundColor $bannerColor
-  Write-Host ('=' * 34) -ForegroundColor DarkGray
+  Write-UiLine ''
+  Write-UiLine ('=' * 34) -ForegroundColor DarkGray
+  Write-UiLine 'NTLM Audit (LmCompatibilityLevel)' -ForegroundColor $bannerColor
+  Write-UiLine ('=' * 34) -ForegroundColor DarkGray
 
   Write-KvLine -Key 'ComputerName' -Value $Summary.ComputerName -ValueColor White
   Write-KvLine -Key 'Timestamp' -Value ($Summary.Timestamp.ToString('s')) -ValueColor Gray
@@ -258,23 +248,23 @@ function Write-ConsoleSummary {
     if ($counts.ContainsKey($g.Name)) { $counts[$g.Name] = [int]$g.Count }
   }
 
-  Write-Host ''
-  Write-Host 'Findings by severity:' -ForegroundColor DarkGray
-  Write-Host ("  High  : {0}" -f $counts.High)   -ForegroundColor (Get-SeverityColor -Severity 'High')
-  Write-Host ("  Medium: {0}" -f $counts.Medium) -ForegroundColor (Get-SeverityColor -Severity 'Medium')
-  Write-Host ("  Low   : {0}" -f $counts.Low)    -ForegroundColor (Get-SeverityColor -Severity 'Low')
-  Write-Host ("  Info  : {0}" -f $counts.Info)   -ForegroundColor (Get-SeverityColor -Severity 'Info')
+  Write-UiLine ''
+  Write-UiLine 'Findings by severity:' -ForegroundColor DarkGray
+  Write-UiLine ("  High  : {0}" -f $counts.High)   -ForegroundColor (Get-SeverityColor -Severity 'High')
+  Write-UiLine ("  Medium: {0}" -f $counts.Medium) -ForegroundColor (Get-SeverityColor -Severity 'Medium')
+  Write-UiLine ("  Low   : {0}" -f $counts.Low)    -ForegroundColor (Get-SeverityColor -Severity 'Low')
+  Write-UiLine ("  Info  : {0}" -f $counts.Info)   -ForegroundColor (Get-SeverityColor -Severity 'Info')
 
   if ($sorted.Count -gt 0 -and $Config.ConsoleMode -eq 'Pretty') {
-    Write-Host ''
-    Write-Host 'Top findings:' -ForegroundColor DarkGray
+    Write-UiLine ''
+    Write-UiLine 'Top findings:' -ForegroundColor DarkGray
     foreach ($f in ($sorted | Select-Object -First 5)) {
       $color = Get-SeverityColor -Severity $f.Severity
-      Write-Host ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -ForegroundColor $color
+      Write-UiLine ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -ForegroundColor $color
     }
   }
 
-  Write-Host ''
+  Write-UiLine ''
 }
 
 #endregion Helpers

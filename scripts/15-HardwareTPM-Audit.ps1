@@ -6,7 +6,7 @@
 .DESCRIPTION
   This script performs a local hardware security audit and produces:
   - A single structured result object on the success output stream (pipeline-friendly).
-  - A human-readable, colorized console summary (written via Write-Host/Write-Information only).
+  - A human-readable, colorized console summary (written via Write-UiLine/Write-Information only).
   - A JSON “proof” file containing the full structured result.
   - A Windows Event Log entry in the Application log for monitoring/alerting.
 
@@ -130,7 +130,8 @@ param(
   [string]$ConfigPath = "PATH/TO/CONFIG.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
@@ -280,24 +281,7 @@ function Get-ConsoleColor {
   }
 }
 
-function Write-PrettyLine {
-  param(
-    [Parameter(Mandatory=$true)][string]$Text,
-    [ValidateSet('OK','WARN','ERR','INFO','DIM')]$Kind = 'INFO',
-    [switch]$NoNewLine
-  )
-  $c = Get-ConsoleColor -Kind $Kind
-  if ($NoNewLine) { Write-Host $Text -ForegroundColor $c -NoNewline }
-  else { Write-Host $Text -ForegroundColor $c }
-}
 
-function Write-PrettyHeader {
-  param([Parameter(Mandatory=$true)][string]$Title)
-  Write-Host ""
-  Write-Host ("=" * 60) -ForegroundColor DarkGray
-  Write-Host ("{0}" -f $Title) -ForegroundColor White
-  Write-Host ("=" * 60) -ForegroundColor DarkGray
-}
 
 function Write-ConsoleSummary {
   param(
@@ -332,7 +316,7 @@ function Write-ConsoleSummary {
   $blOk = $Results.BitLockerOsProtected
   Write-PrettyLine -Text ("BL(OS) : {0}" -f $(if ($blOk) { "Protection ON" } else { "Protection OFF/Unknown" })) -Kind $(if ($blOk) { 'OK' } else { 'WARN' })
 
-  Write-Host ""
+  Write-UiLine ""
   if ($Drifts.Count -gt 0) {
     Write-PrettyLine -Text "Drifts :" -Kind 'ERR'
     foreach ($d in $Drifts) { Write-PrettyLine -Text ("- {0}" -f $d) -Kind 'ERR' }
@@ -341,7 +325,7 @@ function Write-ConsoleSummary {
   }
 
   if ($Notes.Count -gt 0) {
-    Write-Host ""
+    Write-UiLine ""
     Write-PrettyLine -Text "Notes  :" -Kind 'WARN'
     foreach ($n in $Notes) { Write-PrettyLine -Text ("- {0}" -f $n) -Kind 'WARN' }
   } else {

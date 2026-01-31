@@ -131,7 +131,7 @@ param(
   [string]$ProofPath  = "PATH/TO/JSON/proof/14-SecureRemoteAccessGuardrails.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -175,29 +175,8 @@ $DefaultCatalogJson = @"
 # UI helpers (console only)
 # ----------------------------
 
-function Write-UiSeparator {
-  param([string]$Title = '')
-  $line = ('-' * 72)
-  Write-UiLine -Text $line -Color DarkGray
-  if ($Title) { Write-UiLine -Text $Title -Color Cyan }
-}
 
-function Write-UiKeyValue {
-  param([string]$Key,[string]$Value,[string]$Color='Gray')
-  Write-UiLine -Text ("{0,-12}: {1}" -f $Key, $Value) -Color $Color
-}
 
-function Write-UiList {
-  param(
-    [string]$Header,
-    [string[]]$Items,
-    [ValidateSet('Gray','Green','Yellow','Red','Cyan','Magenta','White','DarkGray')][string]$Color = 'Gray'
-  )
-  if (-not $Header) { $Header = 'Items' }
-  if (@($Items).Count -eq 0) { return }
-  Write-UiLine -Text $Header -Color White
-  foreach ($i in @($Items)) { Write-UiLine -Text ("  - {0}" -f $i) -Color $Color }
-}
 
 # ----------------------------
 # Generic helpers (no console formatting here)
@@ -761,7 +740,7 @@ try {
   else { Write-HealthEvent -Id 4840 -Message $msg -Level 'Information' -Source $ScriptEventSource }
 
   # Pretty console output (no pipeline pollution)
-  Write-Host ""
+  Write-UiLine ""
   Write-UiSeparator -Title "Secure Remote Access Guardrails"
   Write-UiKeyValue -Key "Computer"  -Value $env:COMPUTERNAME -Color Gray
   Write-UiKeyValue -Key "Elevated"  -Value ($isElevated.ToString()) -Color $(if ($isElevated) { 'Green' } else { 'Yellow' })
@@ -782,7 +761,7 @@ try {
   Write-UiKeyValue -Key "Drifts"  -Value (@($drifts).Count) -Color $(if (@($drifts).Count -gt 0) { 'Yellow' } else { 'Green' })
   Write-UiKeyValue -Key "Notes"   -Value (@($notes).Count) -Color $(if (@($notes).Count -gt 0) { 'Cyan' } else { 'Gray' })
 
-  Write-Host ""
+  Write-UiLine ""
   Write-UiList -Header "Changes" -Items @($changes) -Color Yellow
   Write-UiList -Header "Drift"   -Items @($drifts)  -Color Yellow
   Write-UiList -Header "Notes"   -Items @($notes)   -Color Cyan
@@ -807,7 +786,7 @@ catch {
     } | ConvertTo-Json -Depth 4 | Set-Content -Path $ProofPath -Encoding UTF8 -ErrorAction SilentlyContinue
   } catch { }
 
-  Write-Host ""
+  Write-UiLine ""
   Write-UiSeparator -Title "Secure Remote Access Guardrails"
   Write-UiLine -Text "Status: ERROR" -Color Red
   Write-UiLine -Text ("Message: {0}" -f $err) -Color Red

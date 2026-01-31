@@ -135,7 +135,8 @@ param(
   [switch]$NoPipelineOutput
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
 
@@ -426,24 +427,6 @@ function New-GuardrailResult {
   }
 }
 
-function Write-ColorLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] [string]$Text,
-    [ValidateSet('Default','Gray','Green','Yellow','Red','Cyan','White')] [string]$Color = 'Default'
-  )
-  if ($script:Quiet) { return }
-
-  switch ($Color) {
-    'Gray'   { Write-Host $Text -ForegroundColor DarkGray }
-    'Green'  { Write-Host $Text -ForegroundColor Green }
-    'Yellow' { Write-Host $Text -ForegroundColor Yellow }
-    'Red'    { Write-Host $Text -ForegroundColor Red }
-    'Cyan'   { Write-Host $Text -ForegroundColor Cyan }
-    'White'  { Write-Host $Text -ForegroundColor White }
-    default  { Write-Host $Text }
-  }
-}
 
 function Write-ConsoleSummary {
   [CmdletBinding()]
@@ -455,45 +438,45 @@ function Write-ConsoleSummary {
   if ($Result.EventLevel -eq 'Warning') { $levelColor = 'Yellow' }
   if ($Result.EventLevel -eq 'Error')   { $levelColor = 'Red' }
 
-  Write-Host ""
+  Write-UiLine ""
   Write-ColorLine "=== Local Admins Guardrail ===" 'Cyan'
   Write-ColorLine ("ComputerName           : {0}" -f $Result.ComputerName) 'Gray'
   Write-ColorLine ("GroupName              : {0}" -f $Result.GroupName) 'Gray'
-  Write-Host ""
+  Write-UiLine ""
 
   Write-ColorLine ("Status                 : {0} (EventId {1})" -f $Result.EventLevel, $Result.EventId) $levelColor
   Write-ColorLine ("Remediate              : {0}" -f $Result.Remediate) 'White'
   Write-ColorLine ("AllowDomainRemediation : {0}" -f $Result.AllowDomainRemediation) 'White'
-  Write-Host ""
+  Write-UiLine ""
 
   $failSafeColor = $(if ($Result.FailSafeNoRemove) { 'Yellow' } else { 'Green' })
   Write-ColorLine ("FailSafeNoRemove       : {0}" -f $Result.FailSafeNoRemove) $failSafeColor
   Write-ColorLine ("ConfigLoaded           : {0}" -f $Result.ConfigLoaded) 'Gray'
   Write-ColorLine ("AllowListPathUsed      : {0}" -f ($(if ($Result.AllowListPathUsed) { $Result.AllowListPathUsed } else { "(none)" }))) 'Gray'
-  Write-Host ""
+  Write-UiLine ""
 
   Write-ColorLine ("MembersBeforeCount     : {0}" -f @($Result.MembersBefore).Count) 'White'
   Write-ColorLine ("AllowResolvedSidCount  : {0}" -f @($Result.AllowSIDs).Count) 'White'
   Write-ColorLine ("UnresolvedAllowCount   : {0}" -f @($Result.UnresolvedAllowInput).Count) $(if (@($Result.UnresolvedAllowInput).Count -gt 0) { 'Yellow' } else { 'Green' })
-  Write-Host ""
+  Write-UiLine ""
 
   $driftColor = $(if ($Result.DriftDetected) { 'Yellow' } else { 'Green' })
   Write-ColorLine ("DriftDetected          : {0}" -f $Result.DriftDetected) $driftColor
   Write-ColorLine ("ToAddCount             : {0}" -f @($Result.ToAddSIDs).Count) $(if (@($Result.ToAddSIDs).Count -gt 0) { 'Yellow' } else { 'Green' })
   Write-ColorLine ("ToRemoveCount          : {0}" -f @($Result.ToRemove).Count) $(if (@($Result.ToRemove).Count -gt 0) { 'Yellow' } else { 'Green' })
-  Write-Host ""
+  Write-UiLine ""
 
   if ($Result.Remediate) {
     Write-ColorLine ("AddedCount             : {0}" -f @($Result.AddedSIDs).Count) $(if (@($Result.AddedSIDs).Count -gt 0) { 'Yellow' } else { 'Green' })
     Write-ColorLine ("RemovedCount           : {0}" -f @($Result.RemovedIds).Count) $(if (@($Result.RemovedIds).Count -gt 0) { 'Yellow' } else { 'Green' })
     Write-ColorLine ("PostCompliant          : {0}" -f $Result.PostCompliant) $(if ($Result.PostCompliant) { 'Green' } else { 'Yellow' })
-    Write-Host ""
+    Write-UiLine ""
   }
 
   if (@($Result.Errors).Count -gt 0) {
     Write-ColorLine "Errors:" 'Red'
     foreach ($e in $Result.Errors) { Write-ColorLine ("- {0}" -f $e) 'Red' }
-    Write-Host ""
+    Write-UiLine ""
   }
 }
 

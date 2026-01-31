@@ -5,7 +5,7 @@ Lightweight client "Security Baseline" report (read-only).
 
 .DESCRIPTION
 - Pipeline output: ONLY structured objects. [web:162]
-- Console output: formatting via Write-Host / Write-Information only. [web:114][web:162]
+- Console output: formatting via Write-UiLine / Write-Information only. [web:114][web:162]
 - Optional JSON reference ("PATH/TO/JSON/...") for expected values; safe defaults when missing/invalid.
 
 .PARAMETER ExportPath
@@ -39,7 +39,8 @@ param(
   [switch]$Quiet
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 
 
@@ -51,47 +52,8 @@ $ErrorActionPreference = 'Stop'
 
 #region Helpers
 
-function Write-Info {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Message)
 
-  if ($script:Quiet) { return }
 
-  Write-Information -MessageData $Message -InformationAction Continue
-}
-
-function Write-PrettyHeader {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Title)
-
-  if ($script:Quiet) { return }
-
-  Write-Host ''
-  Write-Host $Title -ForegroundColor Cyan
-  Write-Host ('-' * $Title.Length) -ForegroundColor DarkGray
-}
-
-function Write-PrettyKeyValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [Parameter(Mandatory)][string]$Value,
-    [ValidateSet('Info','Good','Warn','Bad','Dim')][string]$Level = 'Info'
-  )
-
-  if ($Quiet) { return }
-
-  $fg = 'Gray'
-  switch ($Level) {
-    'Good' { $fg = 'Green' }
-    'Warn' { $fg = 'Yellow' }
-    'Bad'  { $fg = 'Red' }
-    'Dim'  { $fg = 'DarkGray' }
-    default { $fg = 'Gray' }
-  }
-
-  Write-Host ("{0}: {1}" -f $Key.PadRight(28), $Value) -ForegroundColor $fg
-}
 
 
 function Test-RegKey {
@@ -368,7 +330,7 @@ function Write-ConsoleSummary {
     Write-PrettyKeyValue -Key 'Profiles' -Value 'No data' -Level 'Dim'
   }
 
-  Write-Host ''
+  Write-UiLine ''
 }
 
 #endregion Helpers

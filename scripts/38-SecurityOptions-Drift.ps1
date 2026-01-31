@@ -8,7 +8,7 @@ Audit/drift sensor for selected "Security Options"-adjacent settings via registr
 - Optionally loads desired state from JSON (path or inline JSON), compares, and can remediate drift.
 - If DesiredJson is missing/unreadable/invalid, continues with baseline checks only.
 - Pipeline output: exactly one structured object (safe for Export-Csv / ConvertTo-Json / Where-Object).
-- Console output: pretty, human-readable, colorized summary via Write-Host / Write-Information only.
+- Console output: pretty, human-readable, colorized summary via Write-UiLine / Write-Information only.
 
 .PARAMETER Mode
 AuditOnly | Remediate
@@ -49,7 +49,7 @@ param(
   [switch]$NoColor
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
@@ -72,23 +72,7 @@ $script:Drift         = New-Object System.Collections.Generic.List[object]
 # Console helpers (no pipeline pollution)
 # -------------------------
 
-function Write-Info {
-  param(
-    [Parameter(Mandatory)][string]$Message,
-    [string[]]$Tags = @('Info')
-  )
 
-  if ($script:Quiet) { return }
-  if ([string]::IsNullOrEmpty($Message)) { return }
-
-  # Information stream in Windows PowerShell 5.1 can be controlled with -InformationAction. [web:137]
-  Write-Information -MessageData $Message -Tags $Tags -InformationAction Continue
-}
-
-function Write-BlankLine {
-  if ($script:Quiet) { return }
-  Write-Host ''
-}
 
 
 function Get-SeverityColor {

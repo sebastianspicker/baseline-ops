@@ -6,7 +6,7 @@ WEF client readiness audit (Windows PowerShell 5.1).
 .DESCRIPTION
 Best-practice output model:
 - Pipeline: structured objects only (safe for Export-Csv / ConvertTo-Json / Where-Object).
-- Console: pretty human-readable output via Write-Host / Write-Information only.
+- Console: pretty human-readable output via Write-UiLine / Write-Information only.
 
 Checks:
 - WinRM service status and start mode.
@@ -51,7 +51,7 @@ param(
   [switch]$PassThru
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
@@ -71,7 +71,7 @@ $Defaults = @{
 
   ConsoleSummary                 = $true
   ConsoleUseWriteInformation     = $false  # If true, relies on Information stream settings. [web:73][web:77]
-  ConsoleColor                   = $true   # Only applies to Write-Host.
+  ConsoleColor                   = $true   # Only applies to Write-UiLine.
 }
 
 # Script state

@@ -124,7 +124,8 @@ param(
   [string]$ConfigPath = "PATH/TO/CONFIG.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -866,43 +867,43 @@ function Write-ConsoleSummary {
     New-ResultSummary -Section 'Firefox' -Items $firefoxItems
   )
 
-  Write-Host ""
-  Write-Host "==================================================" -ForegroundColor DarkCyan
-  Write-Host " Office / Browser Hardening Summary" -ForegroundColor Cyan
-  Write-Host "==================================================" -ForegroundColor DarkCyan
-  Write-Host ("Catalog source : {0}" -f $CatalogInfo.LoadedFrom) -ForegroundColor Gray
-  Write-Host ("Mode           : Remediate={0}  Strict={1}  IsAdmin={2}" -f $Remediate, $Strict, $IsAdmin) -ForegroundColor Gray
-  Write-Host ""
+  Write-UiLine ""
+  Write-UiLine "==================================================" -ForegroundColor DarkCyan
+  Write-UiLine " Office / Browser Hardening Summary" -ForegroundColor Cyan
+  Write-UiLine "==================================================" -ForegroundColor DarkCyan
+  Write-UiLine ("Catalog source : {0}" -f $CatalogInfo.LoadedFrom) -ForegroundColor Gray
+  Write-UiLine ("Mode           : Remediate={0}  Strict={1}  IsAdmin={2}" -f $Remediate, $Strict, $IsAdmin) -ForegroundColor Gray
+  Write-UiLine ""
 
   foreach($row in $sum) {
     $statusText  = if ($row.Ok) { "OK" } else { "DRIFT" }
     $statusColor = if ($row.Ok) { 'Green' } else { 'Red' }
 
-    Write-Host ("[{0}]" -f $row.Section) -ForegroundColor White -NoNewline
-    Write-Host (" {0,-5} " -f $statusText) -ForegroundColor $statusColor -NoNewline
-    Write-Host ("Total={0}  NonCompliant={1}  Changed={2}" -f $row.Total, $row.NonCompliant, $row.Changed) -ForegroundColor Gray
+    Write-UiLine ("[{0}]" -f $row.Section) -ForegroundColor White -NoNewline
+    Write-UiLine (" {0,-5} " -f $statusText) -ForegroundColor $statusColor -NoNewline
+    Write-UiLine ("Total={0}  NonCompliant={1}  Changed={2}" -f $row.Total, $row.NonCompliant, $row.Changed) -ForegroundColor Gray
   }
 
   $driftSample = @($safe | Where-Object { (Bool-Prop $_ 'Compliant' $true) -eq $false } | Select-Object -First 10)
   if ($driftSample.Count -gt 0) {
-    Write-Host ""
-    Write-Host "Drift sample (first 10 items)" -ForegroundColor Yellow
-    Write-Host "---------------------------------------------" -ForegroundColor DarkYellow
+    Write-UiLine ""
+    Write-UiLine "Drift sample (first 10 items)" -ForegroundColor Yellow
+    Write-UiLine "---------------------------------------------" -ForegroundColor DarkYellow
     foreach($d in $driftSample) {
-      Write-Host ("- [{0}/{1}] {2} :: {3}\{4} (Expected={5} Actual={6})" -f $d.Product, $d.Area, $d.Policy, $d.Target, $d.Name, $d.Expected, $d.Actual) -ForegroundColor Yellow
+      Write-UiLine ("- [{0}/{1}] {2} :: {3}\{4} (Expected={5} Actual={6})" -f $d.Product, $d.Area, $d.Policy, $d.Target, $d.Name, $d.Expected, $d.Actual) -ForegroundColor Yellow
     }
   }
 
   if ($Notes -and $Notes.Count -gt 0) {
-    Write-Host ""
-    Write-Host "Notes" -ForegroundColor White
-    Write-Host "-----" -ForegroundColor White
-    foreach($n in $Notes) { Write-Host ("- " + $n) -ForegroundColor DarkGray }
+    Write-UiLine ""
+    Write-UiLine "Notes" -ForegroundColor White
+    Write-UiLine "-----" -ForegroundColor White
+    foreach($n in $Notes) { Write-UiLine ("- " + $n) -ForegroundColor DarkGray }
   }
 
-  Write-Host ""
-  Write-Host ("Proof JSON written to: {0}" -f $ProofPath) -ForegroundColor Cyan
-  Write-Host ""
+  Write-UiLine ""
+  Write-UiLine ("Proof JSON written to: {0}" -f $ProofPath) -ForegroundColor Cyan
+  Write-UiLine ""
 
   $total        = $safe.Count
   $nonCompliant = @($safe | Where-Object { (Bool-Prop $_ 'Compliant' $true) -eq $false }).Count
@@ -912,10 +913,10 @@ function Write-ConsoleSummary {
   $finalColor = if ($overallOk -and -not $Strict) { 'Green' } else { 'Red' }
   $finalText  = if ($overallOk -and -not $Strict) { 'HARDENING OK' } else { 'DRIFT DETECTED' }
 
-  Write-Host "==================================================" -ForegroundColor DarkCyan
-  Write-Host (" Final result : {0}" -f $finalText) -ForegroundColor $finalColor
-  Write-Host (" Items        : Total={0}  NonCompliant={1}  Changed={2}" -f $total, $nonCompliant, $changed) -ForegroundColor Gray
-  Write-Host "==================================================" -ForegroundColor DarkCyan
+  Write-UiLine "==================================================" -ForegroundColor DarkCyan
+  Write-UiLine (" Final result : {0}" -f $finalText) -ForegroundColor $finalColor
+  Write-UiLine (" Items        : Total={0}  NonCompliant={1}  Changed={2}" -f $total, $nonCompliant, $changed) -ForegroundColor Gray
+  Write-UiLine "==================================================" -ForegroundColor DarkCyan
 
   Write-Information ("Summary: FinalResult={0}; Total={1}; NonCompliant={2}; Changed={3}" -f $finalText, $total, $nonCompliant, $changed)
 }

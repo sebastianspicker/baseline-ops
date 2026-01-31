@@ -45,7 +45,7 @@ Modules to log (ModuleNames subkey values 1..N). Use @('*') for all.
 Optional CSV export of the Summary object.
 
 .PARAMETER QuietConsole
-If set, suppresses pretty console output (no Write-Host summary).
+If set, suppresses pretty console output (no Write-UiLine summary).
 
 .OUTPUTS
 Exactly one structured object to the pipeline:
@@ -87,7 +87,8 @@ param(
   [switch]$QuietConsole
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
@@ -278,14 +279,6 @@ function Format-PolicyValue {
   return [string]$Value
 }
 
-function Write-ColorLine {
-  param(
-    [string]$Text,
-    [ValidateSet('Gray','White','Green','Yellow','Red','Cyan','Magenta')]
-    [string]$Color = 'Gray'
-  )
-  Write-Host $Text -ForegroundColor $Color
-}
 
 function Severity-ToColor {
   param([string]$Severity)
@@ -305,16 +298,16 @@ function Write-ConsoleSummary {
     [pscustomobject]$EffectiveAfter
   )
 
-  Write-Host ''
+  Write-UiLine ''
   Write-ColorLine '=== PowerShell Logging Baseline ===' 'White'
   Write-ColorLine ("ComputerName : {0}" -f $Summary.ComputerName) 'Gray'
   Write-ColorLine ("Mode         : {0}" -f $Summary.Mode) 'Gray'
   Write-ColorLine ("Timestamp    : {0}" -f $Summary.Timestamp) 'Gray'
-  Write-Host ''
+  Write-UiLine ''
 
   $statusColor = if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' }
   Write-ColorLine ("Findings     : {0}" -f $Summary.FindingsCount) $statusColor
-  Write-Host ''
+  Write-UiLine ''
 
   Write-ColorLine 'Configured (target) settings:' 'White'
   Write-ColorLine ("- Transcription            : {0}" -f $Summary.Target_EnableTranscription) 'Gray'
@@ -324,7 +317,7 @@ function Write-ConsoleSummary {
   Write-ColorLine ("- ModuleLogging            : {0}" -f $Summary.Target_EnableModuleLogging) 'Gray'
   Write-ColorLine ("- TranscriptDirectory      : {0}" -f $Summary.Target_TranscriptOutputDirectory) 'Gray'
   Write-ColorLine ("- ModuleNames              : {0}" -f ($Summary.Target_ModuleNames -join ', ')) 'Gray'
-  Write-Host ''
+  Write-UiLine ''
 
   Write-ColorLine 'Effective policy (after run):' 'White'
   $t = Format-PolicyValue $EffectiveAfter.Transcription_EnableTranscripting
@@ -348,7 +341,7 @@ function Write-ConsoleSummary {
     Write-ColorLine '- ModuleNames              : NotConfigured' 'Yellow'
   }
 
-  Write-Host ''
+  Write-UiLine ''
   if ($Findings.Count -gt 0) {
     Write-ColorLine 'Findings (top 10):' 'White'
     $top = $Findings | Select-Object -First 10
@@ -363,9 +356,9 @@ function Write-ConsoleSummary {
     Write-ColorLine 'Findings: none' 'Green'
   }
 
-  Write-Host ''
+  Write-UiLine ''
   Write-ColorLine '================================' 'White'
-  Write-Host ''
+  Write-UiLine ''
 }
 
 # ---------------------------

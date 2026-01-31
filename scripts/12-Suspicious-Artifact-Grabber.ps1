@@ -120,7 +120,7 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -141,48 +141,8 @@ $ScriptVersion = '2025.12.22-ps51'
 # Console helpers (no pipeline output)
 # -------------------------
 
-function Write-UiHeader {
-  param(
-    [string]$Title,
-    [string]$Subtitle
-  )
-  Write-UiLine
-  Write-Host $Title -ForegroundColor Cyan
-  if ($Subtitle) { Write-Host $Subtitle -ForegroundColor DarkCyan }
-  Write-UiLine
-}
 
-function Write-UiKeyValue {
-  param(
-    [string]$Key,
-    [string]$Value,
-    [ConsoleColor]$KeyColor = 'Gray',
-    [ConsoleColor]$ValueColor = 'White'
-  )
-  Write-Host ("{0,-12}: " -f $Key) -ForegroundColor $KeyColor -NoNewline
-  Write-Host ($Value) -ForegroundColor $ValueColor
-}
 
-function Write-UiStatus {
-  param(
-    [string]$Label,
-    [ValidateSet('OK','WARN','FAIL','INFO')]
-    [string]$State,
-    [string]$Text
-  )
-
-  $c = 'Gray'
-  switch ($State) {
-    'OK'   { $c = 'Green' }
-    'WARN' { $c = 'Yellow' }
-    'FAIL' { $c = 'Red' }
-    'INFO' { $c = 'Cyan' }
-  }
-
-  Write-Host ("[{0}] " -f $State) -ForegroundColor $c -NoNewline
-  if ($Label) { Write-Host ("{0}: " -f $Label) -ForegroundColor Gray -NoNewline }
-  if ($Text) { Write-Host $Text -ForegroundColor White } else { Write-Host "" }
-}
 
 # -------------------------
 # Logging helpers
@@ -851,15 +811,15 @@ function Print-ConsoleSummary {
   Write-UiKeyValue -Key 'Zip'     -Value ([string]$Summary.Output.Zip)
 
   Write-UiLine
-  Write-Host "Counts:" -ForegroundColor Gray
+  Write-UiLine "Counts:" -ForegroundColor Gray
 
-  try { Write-Host ("  Processes : {0}" -f (Safe-ToInt $Summary.Counts.Processes 0)) -ForegroundColor White } catch { }
+  try { Write-UiLine ("  Processes : {0}" -f (Safe-ToInt $Summary.Counts.Processes 0)) -ForegroundColor White } catch { }
 
   try {
     $tcp = Safe-ToInt $Summary.Counts.Network.Tcp 0
     $lst = Safe-ToInt $Summary.Counts.Network.Listeners 0
     $udp = Safe-ToInt $Summary.Counts.Network.Udp 0
-    Write-Host ("  Network   : TCP={0} Listeners={1} UDP={2}" -f $tcp,$lst,$udp) -ForegroundColor White
+    Write-UiLine ("  Network   : TCP={0} Listeners={1} UDP={2}" -f $tcp,$lst,$udp) -ForegroundColor White
   } catch { }
 
   try {
@@ -869,7 +829,7 @@ function Print-ConsoleSummary {
 
     $c = 'White'
     if ($sus -gt 0) { $c = 'Yellow' }
-    Write-Host ("  Tasks     : Total={0} Suspicious={1} XmlExported={2}" -f $tot,$sus,$xml) -ForegroundColor $c
+    Write-UiLine ("  Tasks     : Total={0} Suspicious={1} XmlExported={2}" -f $tot,$sus,$xml) -ForegroundColor $c
   } catch { }
 
   try {
@@ -884,10 +844,10 @@ function Print-ConsoleSummary {
     $col = 'White'
     if ($wTotal -gt 0) { $col = 'Yellow' }
 
-    Write-Host ("  WMI       : Filters={0} Bindings={1} Cmd={2} ActiveScript={3} NTEventLog={4} LogFile={5}" -f $f,$b,$c1,$a,$e,$l) -ForegroundColor $col
+    Write-UiLine ("  WMI       : Filters={0} Bindings={1} Cmd={2} ActiveScript={3} NTEventLog={4} LogFile={5}" -f $f,$b,$c1,$a,$e,$l) -ForegroundColor $col
   } catch { }
 
-  try { Write-Host ("  Autoruns  : Items={0}" -f (Safe-ToInt $Summary.Counts.Autoruns.Items 0)) -ForegroundColor White } catch { }
+  try { Write-UiLine ("  Autoruns  : Items={0}" -f (Safe-ToInt $Summary.Counts.Autoruns.Items 0)) -ForegroundColor White } catch { }
 
   try {
     if ($Summary.Counts.ContainsKey('Samples')) {
@@ -898,7 +858,7 @@ function Print-ConsoleSummary {
       $col = 'White'
       if ($cop -gt 0) { $col = 'Yellow' }
 
-      Write-Host ("  Samples   : Copied={0} (MaxFileMB={1}, MaxTotalMB={2})" -f $cop,$m1,$m2) -ForegroundColor $col
+      Write-UiLine ("  Samples   : Copied={0} (MaxFileMB={1}, MaxTotalMB={2})" -f $cop,$m1,$m2) -ForegroundColor $col
     }
   } catch { }
 
@@ -906,7 +866,7 @@ function Print-ConsoleSummary {
 
   if ($Errors -and $Errors.Count -gt 0) {
     Write-UiStatus -Label 'Errors' -State 'WARN' -Text ("{0} error(s) occurred" -f $Errors.Count)
-    foreach ($e in @($Errors)) { Write-Host ("  - {0}" -f $e) -ForegroundColor Yellow }
+    foreach ($e in @($Errors)) { Write-UiLine ("  - {0}" -f $e) -ForegroundColor Yellow }
   } else {
     Write-UiStatus -Label 'Errors' -State 'OK' -Text "None"
   }

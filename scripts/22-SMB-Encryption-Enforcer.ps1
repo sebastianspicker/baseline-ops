@@ -88,7 +88,7 @@ The script outputs one object with (at minimum) the following high-level fields:
 Requirements and assumptions:
 - Must be run elevated (Administrator), because SMB configuration changes require administrative privileges.
 - Uses -WhatIf / -Confirm (SupportsShouldProcess) to support safe execution and change simulation.
-- Console formatting is produced via Write-Host / Write-Information and is intentionally separated from pipeline output.
+- Console formatting is produced via Write-UiLine / Write-Information and is intentionally separated from pipeline output.
 
 .EXAMPLE
 # Report current SMB encryption settings (no changes)
@@ -136,7 +136,8 @@ param(
   [string]$JsonPath = 'PATH/TO/JSON/config.json'
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 
 
@@ -292,19 +293,6 @@ function Test-IsConsoleHost {
   return ($Host.Name -match 'ConsoleHost')
 }
 
-function Write-PrettyLine {
-  param(
-    [Parameter(Mandatory)][string]$Text,
-    [ConsoleColor]$Color = [ConsoleColor]::Gray,
-    [switch]$NoNewline
-  )
-  if (Test-IsConsoleHost) {
-    Write-Host $Text -ForegroundColor $Color -NoNewline:$NoNewline
-  } else {
-    # For non-console hosts, fallback without color.
-    Write-Host $Text -NoNewline:$NoNewline
-  }
-}
 
 function Format-Bool {
   param($Value)
@@ -313,17 +301,6 @@ function Format-Bool {
   return 'False'
 }
 
-function Write-PrettyKeyValue {
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [Parameter(Mandatory)][string]$Value,
-    [ConsoleColor]$KeyColor = [ConsoleColor]::DarkGray,
-    [ConsoleColor]$ValueColor = [ConsoleColor]::Gray
-  )
-
-  Write-PrettyLine -Text ('{0,-32}: ' -f $Key) -Color $KeyColor -NoNewline
-  Write-PrettyLine -Text $Value -Color $ValueColor
-}
 
 function Write-PrettySettingChange {
   param(
@@ -357,7 +334,7 @@ function Write-ConsoleSummary {
 
   $statusColor = if ($Result.Changes.Status -eq 'OK') { [ConsoleColor]::Green } else { [ConsoleColor]::Red }
 
-  Write-Host ''
+  Write-UiLine ''
   Write-PrettyLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
   Write-PrettyLine -Text 'SMB Encryption Enforcer (Summary)' -Color ([ConsoleColor]::Cyan)
   Write-PrettyLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
@@ -368,7 +345,7 @@ function Write-ConsoleSummary {
   Write-PrettyKeyValue -Key 'Force' -Value (Format-Bool $Result.Force) -ValueColor ([ConsoleColor]::White)
   Write-PrettyKeyValue -Key 'JsonPath' -Value $Result.JsonPath -ValueColor ([ConsoleColor]::DarkGray)
 
-  Write-Host ''
+  Write-UiLine ''
   Write-PrettyLine -Text 'Server / Client' -Color ([ConsoleColor]::Cyan)
   Write-PrettyLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
 
@@ -381,7 +358,7 @@ function Write-ConsoleSummary {
   Write-PrettySettingChange -Label 'Client RequireEncryption' `
     -Before $Result.ClientRequireEncryption_Before -After $Result.ClientRequireEncryption_After -Supported:$HasClientRequireEncryption
 
-  Write-Host ''
+  Write-UiLine ''
   Write-PrettyLine -Text 'Shares' -Color ([ConsoleColor]::Cyan)
   Write-PrettyLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
 
@@ -393,7 +370,7 @@ function Write-ConsoleSummary {
     Write-PrettyKeyValue -Key 'Shares changed' -Value 'none' -ValueColor ([ConsoleColor]::Gray)
   }
 
-  Write-Host ''
+  Write-UiLine ''
   Write-PrettyLine -Text 'Result' -Color ([ConsoleColor]::Cyan)
   Write-PrettyLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
 

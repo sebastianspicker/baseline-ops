@@ -105,7 +105,8 @@ param(
   [string]$ConfigPath = "PATH\TO\JSON\config.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
@@ -419,52 +420,8 @@ function Get-ColorForLevel {
   }
 }
 
-function Write-ConsoleBanner {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory=$true)][string]$Title,
-    [ConsoleColor]$Color = 'Cyan'
-  )
-  Write-Host ""
-  Write-Host ("=" * 62) -ForegroundColor $Color
-  Write-Host $Title -ForegroundColor $Color
-  Write-Host ("=" * 62) -ForegroundColor $Color
-}
 
-function Write-ConsoleKeyValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory=$true)][string]$Key,
-    [Parameter(Mandatory=$true)][string]$Value,
-    [ConsoleColor]$KeyColor = 'DarkGray',
-    [ConsoleColor]$ValueColor = 'Gray'
-  )
-  Write-Host ("{0,-16}: " -f $Key) -NoNewline -ForegroundColor $KeyColor
-  Write-Host $Value -ForegroundColor $ValueColor
-}
 
-function Write-ConsoleList {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory=$true)][string]$Header,
-    [AllowEmptyCollection()][string[]]$Items,
-    [ConsoleColor]$HeaderColor = 'Gray',
-    [ConsoleColor]$ItemColor = 'Gray',
-    [int]$MaxItems = 20
-  )
-
-  # Empty lists are valid: do nothing.
-  if (-not $Items -or $Items.Count -eq 0) { return }
-
-  Write-Host $Header -ForegroundColor $HeaderColor
-  $take = [Math]::Min($Items.Count, $MaxItems)
-  for ($i = 0; $i -lt $take; $i++) {
-    Write-Host ("  - " + [string]$Items[$i]) -ForegroundColor $ItemColor
-  }
-  if ($Items.Count -gt $MaxItems) {
-    Write-Host ("  ... ({0} more)" -f ($Items.Count - $MaxItems)) -ForegroundColor 'DarkGray'
-  }
-}
 
 function Write-ConsoleSummary {
   [CmdletBinding()]
@@ -478,26 +435,26 @@ function Write-ConsoleSummary {
   Write-ConsoleKeyValue -Key 'Catalog' -Value ([string]$ResultObject.Catalog.Meta.Source)
   Write-ConsoleKeyValue -Key 'EventSource' -Value ("{0} (ready={1})" -f $ResultObject.EventSource.Name, $ResultObject.EventSource.Ready)
 
-  Write-Host ""
-  Write-Host ("Status          : {0} ({1})" -f $ResultObject.Status.EventId, $ResultObject.Status.Level) -ForegroundColor $statusColor
-  Write-Host ("Counts          : Total={0}  Whitelisted={1}  Unknown={2}  Blacklisted={3}" -f `
+  Write-UiLine ""
+  Write-UiLine ("Status          : {0} ({1})" -f $ResultObject.Status.EventId, $ResultObject.Status.Level) -ForegroundColor $statusColor
+  Write-UiLine ("Counts          : Total={0}  Whitelisted={1}  Unknown={2}  Blacklisted={3}" -f `
     $ResultObject.Total, $ResultObject.CountWhitelisted, $ResultObject.CountUnknown, $ResultObject.CountBlacklisted) -ForegroundColor 'Gray'
 
-  Write-Host ""
-  Write-Host "Summary:" -ForegroundColor 'Gray'
+  Write-UiLine ""
+  Write-UiLine "Summary:" -ForegroundColor 'Gray'
   foreach ($l in @($ResultObject.Summary)) {
-    Write-Host ("  " + [string]$l) -ForegroundColor 'Gray'
+    Write-UiLine ("  " + [string]$l) -ForegroundColor 'Gray'
   }
 
   $blNames = @($ResultObject.Blacklisted | Select-Object -ExpandProperty Name | Sort-Object)
   $ukNames = @($ResultObject.Unknown     | Select-Object -ExpandProperty Name | Sort-Object)
 
-  Write-Host ""
+  Write-UiLine ""
   Write-ConsoleList -Header "Blacklisted items:" -Items $blNames -HeaderColor 'Red' -ItemColor 'Red' -MaxItems 20
   Write-ConsoleList -Header "Unknown items:"     -Items $ukNames -HeaderColor 'Yellow' -ItemColor 'Yellow' -MaxItems 20
 
-  Write-Host ("=" * 62) -ForegroundColor 'Cyan'
-  Write-Host ""
+  Write-UiLine ("=" * 62) -ForegroundColor 'Cyan'
+  Write-UiLine ""
 }
 
 # -------------------- MAIN --------------------
@@ -565,13 +522,13 @@ try {
   Write-HealthEvent -Id 4902 -Msg $errMsg -Level 'Error' | Out-Null
 
   Write-ConsoleBanner -Title "Software Audit (FAILED)" -Color 'Red'
-  Write-Host ("Error: {0}" -f $errMsg) -ForegroundColor 'Red'
+  Write-UiLine ("Error: {0}" -f $errMsg) -ForegroundColor 'Red'
 
   if ($_.InvocationInfo) {
-    Write-Host ("Line:    {0}" -f $_.InvocationInfo.ScriptLineNumber) -ForegroundColor 'DarkGray'
-    Write-Host ("Cmd:     {0}" -f $_.InvocationInfo.Line.Trim()) -ForegroundColor 'DarkGray'
+    Write-UiLine ("Line:    {0}" -f $_.InvocationInfo.ScriptLineNumber) -ForegroundColor 'DarkGray'
+    Write-UiLine ("Cmd:     {0}" -f $_.InvocationInfo.Line.Trim()) -ForegroundColor 'DarkGray'
   }
 
-  Write-Host ""
+  Write-UiLine ""
   exit 2
 }

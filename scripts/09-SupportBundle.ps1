@@ -15,7 +15,7 @@
   If the JSON file is missing or invalid, the script continues with built-in defaults.
 
   Output streams are separated by design:
-  - Console: human-friendly status, separators, and colored messages are written via Write-Host or Write-Information.
+  - Console: human-friendly status, separators, and colored messages are written via Write-UiLine or Write-Information.
   - Pipeline: only structured objects are emitted, and only when -EmitObject is specified (enables clean Export-Csv/ConvertTo-Json/Where-Object usage).
 
 .PARAMETER Force
@@ -43,7 +43,7 @@
   If not set (default), nothing is emitted to the pipeline (console-only run).
 
 .PARAMETER UseInformationStream
-  When set, writes console UI to the Information stream instead of using Write-Host.
+  When set, writes console UI to the Information stream instead of using Write-UiLine.
   This can be useful if the calling environment wants to suppress/capture informational UI separately.
 
 .OUTPUTS
@@ -119,6 +119,9 @@ param(
   [switch]$UseInformationStream
 )
 
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -152,9 +155,9 @@ function SB_WriteUi {
   }
 
   if ($NoNewline) {
-    Write-Host $Message -ForegroundColor $Color -NoNewline
+    Write-UiLine $Message -ForegroundColor $Color -NoNewline
   } else {
-    Write-Host $Message -ForegroundColor $Color
+    Write-UiLine $Message -ForegroundColor $Color
   }
 }
 

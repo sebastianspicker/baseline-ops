@@ -147,7 +147,7 @@ param(
   [switch]$PassThru
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -165,60 +165,11 @@ $DefaultEvidenceDir  = "PATH/TO/EVIDENCE"
 # Console helpers (host-only)
 # -----------------------------
 
-function Write-UiRule {
-  param([ConsoleColor]$Color = [ConsoleColor]::DarkGray)
-  Write-UiLine ("=" * 78) $Color
-}
 
-function Write-UiHeader {
-  param([string]$Text)
-  Write-Host ""
-  Write-UiRule DarkGray
-  Write-UiLine ("  " + $Text) Cyan
-  Write-UiRule DarkGray
-}
 
-function Write-UiKV {
-  param(
-    [string]$Key,
-    [string]$Value,
-    [ConsoleColor]$ValueColor = [ConsoleColor]::Gray
-  )
-  $k = ("{0,-14}" -f ($Key + ":"))
-  Write-UiLine $k DarkGray -NoNewLine
-  Write-UiLine $Value $ValueColor
-}
 
-function Write-UiStatus {
-  param(
-    [string]$Label,
-    [ValidateSet('OK','WARN','FAIL','INFO')] [string]$State,
-    [string]$Detail = ""
-  )
 
-  $stateColor = [ConsoleColor]::Gray
-  switch ($State) {
-    'OK'   { $stateColor = [ConsoleColor]::Green }
-    'WARN' { $stateColor = [ConsoleColor]::Yellow }
-    'FAIL' { $stateColor = [ConsoleColor]::Red }
-    'INFO' { $stateColor = [ConsoleColor]::Cyan }
-  }
 
-  Write-UiLine ("[{0}]" -f $State) $stateColor -NoNewLine
-  Write-UiLine (" {0}" -f $Label) White -NoNewLine
-  if ($Detail) { Write-UiLine (" - {0}" -f $Detail) DarkGray } else { Write-Host "" }
-}
-
-function Write-UiBullet {
-  param([string]$Text,[ConsoleColor]$Color = [ConsoleColor]::Gray)
-  Write-UiLine ("  - " + $Text) $Color
-}
-
-function Write-Info {
-  param([string]$Message)
-  # In Windows PowerShell 5.1 the information stream is often suppressed by default; force visibility.
-  Write-Information -MessageData $Message -InformationAction Continue
-}
 
 # -----------------------------
 # Core helpers
@@ -856,7 +807,7 @@ Write-UiKV "Scan" ("{0} -> {1}" -f $scanReq, $scanRes) Cyan
 Write-UiKV "Proof" $outFile Gray
 Write-UiKV "Evidence" $evDir Gray
 
-Write-Host ""
+Write-UiLine ""
 if ($exitCode -eq 0) {
   Write-UiStatus -Label "Overall status" -State "OK" -Detail "No findings and no errors"
 } elseif ($errCount -gt 0) {
@@ -865,7 +816,7 @@ if ($exitCode -eq 0) {
   Write-UiStatus -Label "Overall status" -State "WARN" -Detail "Findings detected (check proof file)"
 }
 
-Write-Host ""
+Write-UiLine ""
 Write-UiLine "Findings breakdown:" DarkGray
 
 $fc = [ConsoleColor]::Green; if ($filesCount -gt 0) { $fc = [ConsoleColor]::Yellow }
@@ -882,7 +833,7 @@ Write-UiBullet ("Tasks:     {0}" -f $taskCount)  $tc
 Write-UiBullet ("Processes: {0}" -f $procCount)  $pc
 Write-UiBullet ("Network:   {0}" -f $netCount)   $nc
 
-Write-Host ""
+Write-UiLine ""
 $actColor = [ConsoleColor]::Green; if ($actCount -gt 0) { $actColor = [ConsoleColor]::Yellow }
 $errColor = [ConsoleColor]::Green; if ($errCount -gt 0) { $errColor = [ConsoleColor]::Red }
 $exitColor = [ConsoleColor]::Green; if ($exitCode -ne 0) { $exitColor = [ConsoleColor]::Yellow }
@@ -892,7 +843,7 @@ Write-UiKV "Errors"   ([string]$errCount) $errColor
 Write-UiKV "ExitCode" ([string]$exitCode) $exitColor
 
 if ($errCount -gt 0) {
-  Write-Host ""
+  Write-UiLine ""
   Write-UiStatus -Label "Error details" -State "FAIL"
   foreach ($e in $Proof.Errors) { Write-UiBullet $e Red }
 }

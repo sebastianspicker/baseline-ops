@@ -11,7 +11,7 @@ Audit WDAC / App Control for Business indicators (best-effort).
 - Prints a console summary at the end.
 
 Pipeline output: structured objects only.
-Console output: Write-Host (and optional Write-Information) only.
+Console output: Write-UiLine (and optional Write-Information) only.
 
 PowerShell: Windows PowerShell 5.1 compatible.
 
@@ -64,7 +64,8 @@ param(
   [int]$ExportEventsTop = 200
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
@@ -268,13 +269,13 @@ function Write-ConsoleSummary {
 
   $lines.Add("==========================================================") | Out-Null
 
-  Write-Host ""
+  Write-UiLine ""
   foreach ($l in $lines) {
-    if ($l -like "======*") { Write-Host $l -ForegroundColor Cyan }
-    elseif ($l -like "==========================================================") { Write-Host $l -ForegroundColor Cyan }
-    else { Write-Host $l }
+    if ($l -like "======*") { Write-UiLine $l -ForegroundColor Cyan }
+    elseif ($l -like "==========================================================") { Write-UiLine $l -ForegroundColor Cyan }
+    else { Write-UiLine $l }
   }
-  Write-Host ""
+  Write-UiLine ""
 
   # Write-Information is controlled by $InformationPreference (default is SilentlyContinue). [web:90][web:74]
   if ($AlsoWriteInformation) {

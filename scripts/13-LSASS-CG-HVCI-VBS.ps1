@@ -118,7 +118,8 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -327,63 +328,63 @@ function Write-PrettySummary {
   $statusText  = $(if ($Result.Compliant) { 'OK' } else { 'NONCOMPLIANT' })
   $statusColor = $(if ($Result.Compliant) { $cOk } else { $cBad })
 
-  Write-Host ""
-  Write-Host "============================================================" -ForegroundColor $cDim
-  Write-Host "LSASS / Credential Guard / VBS / HVCI / Driver Blocklist" -ForegroundColor $cInfo
-  Write-Host "============================================================" -ForegroundColor $cDim
+  Write-UiLine ""
+  Write-UiLine "============================================================" -ForegroundColor $cDim
+  Write-UiLine "LSASS / Credential Guard / VBS / HVCI / Driver Blocklist" -ForegroundColor $cInfo
+  Write-UiLine "============================================================" -ForegroundColor $cDim
 
-  Write-Host ("Computer   : {0}" -f $Result.ComputerName)
+  Write-UiLine ("Computer   : {0}" -f $Result.ComputerName)
   if ($Result.OsCaption) {
-    Write-Host ("OS         : {0} (Build {1}, Version {2})" -f $Result.OsCaption,$Result.OsBuildNumber,$Result.OsVersion)
+    Write-UiLine ("OS         : {0} (Build {1}, Version {2})" -f $Result.OsCaption,$Result.OsBuildNumber,$Result.OsVersion)
   }
 
-  Write-Host ("Result     : {0}" -f $statusText) -ForegroundColor $statusColor
-  Write-Host ("Mode       : Strict={0}  RequireBlockList={1}  Remediate={2}  IsAdmin={3}" -f $Result.Strict,$Result.RequireBlockList,$Result.RemediateRequested,$Result.IsAdmin) -ForegroundColor $cDim
+  Write-UiLine ("Result     : {0}" -f $statusText) -ForegroundColor $statusColor
+  Write-UiLine ("Mode       : Strict={0}  RequireBlockList={1}  Remediate={2}  IsAdmin={3}" -f $Result.Strict,$Result.RequireBlockList,$Result.RemediateRequested,$Result.IsAdmin) -ForegroundColor $cDim
 
-  Write-Host ""
-  Write-Host "Signals" -ForegroundColor $cInfo
-  Write-Host ("- LSASS PPL                : {0}" -f $(if ($Result.Lsa_PplConfigured) { 'Configured' } else { 'Not configured' })) -ForegroundColor $(if ($Result.Lsa_PplConfigured) { $cOk } else { $cBad })
-  Write-Host ("- Credential Guard         : Reg={0}  Running={1}" -f $Result.Cg_RegistryConfigured,$Result.Cg_Running) -ForegroundColor $(if ($Result.Cg_Running) { $cOk } else { $cBad })
-  Write-Host ("- VBS                      : RegEnabled={0}  Running={1}  Status={2}" -f ($Result.Dg_EnableVbs -eq 1),$Result.Vbs_Running,$Result.Dg_VbsStatus) -ForegroundColor $(if ($Result.Vbs_Running) { $cOk } else { $cBad })
-  Write-Host ("- HVCI (Memory Integrity)  : RegEnabled={0}  Running={1}" -f ($Result.Hvci_Enabled -eq 1),$Result.Hvci_Running) -ForegroundColor $(if ($Result.Hvci_Running) { $cOk } else { $cBad })
-  Write-Host ("- Vulnerable Driver Blocklist: Active={0} (Value={1})" -f $Result.Ci_Blocklist_Active,$Result.Ci_Blocklist_Value) -ForegroundColor $(if ($Result.Ci_Blocklist_Active) { $cOk } else { $cBad })
+  Write-UiLine ""
+  Write-UiLine "Signals" -ForegroundColor $cInfo
+  Write-UiLine ("- LSASS PPL                : {0}" -f $(if ($Result.Lsa_PplConfigured) { 'Configured' } else { 'Not configured' })) -ForegroundColor $(if ($Result.Lsa_PplConfigured) { $cOk } else { $cBad })
+  Write-UiLine ("- Credential Guard         : Reg={0}  Running={1}" -f $Result.Cg_RegistryConfigured,$Result.Cg_Running) -ForegroundColor $(if ($Result.Cg_Running) { $cOk } else { $cBad })
+  Write-UiLine ("- VBS                      : RegEnabled={0}  Running={1}  Status={2}" -f ($Result.Dg_EnableVbs -eq 1),$Result.Vbs_Running,$Result.Dg_VbsStatus) -ForegroundColor $(if ($Result.Vbs_Running) { $cOk } else { $cBad })
+  Write-UiLine ("- HVCI (Memory Integrity)  : RegEnabled={0}  Running={1}" -f ($Result.Hvci_Enabled -eq 1),$Result.Hvci_Running) -ForegroundColor $(if ($Result.Hvci_Running) { $cOk } else { $cBad })
+  Write-UiLine ("- Vulnerable Driver Blocklist: Active={0} (Value={1})" -f $Result.Ci_Blocklist_Active,$Result.Ci_Blocklist_Value) -ForegroundColor $(if ($Result.Ci_Blocklist_Active) { $cOk } else { $cBad })
 
   if ($Result.PolicyDeviceGuardPresent) {
-    Write-Host ""
-    Write-Host ("Policy     : DeviceGuard policy key present -> remediation skipped ({0})" -f $Result.PolicyDeviceGuardKey) -ForegroundColor $cWarn
+    Write-UiLine ""
+    Write-UiLine ("Policy     : DeviceGuard policy key present -> remediation skipped ({0})" -f $Result.PolicyDeviceGuardKey) -ForegroundColor $cWarn
   }
 
-  Write-Host ""
-  Write-Host ("Config     : Loaded={0}  Reason={1}  Path={2}" -f $Result.ConfigLoaded,$Result.ConfigLoadReason,$SanitizedConfigPath) -ForegroundColor $cDim
+  Write-UiLine ""
+  Write-UiLine ("Config     : Loaded={0}  Reason={1}  Path={2}" -f $Result.ConfigLoaded,$Result.ConfigLoadReason,$SanitizedConfigPath) -ForegroundColor $cDim
 
   if ($Result.RemediationActions.Count -gt 0) {
-    Write-Host ""
-    Write-Host "Remediation actions" -ForegroundColor $cInfo
+    Write-UiLine ""
+    Write-UiLine "Remediation actions" -ForegroundColor $cInfo
     foreach ($a in $Result.RemediationActions) {
-      Write-Host ("- {0}" -f $a) -ForegroundColor $cWarn
+      Write-UiLine ("- {0}" -f $a) -ForegroundColor $cWarn
     }
   }
 
   if ($Result.RebootRequired) {
-    Write-Host ""
-    Write-Host "RebootRequired: True (changes take effect after reboot)" -ForegroundColor $cWarn
+    Write-UiLine ""
+    Write-UiLine "RebootRequired: True (changes take effect after reboot)" -ForegroundColor $cWarn
   }
 
   if ($Result.Issues.Count -gt 0) {
-    Write-Host ""
-    Write-Host "Issues" -ForegroundColor $cInfo
-    foreach ($m in $Result.Issues) { Write-Host ("- {0}" -f $m) -ForegroundColor $cBad }
+    Write-UiLine ""
+    Write-UiLine "Issues" -ForegroundColor $cInfo
+    foreach ($m in $Result.Issues) { Write-UiLine ("- {0}" -f $m) -ForegroundColor $cBad }
   }
 
   if ($Result.Warnings.Count -gt 0) {
-    Write-Host ""
-    Write-Host "Warnings" -ForegroundColor $cInfo
-    foreach ($w in $Result.Warnings) { Write-Host ("- {0}" -f $w) -ForegroundColor $cWarn }
+    Write-UiLine ""
+    Write-UiLine "Warnings" -ForegroundColor $cInfo
+    foreach ($w in $Result.Warnings) { Write-UiLine ("- {0}" -f $w) -ForegroundColor $cWarn }
   }
 
-  Write-Host ""
-  Write-Host ("ExitCode   : {0}" -f $Result.ExitCode) -ForegroundColor $cDim
-  Write-Host "============================================================" -ForegroundColor $cDim
+  Write-UiLine ""
+  Write-UiLine ("ExitCode   : {0}" -f $Result.ExitCode) -ForegroundColor $cDim
+  Write-UiLine "============================================================" -ForegroundColor $cDim
 }
 
 # -----------------------------
@@ -618,7 +619,7 @@ try {
     Write-HealthEvent -Id $result.EventId -Msg $logText -Level 'Warning' -Source $source
   }
 
-  # Pretty console output (Write-Host only; does not pollute pipeline)
+  # Pretty console output (Write-UiLine only; does not pollute pipeline)
   Write-PrettySummary -Result $result -Cfg $cfg -SanitizedConfigPath $sanitizedConfigPath
 
 } catch {
@@ -629,7 +630,7 @@ try {
 
   $errText = ("LSASS/CG/HVCI/VBS/Blocklist Check: error: {0}" -f $_.Exception.Message)
   Write-HealthEvent -Id $eventErrId -Msg $errText -Level 'Error' -Source $source
-  Write-Host $errText -ForegroundColor (Get-ConsoleColorSafe -Name ([string]$cfg.ColorBad) -Fallback 'Red')
+  Write-UiLine $errText -ForegroundColor (Get-ConsoleColorSafe -Name ([string]$cfg.ColorBad) -Fallback 'Red')
 }
 
 # Pipeline output: one structured object

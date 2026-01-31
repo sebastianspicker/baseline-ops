@@ -9,7 +9,7 @@ creates structured findings, and optionally exports CSV + raw TXT dumps.
 
 Best-practice goals (PowerShell 5.1, 2025):
 - Pipeline output: structured objects only (Export-Csv / ConvertTo-Json / Where-Object safe).
-- Console output: all formatting via Write-Host / Write-Information only (no formatting objects on the pipeline).
+- Console output: all formatting via Write-UiLine / Write-Information only (no formatting objects on the pipeline).
 - StrictMode-safe counting patterns (.Count pitfalls). [web:92]
 
 .PARAMETER ExportPath
@@ -40,7 +40,7 @@ param(
   [switch]$NoConsoleSummary
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
@@ -199,10 +199,6 @@ function Get-OutputFolderAndBase {
   }
 }
 
-function Write-UiBlankLine {
-  param([switch]$UseWriteInformation)
-  if ($UseWriteInformation) { Write-Information '' } else { Write-Host '' }
-}
 
 
 function Write-ConsoleSummary {

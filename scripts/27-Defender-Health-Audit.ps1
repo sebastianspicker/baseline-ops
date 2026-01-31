@@ -5,7 +5,7 @@ Create a Microsoft Defender health report (status, signatures, RTP, tamper prote
 
 .DESCRIPTION
 Pipeline output is structured objects only (safe for Export-Csv / ConvertTo-Json / filtering).
-All human-friendly formatting is written via Write-Host / Write-Information only.
+All human-friendly formatting is written via Write-UiLine / Write-Information only.
 Primary data source is Get-MpComputerStatus. [page:1]
 Tamper protection can be checked via IsTamperProtected when present. [page:1]
 
@@ -75,7 +75,8 @@ param(
   [switch]$PassThru
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -234,17 +235,6 @@ function Get-ColorForSeverity {
   }
 }
 
-function Write-PrettyLine {
-  param(
-    [Parameter(Mandatory = $true)][string]$Label,
-    [Parameter(Mandatory = $true)][string]$Value,
-    [Parameter(Mandatory = $false)][string]$ValueColor = 'Gray',
-    [Parameter(Mandatory = $false)][string]$LabelColor = 'DarkGray'
-  )
-
-  Write-Host ($Label.PadRight(28) + ': ') -NoNewline -ForegroundColor $LabelColor
-  Write-Host $Value -ForegroundColor $ValueColor
-}
 
 function Write-ConsoleSummary {
   param(
@@ -252,7 +242,7 @@ function Write-ConsoleSummary {
     $Result
   )
 
-  # Note: In Windows PowerShell 5.1, Write-Host writes to the Information stream. [page:0]
+  # Note: In Windows PowerShell 5.1, Write-UiLine writes to the Information stream. [page:0]
   # We keep all formatting in host output to preserve pipeline purity.
 
   $s = $Result.Summary
@@ -262,18 +252,18 @@ function Write-ConsoleSummary {
   $highest = Get-HighestSeverity -Findings $f
   $highestColor = Get-ColorForSeverity $highest
 
-  Write-Host ''
-  Write-Host ('=' * 60) -ForegroundColor DarkGray
-  Write-Host ' Microsoft Defender Health Audit ' -ForegroundColor White
-  Write-Host ('=' * 60) -ForegroundColor DarkGray
-  Write-Host ''
+  Write-UiLine ''
+  Write-UiLine ('=' * 60) -ForegroundColor DarkGray
+  Write-UiLine ' Microsoft Defender Health Audit ' -ForegroundColor White
+  Write-UiLine ('=' * 60) -ForegroundColor DarkGray
+  Write-UiLine ''
 
   Write-PrettyLine -Label 'ComputerName' -Value ([string]$s.ComputerName) -ValueColor White
   Write-PrettyLine -Label 'Timestamp' -Value ([string]$s.Timestamp) -ValueColor Gray
 
-  Write-Host ''
-  Write-Host 'Core status' -ForegroundColor White
-  Write-Host ('-' * 60) -ForegroundColor DarkGray
+  Write-UiLine ''
+  Write-UiLine 'Core status' -ForegroundColor White
+  Write-UiLine ('-' * 60) -ForegroundColor DarkGray
 
   $boolColor = { param($b) if ($b -eq $true) { 'Green' } else { 'Red' } }
 
@@ -285,9 +275,9 @@ function Write-ConsoleSummary {
   $sigColor = if ($s.DefenderSignaturesOutOfDate -eq $true) { 'Red' } else { 'Green' }
   Write-PrettyLine -Label 'SignaturesOutOfDate' -Value ([string]$s.DefenderSignaturesOutOfDate) -ValueColor $sigColor
 
-  Write-Host ''
-  Write-Host 'Ages (days)' -ForegroundColor White
-  Write-Host ('-' * 60) -ForegroundColor DarkGray
+  Write-UiLine ''
+  Write-UiLine 'Ages (days)' -ForegroundColor White
+  Write-UiLine ('-' * 60) -ForegroundColor DarkGray
 
   $sigAgeColor = if (($null -ne $s.AntivirusSignatureAge) -and ($s.AntivirusSignatureAge -ge $cfg.WarnSignatureAgeDays)) { 'Yellow' } else { 'Green' }
   Write-PrettyLine -Label 'AntivirusSignatureAge' -Value ([string]$s.AntivirusSignatureAge) -ValueColor $sigAgeColor
@@ -303,15 +293,15 @@ function Write-ConsoleSummary {
 
   if ($s.PSObject.Properties.Name -contains 'IsTamperProtected') {
     $tpColor = if ($s.IsTamperProtected -eq $true) { 'Green' } else { 'Yellow' }
-    Write-Host ''
-    Write-Host 'Tamper protection' -ForegroundColor White
-    Write-Host ('-' * 60) -ForegroundColor DarkGray
+    Write-UiLine ''
+    Write-UiLine 'Tamper protection' -ForegroundColor White
+    Write-UiLine ('-' * 60) -ForegroundColor DarkGray
     Write-PrettyLine -Label 'IsTamperProtected' -Value ([string]$s.IsTamperProtected) -ValueColor $tpColor
   }
 
-  Write-Host ''
-  Write-Host 'Meta' -ForegroundColor White
-  Write-Host ('-' * 60) -ForegroundColor DarkGray
+  Write-UiLine ''
+  Write-UiLine 'Meta' -ForegroundColor White
+  Write-UiLine ('-' * 60) -ForegroundColor DarkGray
 
   if ($cfg.LoadedFromJson) {
     Write-PrettyLine -Label 'ConfigSource' -Value ('JSON: ' + $cfg.SettingsJsonPath) -ValueColor Gray
@@ -330,21 +320,21 @@ function Write-ConsoleSummary {
   Write-PrettyLine -Label 'FindingsCount' -Value ([string]$s.FindingsCount) -ValueColor $highestColor
   Write-PrettyLine -Label 'HighestSeverity' -Value $highest -ValueColor $highestColor
 
-  Write-Host ''
+  Write-UiLine ''
   if ($f.Count -gt 0) {
-    Write-Host 'Findings' -ForegroundColor White
-    Write-Host ('-' * 60) -ForegroundColor DarkGray
+    Write-UiLine 'Findings' -ForegroundColor White
+    Write-UiLine ('-' * 60) -ForegroundColor DarkGray
 
     foreach ($item in ($f | Sort-Object @{ Expression = { Get-SeverityRank $_.Severity } }, Code)) {
       $c = Get-ColorForSeverity $item.Severity
-      Write-Host ('[{0}] {1} - {2}' -f $item.Severity.ToUpper(), $item.Code, $item.Message) -ForegroundColor $c
+      Write-UiLine ('[{0}] {1} - {2}' -f $item.Severity.ToUpper(), $item.Code, $item.Message) -ForegroundColor $c
     }
   }
   else {
-    Write-Host 'No findings.' -ForegroundColor Green
+    Write-UiLine 'No findings.' -ForegroundColor Green
   }
 
-  Write-Host ''
+  Write-UiLine ''
 }
 
 # ----- Effective configuration (built-in defaults + optional JSON overlay)

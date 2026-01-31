@@ -6,7 +6,7 @@ optionally compares against a desired-state JSON and can remediate.
 
 .DESCRIPTION
 - Pipeline output: single structured object (Summary, Findings, ParsedPolicies).
-- Console output: pretty, human-friendly blocks via Write-Host only.
+- Console output: pretty, human-friendly blocks via Write-UiLine only.
 - Desired policy:
   - If JSON is missing/unreadable/invalid => built-in defaults are used for drift checks only.
   - Remediate requires a valid JSON file.
@@ -36,7 +36,8 @@ param(
   [string]$ExportPath
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -203,15 +204,6 @@ function Get-SeverityColor {
   }
 }
 
-function Write-Rule {
-  param([string]$Title)
-
-  $line = ('=' * 62)
-  Write-Host ''
-  Write-Host $line -ForegroundColor DarkCyan
-  if ($Title) { Write-Host ("{0}" -f $Title) -ForegroundColor Cyan }
-  Write-Host $line -ForegroundColor DarkCyan
-}
 
 function Write-ConsoleSummary {
   param(
@@ -225,20 +217,20 @@ function Write-ConsoleSummary {
 
   Write-Rule -Title 'Advanced Audit Policy - Summary'
 
-  Write-Host ("ComputerName     : {0}" -f $Summary.ComputerName)
-  Write-Host ("Mode             : {0}" -f $Summary.Mode)
-  Write-Host ("Policies parsed  : {0}" -f $Summary.PoliciesParsed)
+  Write-UiLine ("ComputerName     : {0}" -f $Summary.ComputerName)
+  Write-UiLine ("Mode             : {0}" -f $Summary.Mode)
+  Write-UiLine ("Policies parsed  : {0}" -f $Summary.PoliciesParsed)
 
   $countLine = ("Findings         : {0} (High={1}, Medium={2}, Low={3}, Info={4})" -f $Findings.Count, $stats.High, $stats.Medium, $stats.Low, $stats.Info)
   $countColor = if ($stats.High -gt 0) { 'Red' } elseif ($stats.Medium -gt 0) { 'Yellow' } elseif ($Findings.Count -gt 0) { 'Cyan' } else { 'Green' }
-  Write-Host $countLine -ForegroundColor $countColor
+  Write-UiLine $countLine -ForegroundColor $countColor
 
-  Write-Host ("Desired policy   : {0}" -f $DesiredPolicySource)
+  Write-UiLine ("Desired policy   : {0}" -f $DesiredPolicySource)
   if ($DesiredPolicyError) {
-    Write-Host ("DesiredPolicyError: {0}" -f $DesiredPolicyError) -ForegroundColor Yellow
+    Write-UiLine ("DesiredPolicyError: {0}" -f $DesiredPolicyError) -ForegroundColor Yellow
   }
 
-  Write-Host ("Timestamp        : {0}" -f $Summary.Timestamp)
+  Write-UiLine ("Timestamp        : {0}" -f $Summary.Timestamp)
 }
 
 function Write-FindingsConsole {
@@ -247,7 +239,7 @@ function Write-FindingsConsole {
   Write-Rule -Title ("Findings ({0})" -f $Findings.Count)
 
   if ($Findings.Count -eq 0) {
-    Write-Host 'No findings.' -ForegroundColor Green
+    Write-UiLine 'No findings.' -ForegroundColor Green
     return
   }
 
@@ -257,13 +249,13 @@ function Write-FindingsConsole {
     if ($items.Count -eq 0) { continue }
 
     $color = Get-SeverityColor -Severity $sev
-    Write-Host ("{0} ({1})" -f $sev.ToUpperInvariant(), $items.Count) -ForegroundColor $color
+    Write-UiLine ("{0} ({1})" -f $sev.ToUpperInvariant(), $items.Count) -ForegroundColor $color
 
     foreach ($f in $items) {
-      Write-Host ("  [{0}] {1}" -f $f.Code, $f.Message) -ForegroundColor $color
+      Write-UiLine ("  [{0}] {1}" -f $f.Code, $f.Message) -ForegroundColor $color
     }
 
-    Write-Host ''
+    Write-UiLine ''
   }
 }
 

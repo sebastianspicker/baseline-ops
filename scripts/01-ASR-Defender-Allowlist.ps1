@@ -121,7 +121,8 @@ param(
   [string]$BaselineMode = 'Minimum'
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
 
@@ -406,16 +407,6 @@ function Write-ConsoleSummary {
     [Parameter(Mandatory=$true)][pscustomobject]$Result
   )
 
-  function Write-Kv {
-    param(
-      [string]$Key,
-      [string]$Value,
-      [ConsoleColor]$KeyColor = [ConsoleColor]::DarkGray,
-      [ConsoleColor]$ValueColor = [ConsoleColor]::Gray
-    )
-    Write-Host ("{0,-12}: " -f $Key) -ForegroundColor $KeyColor -NoNewline
-    Write-Host $Value -ForegroundColor $ValueColor
-  }
 
   $modeColor = if ($Result.Remediate) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Cyan }
   $resColor = switch ($Result.Result) {
@@ -427,10 +418,10 @@ function Write-ConsoleSummary {
     default                { [ConsoleColor]::Gray }
   }
 
-  Write-Host ""
-  Write-Host "============================================================" -ForegroundColor DarkGray
-  Write-Host "Defender / ASR / CFA Allowlist Sync" -ForegroundColor White
-  Write-Host "============================================================" -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine "============================================================" -ForegroundColor DarkGray
+  Write-UiLine "Defender / ASR / CFA Allowlist Sync" -ForegroundColor White
+  Write-UiLine "============================================================" -ForegroundColor DarkGray
 
   Write-Kv "Mode"       ($(if ($Result.Remediate) { "Remediate" } else { "AuditOnly" })) DarkGray $modeColor
   Write-Kv "Baseline"   $Result.BaselineUsed DarkGray ($(if ($Result.BaselineUsed -eq 'None') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
@@ -439,11 +430,11 @@ function Write-ConsoleSummary {
   Write-Kv "JSON"       $Result.SourceJson
   Write-Kv "Audit"      $Result.AuditPath
 
-  Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
+  Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
   Write-Kv "JsonLoaded" ([string]$Result.JsonLoaded) DarkGray ($(if ($Result.JsonLoaded) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
   if ($Result.JsonError) { Write-Kv "JsonError" $Result.JsonError DarkGray Yellow }
 
-  Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
+  Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
   Write-Kv "Add"        ([string]$Result.TotalAdd)      DarkGray ($(if ($Result.TotalAdd -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
   Write-Kv "Remove"     ([string]$Result.TotalRemove)   DarkGray ($(if ($Result.TotalRemove -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
   Write-Kv "Rejected"   ([string]$Result.TotalRejected) DarkGray ($(if ($Result.TotalRejected -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::DarkGray }))
@@ -451,29 +442,29 @@ function Write-ConsoleSummary {
   Write-Kv "Result"     $Result.Result                 DarkGray $resColor
 
   if ($Result.Notes -and $Result.Notes.Count -gt 0) {
-    Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "Notes:" -ForegroundColor DarkGray
-    foreach ($n in $Result.Notes) { Write-Host ("- " + $n) -ForegroundColor DarkGray }
+    Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-UiLine "Notes:" -ForegroundColor DarkGray
+    foreach ($n in $Result.Notes) { Write-UiLine ("- " + $n) -ForegroundColor DarkGray }
   }
 
   if ($Result.PerCategory -and $Result.PerCategory.Count -gt 0) {
-    Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "Per-category diff:" -ForegroundColor DarkGray
+    Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-UiLine "Per-category diff:" -ForegroundColor DarkGray
     foreach ($row in ($Result.PerCategory | Sort-Object Name)) {
-      Write-Host ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
+      Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
       if ($row.Add -gt 0 -or $row.Remove -gt 0 -or $row.Rejected -gt 0) {
         # Optional: highlight lines with changes (second line in color to avoid pipeline)
-        Write-Host ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f "",$row.Add,$row.Remove,$row.Rejected) -ForegroundColor DarkGray
-        Write-Host ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f "",$row.Add,$row.Remove,$row.Rejected) -ForegroundColor DarkGray
+        Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f "",$row.Add,$row.Remove,$row.Rejected) -ForegroundColor DarkGray
+        Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f "",$row.Add,$row.Remove,$row.Rejected) -ForegroundColor DarkGray
       }
 
-      # Keep it simple: single line; colors per field are not possible without multiple Write-Host calls.
+      # Keep it simple: single line; colors per field are not possible without multiple Write-UiLine calls.
       # We already color the totals and overall result.
     }
   }
 
-  Write-Host "============================================================" -ForegroundColor DarkGray
-  Write-Host ""
+  Write-UiLine "============================================================" -ForegroundColor DarkGray
+  Write-UiLine ""
 }
 
 # ----------------------------- Main ------------------------------------------------

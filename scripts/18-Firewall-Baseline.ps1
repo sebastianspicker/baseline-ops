@@ -132,7 +132,7 @@ param(
   [switch]$ShowOkInConsole = $false
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -151,13 +151,6 @@ $ErrorActionPreference = 'Stop'
 # -------------------------
 
 
-function Write-UiHeader {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Text)
-  Write-Host ""
-  Write-Host $Text -ForegroundColor Cyan
-  Write-Host ("-" * $Text.Length) -ForegroundColor DarkCyan
-}
 
 function Get-StatusColor {
   [CmdletBinding()]
@@ -184,7 +177,7 @@ function Write-UiItem {
   if (-not [string]::IsNullOrWhiteSpace($Item.DisplayName)) { $msg += " | " + $Item.DisplayName }
   if (-not [string]::IsNullOrWhiteSpace($Item.Detail))      { $msg += " | " + $Item.Detail }
 
-  Write-Host ("- " + $left + ": " + $msg) -ForegroundColor $color
+  Write-UiLine ("- " + $left + ": " + $msg) -ForegroundColor $color
 }
 
 # -------------------------
@@ -728,14 +721,14 @@ function Write-ConsoleSummary {
   Write-UiLine -Text ("Elevated:    " + $Elevated) -Color Gray
   Write-UiLine -Text ("PolicyStore: " + $PolicyStore) -Color Gray
   Write-UiLine -Text ("Duration:    " + [string]$Duration) -Color Gray
-  Write-Host ""
+  Write-UiLine ""
 
   Write-UiLine -Text ("Changed:     " + $changeCount) -Color Cyan
   Write-UiLine -Text ("Drift:       " + $driftCount) -Color Yellow
   Write-UiLine -Text ("Errors:      " + $errorCount) -Color Red
   Write-UiLine -Text ("Notes:       " + $noteCount) -Color DarkGray
   if ($ShowOk) { Write-UiLine -Text ("OK:          " + $okCount) -Color Green }
-  Write-Host ""
+  Write-UiLine ""
 
   # Show important items first
   $top = $items | Where-Object { $_.Status -in @('Error','Drift','Changed','Note') }

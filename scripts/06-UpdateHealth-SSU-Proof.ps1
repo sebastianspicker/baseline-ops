@@ -111,7 +111,7 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -124,15 +124,6 @@ $script:FallbackLog = "PATH/TO/JSON/logs/UpdateHealth-SSU-Proof.log"
 
 # -------------------------------- Console helpers ----------------------------------
 
-function Write-UiKeyValue {
-  param(
-    [string]$Key,
-    [string]$Value,
-    [ValidateSet('Default','Info','Ok','Warn','Err','Dim')]
-    [string]$Style = 'Default'
-  )
-  Write-UiLine -Text ("{0,-12}: {1}" -f $Key,$Value) -Style $Style
-}
 
 # ------------------------------------ Helpers --------------------------------------
 
@@ -751,7 +742,7 @@ if ($summaryStatus -ne 'OK') { $summaryStyle = 'Warn' }
 $adminStyle = 'Warn'
 if ($admin) { $adminStyle = 'Ok' }
 
-Write-Host ""
+Write-UiLine ""
 Write-UiLine -Text "=== UpdateHealth/SSU Proof Summary ===" -Style 'Header'
 Write-UiKeyValue -Key 'Status'    -Value $summaryStatus -Style $summaryStyle
 Write-UiKeyValue -Key 'Remediate' -Value ([string][bool]$Remediate) -Style 'Dim'
@@ -763,7 +754,7 @@ Write-UiKeyValue -Key 'EventLog'  -Value ("{0}/{1}" -f $script:EventLog,$script:
 Write-UiKeyValue -Key 'Duration'  -Value ("{0} ms" -f $sw.ElapsedMilliseconds) -Style 'Dim'
 
 if ($notes.Count -gt 0) {
-  Write-Host ""
+  Write-UiLine ""
   Write-UiLine -Text "Notes" -Style 'Header'
   foreach($n in @($notes)) {
     $st = 'Info'
@@ -774,7 +765,7 @@ if ($notes.Count -gt 0) {
 }
 
 if ($actions.Count -gt 0) {
-  Write-Host ""
+  Write-UiLine ""
   Write-UiLine -Text "Actions" -Style 'Header'
   foreach($a in @($actions)) {
     $st2 = 'Ok'
@@ -784,7 +775,7 @@ if ($actions.Count -gt 0) {
 }
 
 if ($effectiveFindings.Count -gt 0) {
-  Write-Host ""
+  Write-UiLine ""
   Write-UiLine -Text "Findings" -Style 'Header'
   foreach($f in @($effectiveFindings)) {
     $st3 = 'Info'
@@ -793,7 +784,7 @@ if ($effectiveFindings.Count -gt 0) {
     Write-UiLine -Text ("- {0} [{1}] {2} ({3})" -f $f.Time,$f.Area,$f.Message,$f.Severity) -Style $st3
   }
 } else {
-  Write-Host ""
+  Write-UiLine ""
   Write-UiLine -Text "No findings." -Style 'Ok'
 }
 

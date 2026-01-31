@@ -4,7 +4,7 @@ This folder contains small PowerShell modules used by multiple scripts to avoid 
 
 ## Modules
 - `Common.psm1`: Admin check and path/config helpers.
-- `Output.psm1`: Console output helpers (Write-UiLine / Write-ConsoleLine / Write-ConsoleHeader / Write-ConsoleKV / Write-Section).
+- `Output.psm1`: Console output helpers (Write-UiLine / Write-Info / Write-Warn / Write-Success / Write-Section / Write-KeyValue, plus compatibility wrappers).
 - `Registry.psm1`: Registry helpers (Ensure-RegistryKey, Get-RegValue, Set-RegDword, Remove-RegValueIfExists).
 - `EventLog.psm1`: Event log helpers (Ensure-EventSource, Write-HealthEvent).
 - `Results.psm1`: Findings helpers (list creation and Add-Finding).
@@ -20,10 +20,10 @@ This folder contains small PowerShell modules used by multiple scripts to avoid 
 
 ### Output.psm1
 - `Write-UiLine -Message <text> [-Style <style>]`: Host/information stream line with optional color/style.
-- `Write-ConsoleLine -Message <text> [-Style <style>]`: Host line with optional color/style.
-- `Write-ConsoleHeader -Title <text> [-Width <n>]`: Section header with separators.
-- `Write-ConsoleKV -Key <k> -Value <v> [-ValueColor <style>]`: Key/value console line.
+- `Write-Info / Write-Warn / Write-Success`: Standard prefixed status lines with unified colors.
 - `Write-Section -Title <text> [-Width <n>]`: Section separator title.
+- `Write-KeyValue -Key <k> -Value <v> [-KeyWidth <n>] [-ValueStyle <style>]`: Key/value console line.
+- Compatibility wrappers: `Write-UiHeader`, `Write-UiKV`, `Write-PrettyLine`, `Write-ConsoleInfo`, etc.
 
 ### Registry.psm1
 - `Ensure-RegistryKey -Path <key>`: Creates registry key if missing.
@@ -50,7 +50,7 @@ This folder contains small PowerShell modules used by multiple scripts to avoid 
 Place imports after `#requires` and the comment-based help block:
 
 ```powershell
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force

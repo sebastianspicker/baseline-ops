@@ -10,7 +10,7 @@ Optionally loads desired settings from JSON; falls back to defaults when JSON is
 
 Best-practice output model:
 - Pipeline output: structured objects only (safe for Export-Csv / ConvertTo-Json / Where-Object).
-- Console output: human-readable "pretty" summary via Write-Host (information stream in PS 5.1). [web:148]
+- Console output: human-readable "pretty" summary via Write-UiLine (information stream in PS 5.1). [web:148]
 
 .PARAMETER Mode
 AuditOnly | Remediate
@@ -69,7 +69,8 @@ param(
   [switch]$NoConsoleSummary
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -278,32 +279,32 @@ function Write-PrettySummary {
   if ($fc.Medium -gt 0 -or $fc.Low -gt 0) { $statusText = 'WARN'; $statusColor = $colorWarn }
   if ($fc.High -gt 0) { $statusText = 'FAIL'; $statusColor = $colorBad }
 
-  Write-Host ""
-  Write-Host "==================== Firewall Logging Audit ====================" -ForegroundColor $colorMuted
-  Write-Host ("Status       : {0}" -f $statusText) -ForegroundColor $statusColor
-  Write-Host ("ComputerName : {0}" -f $s.ComputerName) -ForegroundColor $colorInfo
-  Write-Host ("Mode         : {0}" -f $s.Mode) -ForegroundColor $colorInfo
-  Write-Host ("Timestamp    : {0}" -f $s.Timestamp) -ForegroundColor $colorMuted
-  Write-Host "---------------------------------------------------------------" -ForegroundColor $colorMuted
+  Write-UiLine ""
+  Write-UiLine "==================== Firewall Logging Audit ====================" -ForegroundColor $colorMuted
+  Write-UiLine ("Status       : {0}" -f $statusText) -ForegroundColor $statusColor
+  Write-UiLine ("ComputerName : {0}" -f $s.ComputerName) -ForegroundColor $colorInfo
+  Write-UiLine ("Mode         : {0}" -f $s.Mode) -ForegroundColor $colorInfo
+  Write-UiLine ("Timestamp    : {0}" -f $s.Timestamp) -ForegroundColor $colorMuted
+  Write-UiLine "---------------------------------------------------------------" -ForegroundColor $colorMuted
 
-  Write-Host "Desired settings" -ForegroundColor $colorInfo
-  Write-Host ("  Source        : {0}" -f $d.Source)
-  Write-Host ("  LogFileName    : {0}" -f $d.LogFileName)
-  Write-Host ("  LogMaxSizeKB   : {0}" -f $d.LogMaxSizeKB)
-  Write-Host ("  EnableDropped  : {0}" -f $d.EnableDropped)
-  Write-Host ("  EnableAllowed  : {0}" -f $d.EnableAllowed)
+  Write-UiLine "Desired settings" -ForegroundColor $colorInfo
+  Write-UiLine ("  Source        : {0}" -f $d.Source)
+  Write-UiLine ("  LogFileName    : {0}" -f $d.LogFileName)
+  Write-UiLine ("  LogMaxSizeKB   : {0}" -f $d.LogMaxSizeKB)
+  Write-UiLine ("  EnableDropped  : {0}" -f $d.EnableDropped)
+  Write-UiLine ("  EnableAllowed  : {0}" -f $d.EnableAllowed)
 
-  Write-Host "---------------------------------------------------------------" -ForegroundColor $colorMuted
+  Write-UiLine "---------------------------------------------------------------" -ForegroundColor $colorMuted
 
-  Write-Host "Findings" -ForegroundColor $colorInfo
-  Write-Host ("  High   : {0}" -f $fc.High) -ForegroundColor ($(if ($fc.High -gt 0) { $colorBad } else { $colorOk }))
-  Write-Host ("  Medium : {0}" -f $fc.Medium) -ForegroundColor ($(if ($fc.Medium -gt 0) { $colorWarn } else { $colorOk }))
-  Write-Host ("  Low    : {0}" -f $fc.Low) -ForegroundColor $colorMuted
-  Write-Host ("  Total  : {0}" -f $fc.Total) -ForegroundColor $colorMuted
+  Write-UiLine "Findings" -ForegroundColor $colorInfo
+  Write-UiLine ("  High   : {0}" -f $fc.High) -ForegroundColor ($(if ($fc.High -gt 0) { $colorBad } else { $colorOk }))
+  Write-UiLine ("  Medium : {0}" -f $fc.Medium) -ForegroundColor ($(if ($fc.Medium -gt 0) { $colorWarn } else { $colorOk }))
+  Write-UiLine ("  Low    : {0}" -f $fc.Low) -ForegroundColor $colorMuted
+  Write-UiLine ("  Total  : {0}" -f $fc.Total) -ForegroundColor $colorMuted
 
   if ($fc.Total -gt 0) {
-    Write-Host "---------------------------------------------------------------" -ForegroundColor $colorMuted
-    Write-Host "Top findings (up to 10)" -ForegroundColor $colorInfo
+    Write-UiLine "---------------------------------------------------------------" -ForegroundColor $colorMuted
+    Write-UiLine "Top findings (up to 10)" -ForegroundColor $colorInfo
 
     $top = @($Result.Findings) |
       Sort-Object @{ Expression = { switch ($_.Severity) { 'High' {0} 'Medium' {1} 'Low' {2} default {3} } }; Ascending = $true }, TimeUtc |
@@ -313,12 +314,12 @@ function Write-PrettySummary {
       $c = $colorMuted
       if ($f.Severity -eq 'High') { $c = $colorBad }
       elseif ($f.Severity -eq 'Medium') { $c = $colorWarn }
-      Write-Host ("  [{0}] {1} ({2}) - {3}" -f $f.Severity, $f.Code, $f.Profile, $f.Message) -ForegroundColor $c
+      Write-UiLine ("  [{0}] {1} ({2}) - {3}" -f $f.Severity, $f.Code, $f.Profile, $f.Message) -ForegroundColor $c
     }
   }
 
-  Write-Host "===============================================================" -ForegroundColor $colorMuted
-  Write-Host ""
+  Write-UiLine "===============================================================" -ForegroundColor $colorMuted
+  Write-UiLine ""
 }
 
 # endregion Helpers

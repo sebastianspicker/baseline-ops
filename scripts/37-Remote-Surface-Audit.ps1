@@ -8,7 +8,7 @@ Audit-only (no remediation). Safe for support bundles/collections.
 
 Target design:
 - Pipeline output: structured objects only (Export-Csv / ConvertTo-Json / Where-Object).
-- Console output: pretty, human-friendly, colorized, using Write-Host only (host stream). [web:192]
+- Console output: pretty, human-friendly, colorized, using Write-UiLine only (host stream). [web:192]
 
 .PARAMETER ExportPath
 Optional base path for CSV export. Creates *_summary.csv, *_surfaces.csv, *_findings.csv.
@@ -36,7 +36,7 @@ param(
   [switch]$NoConsoleSummary
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -122,13 +122,6 @@ $Config = Get-AuditConfig -Path $ConfigPath -Defaults $DefaultConfig
 # Console helpers (host stream only)
 # -------------------------
 
-function Write-UiSection {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Title)
-  Write-Host ''
-  Write-Host $Title -ForegroundColor Cyan
-  Write-Host ('-' * $Title.Length) -ForegroundColor DarkCyan
-}
 
 function Get-SeverityColor {
   [CmdletBinding()]

@@ -25,6 +25,31 @@ Common helper functions live in `lib/` to keep scripts consistent and deduplicat
 - Findings are standardized via `Results.psm1` (Code/Severity/Message + optional metadata)
 See `lib/README.md` for details and the recommended import pattern.
 
+Scripts resolve `lib/` via a shared bootstrap:
+- `scripts/_lib/Bootstrap.ps1` sets `$script:LibPath` so scripts can import modules consistently (repo checkout or deployed copy).
+
+## Verification (syntax + static checks)
+Run the repo-level verifier to parse all scripts/modules and (optionally) run PSScriptAnalyzer:
+```
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
+```
+Options:
+```
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer
+```
+Exit codes:
+- `0`: OK
+- `1`: Parse error(s)
+- `2`: PSScriptAnalyzer issues
+
+## Console output (unified)
+All scripts import `lib/Output.psm1` and use a shared console API with a consistent palette and layout:
+- `Write-Section`, `Write-UiLine`
+- `Write-Info`, `Write-Warn`, `Write-Error`, `Write-Success`
+- `Write-KeyValue` (and compatibility wrappers like `Write-UiKV`)
+
+Scripts should avoid direct `Write-Host` and instead route output through the shared helpers.
+
 ## Quick start (safe defaults)
 ### 1) Clone
 ```

@@ -10,7 +10,7 @@ Optionally loads a JSON config (e.g. "PATH/TO/JSON/config.json"); if missing/inv
 
 .DESIGN GOALS
 - Pipeline: structured objects only (safe for Export-Csv / ConvertTo-Json / Where-Object).
-- Console: all "pretty" output via Write-Host or Write-Information only (no strings/format objects to pipeline). [web:58]
+- Console: all "pretty" output via Write-UiLine or Write-Information only (no strings/format objects to pipeline). [web:58]
 
 .PARAMETER ExportPath
 Optional base file path for CSV exports. Creates:
@@ -58,7 +58,7 @@ param(
   [switch]$PassThru
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 
@@ -125,7 +125,7 @@ function Get-DefaultConfig {
     ConsoleSummary            = $true
     ConsoleShowInterfaces     = $true
     ConsoleShowIssuesTable    = $true
-    ConsoleUseInformation     = $false # If $true: Write-Information; else: Write-Host.
+    ConsoleUseInformation     = $false # If $true: Write-Information; else: Write-UiLine.
     ConsoleWidthHint          = 240     # Used only for Out-String -Width to reduce wrapping.
   }
 }
@@ -190,7 +190,7 @@ function To-ConsoleTableText {
     [int]$Width
   )
 
-  # Console-only formatting; caller must write via Write-Host/Write-Information. [web:146]
+  # Console-only formatting; caller must write via Write-UiLine/Write-Information. [web:146]
   return ($InputObjects | Format-Table -AutoSize | Out-String -Width $Width)
 }
 
@@ -219,7 +219,7 @@ function Write-ConsoleInterfaces {
 
   $text = To-ConsoleTableText -InputObjects $rows -Width $Config.ConsoleWidthHint
   if ($Config.ConsoleUseInformation) { Write-Information -InformationAction Continue -MessageData $text }
-  else { Write-Host $text }
+  else { Write-UiLine $text }
 }
 
 function Write-ConsoleSummary {
@@ -273,7 +273,7 @@ function Write-ConsoleSummary {
 
   $issuesText = To-ConsoleTableText -InputObjects $issueRows -Width $Config.ConsoleWidthHint
   if ($Config.ConsoleUseInformation) { Write-Information -InformationAction Continue -MessageData $issuesText }
-  else { Write-Host $issuesText }
+  else { Write-UiLine $issuesText }
 }
 
 # --- Main ---

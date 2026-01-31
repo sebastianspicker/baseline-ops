@@ -57,7 +57,7 @@ ARGS (positional)
 
 #>
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
@@ -78,13 +78,9 @@ function Write-Badge {
     [ConsoleColor]$Color = [ConsoleColor]::Gray
   )
 
-  Write-Host ("{0,-20}: {1}" -f $Label, $Value) -ForegroundColor $Color
+  Write-UiLine ("{0,-20}: {1}" -f $Label, $Value) -ForegroundColor $Color
 }
 
-function Write-WarnLine {
-  param([Parameter(Mandatory)][string]$Message)
-  Write-Host ("[WARN] {0}" -f $Message) -ForegroundColor Yellow
-}
 
 # ----------------------------
 # Common helpers
@@ -372,7 +368,7 @@ function Write-PrettySummary {
 
   if ($s.Changes -and $s.Changes.Count -gt 0) {
     Write-Section -Title 'Changes'
-    foreach ($c in $s.Changes) { Write-Host ("  + {0}" -f $c) -ForegroundColor Cyan }
+    foreach ($c in $s.Changes) { Write-UiLine ("  + {0}" -f $c) -ForegroundColor Cyan }
   }
 
   if ($Result.Findings -and $Result.Findings.Count -gt 0) {
@@ -381,28 +377,28 @@ function Write-PrettySummary {
       $c = [ConsoleColor]::Yellow
       if ([string]$f.Severity -ieq 'High') { $c = [ConsoleColor]::Red }
       elseif ([string]$f.Severity -ieq 'Low') { $c = [ConsoleColor]::Gray }
-      Write-Host ("  ! [{0}] {1} - {2}" -f $f.Severity, $f.Code, $f.Message) -ForegroundColor $c
+      Write-UiLine ("  ! [{0}] {1} - {2}" -f $f.Severity, $f.Code, $f.Message) -ForegroundColor $c
     }
   }
 
   if ($null -ne $Result.Verification) {
     Write-Section -Title 'Verify (Wininit Event 12)'
     if ($Result.Verification.Found) {
-      Write-Host "  OK Wininit event found indicating PPL level 4." -ForegroundColor Green
-      Write-Host ("  TimeCreated   : {0}" -f $Result.Verification.TimeCreated) -ForegroundColor DarkGray
-      Write-Host ("  EventRecordId : {0}" -f $Result.Verification.EventRecordId) -ForegroundColor DarkGray
+      Write-UiLine "  OK Wininit event found indicating PPL level 4." -ForegroundColor Green
+      Write-UiLine ("  TimeCreated   : {0}" -f $Result.Verification.TimeCreated) -ForegroundColor DarkGray
+      Write-UiLine ("  EventRecordId : {0}" -f $Result.Verification.EventRecordId) -ForegroundColor DarkGray
     } else {
-      Write-Host "  WARN No matching Wininit event found in lookback window." -ForegroundColor Yellow
-      if ($Result.Verification.Error) { Write-Host ("  Error: {0}" -f $Result.Verification.Error) -ForegroundColor Yellow }
+      Write-UiLine "  WARN No matching Wininit event found in lookback window." -ForegroundColor Yellow
+      if ($Result.Verification.Error) { Write-UiLine ("  Error: {0}" -f $Result.Verification.Error) -ForegroundColor Yellow }
     }
   }
 
   if ($null -ne $Result.CodeIntegrity) {
     Write-Section -Title 'CodeIntegrity (Operational)'
     if ($Result.CodeIntegrity.Error) {
-      Write-Host ("  WARN Unable to read log: {0}" -f $Result.CodeIntegrity.Error) -ForegroundColor Yellow
+      Write-UiLine ("  WARN Unable to read log: {0}" -f $Result.CodeIntegrity.Error) -ForegroundColor Yellow
     } else {
-      Write-Host ("  Events (lsass.exe) in last {0}h: {1}" -f $Result.CodeIntegrity.LookbackHrs, $Result.CodeIntegrity.Count) -ForegroundColor Gray
+      Write-UiLine ("  Events (lsass.exe) in last {0}h: {1}" -f $Result.CodeIntegrity.LookbackHrs, $Result.CodeIntegrity.Count) -ForegroundColor Gray
     }
   }
 }

@@ -58,7 +58,7 @@ Use this if the extracted directory is incomplete or stale.
 
 .PARAMETER ConsoleMode
 Controls how the human-readable summary is printed:
-- Host: Uses Write-Host (supports colors when -NoColor is not set).
+- Host: Uses Write-UiLine (supports colors when -NoColor is not set).
 - Information: Uses Write-Information only (no colors, easier to redirect/collect).
 
 Default: Host
@@ -194,7 +194,7 @@ param(
   [switch]$NoColor
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 

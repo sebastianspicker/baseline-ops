@@ -8,7 +8,7 @@ Microsoft notes that deleting the registry values may not disable Credential Gua
 
 Best-practice output model (PowerShell 5.1):
 - Pipeline: exactly one structured object (safe for Export-Csv / ConvertTo-Json / Where-Object).
-- Console: pretty output only via Write-Host (host output) so the pipeline stays clean. [web:86]
+- Console: pretty output only via Write-UiLine (host output) so the pipeline stays clean. [web:86]
 
 .PARAMETER Mode
 AuditOnly | Remediate
@@ -69,7 +69,8 @@ param(
   [bool]$ShowSummary = $true
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
@@ -144,15 +145,6 @@ function Write-PrettySummary {
   $cDim    = 'DarkGray'
   $cHeader = 'White'
 
-  function Write-Rule { Write-Host ('=' * 60) -ForegroundColor $cDim }
-
-  function Show-Section {
-    param([string]$Title)
-    Write-Host ''
-    Write-Rule
-    Write-Host $Title -ForegroundColor $cHeader
-    Write-Rule
-  }
 
   function Show-Kv {
     param(
@@ -161,8 +153,8 @@ function Write-PrettySummary {
       [string]$Color
     )
     if (-not $Color) { $Color = 'Gray' }
-    Write-Host ("{0,-30}: " -f $Key) -NoNewline -ForegroundColor $cDim
-    Write-Host $Value -ForegroundColor $Color
+    Write-UiLine ("{0,-30}: " -f $Key) -NoNewline -ForegroundColor $cDim
+    Write-UiLine $Value -ForegroundColor $Color
   }
 
   function Get-SeverityColor {
@@ -217,14 +209,14 @@ function Write-PrettySummary {
   if ($Result.Config -and $Result.Config.Warnings -and $Result.Config.Warnings.Count -gt 0) {
     Show-Section -Title 'Config warnings'
     foreach ($w in $Result.Config.Warnings) {
-      Write-Host ("- {0}" -f $w) -ForegroundColor $cWarn
+      Write-UiLine ("- {0}" -f $w) -ForegroundColor $cWarn
     }
   }
 
   if ($Result.Summary.Changes -and $Result.Summary.Changes.Count -gt 0) {
     Show-Section -Title 'Changes'
     foreach ($c in $Result.Summary.Changes) {
-      Write-Host ("- {0}" -f $c) -ForegroundColor $cInfo
+      Write-UiLine ("- {0}" -f $c) -ForegroundColor $cInfo
     }
   }
 
@@ -232,11 +224,11 @@ function Write-PrettySummary {
     Show-Section -Title 'Findings'
     foreach ($f in $Result.Findings) {
       $sevColor = Get-SeverityColor -Severity ([string]$f.Severity)
-      Write-Host ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -ForegroundColor $sevColor
+      Write-UiLine ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -ForegroundColor $sevColor
     }
   }
 
-  Write-Host ''
+  Write-UiLine ''
 }
 
 # -----------------------------

@@ -109,7 +109,7 @@ param(
   [string]$ConfigJsonRaw
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -194,31 +194,8 @@ function Add-RunError {
 
 # ---------- Console helpers (never write to pipeline)
 
-function Write-UiHeader {
-  param([string]$Title)
-  Write-Host ""
-  Write-Host ("=" * 78) -ForegroundColor DarkGray
-  Write-Host ("  {0}" -f $Title) -ForegroundColor Cyan
-  Write-Host ("=" * 78) -ForegroundColor DarkGray
-}
 
-function Write-UiKV {
-  param(
-    [string]$Key,
-    [object]$Value,
-    [ConsoleColor]$KeyColor = 'DarkGray',
-    [ConsoleColor]$ValueColor = 'Gray'
-  )
-  $v = if ($null -eq $Value) { '' } else { [string]$Value }
-  Write-Host ("{0,-24}: " -f $Key) -ForegroundColor $KeyColor -NoNewline
-  Write-Host $v -ForegroundColor $ValueColor
-}
 
-function Write-UiBool {
-  param([string]$Key,[bool]$Value)
-  $c = if ($Value) { [ConsoleColor]::Green } else { [ConsoleColor]::DarkGray }
-  Write-UiKV -Key $Key -Value $Value -ValueColor $c
-}
 
 
 function Try-LoadConfigJson {
@@ -375,19 +352,19 @@ function Write-ConsoleSummary {
   Write-UiKV   -Key 'EndTime'      -Value $Run.EndTime.ToString('s')
   Write-UiKV   -Key 'Duration'     -Value $Run.Duration -ValueColor $durationColor
 
-  Write-Host ""
+  Write-UiLine ""
   Write-UiKV -Key 'JSON used' -Value $Run.JsonUsed -ValueColor $jsonUsedColor
   Write-UiKV -Key 'JSON path' -Value $Run.JsonPath
   if ($Run.JsonError) { Write-UiKV -Key 'JSON error' -Value $Run.JsonError -ValueColor Yellow }
 
-  Write-Host ""
+  Write-UiLine ""
   Write-UiKV   -Key 'Reason' -Value $Run.Effective.Reason -ValueColor Cyan
   Write-UiBool -Key 'IsolationActive' -Value $Run.Outcome.IsolationActive
   Write-UiBool -Key 'DisableAdapters' -Value ([bool]$Run.Effective.DisableAdapters)
   Write-UiKV   -Key 'BreakGlass' -Value ($Run.Effective.BreakGlassRemoteAddress -join ', ')
   Write-UiKV   -Key 'AutoRollbackMinutes' -Value $Run.Effective.AutoRollbackMinutes
 
-  Write-Host ""
+  Write-UiLine ""
   Write-UiBool -Key 'RegistryWritten'    -Value $Run.Actions.RegistryWritten
   Write-UiBool -Key 'EventLogWritten'    -Value $Run.Actions.EventLogWritten
   Write-UiBool -Key 'FirewallProfileSet' -Value $Run.Actions.FirewallProfileSet
@@ -397,17 +374,17 @@ function Write-ConsoleSummary {
   Write-UiBool -Key 'RollbackScheduled'  -Value $Run.Actions.RollbackScheduled
 
   if ($Run.Actions.ConfirmDeclined) {
-    Write-Host ""
+    Write-UiLine ""
     Write-UiLine -Text "NOTE: One or more operations were declined in a Confirm prompt (No / No to All)." -Color Yellow
   }
 
   if ($Run.Errors.Count -gt 0) {
-    Write-Host ""
+    Write-UiLine ""
     Write-UiLine -Text "Warnings/Errors:" -Color Yellow
     foreach ($e in $Run.Errors) { Write-UiLine -Text ("- {0}" -f $e) -Color Yellow }
   }
 
-  Write-Host ("-" * 78) -ForegroundColor DarkGray
+  Write-UiLine ("-" * 78) -ForegroundColor DarkGray
 }
 
 
@@ -552,7 +529,7 @@ catch {
 }
 finally {
   # Always write console summary, even if an exception is thrown.
-  try { Write-ConsoleSummary } catch { Write-Host "Summary failed: $($_.Exception.Message)" -ForegroundColor Yellow }
+  try { Write-ConsoleSummary } catch { Write-UiLine "Summary failed: $($_.Exception.Message)" -ForegroundColor Yellow }
 }
 
 # Pipeline output: one structured object, no formatting

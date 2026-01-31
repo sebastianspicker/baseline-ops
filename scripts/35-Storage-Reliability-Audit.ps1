@@ -6,7 +6,7 @@ Audits physical disks and (if available) storage reliability counters.
 .DESCRIPTION
 Best-practice output model (PowerShell 5.1):
 - Pipeline output: structured objects only (safe for Export-Csv/ConvertTo-Json/Where-Object).
-- Console output: all human-friendly formatting via Write-Host / Write-Information only.
+- Console output: all human-friendly formatting via Write-UiLine / Write-Information only.
 
 Features:
 - Lists PhysicalDisks (status, media, size, bus, identifiers).
@@ -43,7 +43,8 @@ param(
   [switch]$NoConsole
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 Set-StrictMode -Version Latest
@@ -166,45 +167,7 @@ function Get-SeverityColor {
   }
 }
 
-function Write-Ui {
-  param(
-    [AllowEmptyString()][string]$Text,
-    [ConsoleColor]$Color,
-    [switch]$BlankLine
-  )
 
-  if ($BlankLine) {
-    if ($script:UseWriteInformation) {
-      Write-Information -MessageData "" -InformationAction Continue
-    } else {
-      Write-Host ""
-    }
-  }
-
-  if ($PSBoundParameters.ContainsKey('Text')) {
-    if ($script:UseWriteInformation) {
-      Write-Information -MessageData $Text -InformationAction Continue
-    } else {
-      if ($PSBoundParameters.ContainsKey('Color')) {
-        Write-Host $Text -ForegroundColor $Color
-      } else {
-        Write-Host $Text
-      }
-    }
-  }
-}
-
-function Write-Rule {
-  param(
-    [Parameter(Mandatory)][string]$Title,
-    [ConsoleColor]$Color = 'Gray'
-  )
-  $line = ('=' * 78)
-  Write-Ui -BlankLine
-  Write-Ui -Text $line -Color $Color
-  Write-Ui -Text ("{0}" -f $Title) -Color $Color
-  Write-Ui -Text $line -Color $Color
-}
 
 function Write-ConsoleSummary {
   param(

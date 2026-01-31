@@ -7,7 +7,7 @@ a human-friendly console summary, and a reliable process exit code (PowerShell 5
 .DESCRIPTION
 Best-practice output model:
 - Pipeline output: structured objects only (safe for Export-Csv / ConvertTo-Json / Where-Object).
-- Console output: all separators/pretty formatting via Write-Host / Write-Information only. [web:61]
+- Console output: all separators/pretty formatting via Write-UiLine / Write-Information only. [web:61]
 
 JSON sidecar (optional):
 - If -SummaryJsonPath is not provided, the script tries:
@@ -75,7 +75,8 @@ param(
   [string[]]$ExtraArgs
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 
 
@@ -148,31 +149,8 @@ function Get-EffectiveSetting {
   return $DefaultValue
 }
 
-function Write-Info {
-  param([Parameter(Mandatory = $true)][string]$Message)
-  Write-Information -MessageData $Message -InformationAction Continue  # [web:61]
-}
 
-function Write-Title { param([string]$Text) Write-Host $Text -ForegroundColor Cyan }
-function Write-Good  { param([string]$Text) Write-Host $Text -ForegroundColor Green }
-function Write-Warn  { param([string]$Text) Write-Host $Text -ForegroundColor Yellow }
-function Write-Bad   { param([string]$Text) Write-Host $Text -ForegroundColor Red }
 
-function Write-KeyValue {
-  param(
-    [Parameter(Mandatory = $true)][string]$Key,
-    [AllowNull()][string]$Value,
-    [System.ConsoleColor]$KeyColor = [System.ConsoleColor]::Gray,
-    [System.ConsoleColor]$ValueColor = [System.ConsoleColor]::White
-  )
-
-  Write-Host ("{0,-22}: " -f $Key) -ForegroundColor $KeyColor -NoNewline
-  if ([string]::IsNullOrWhiteSpace($Value)) {
-    Write-Host "(empty)" -ForegroundColor DarkGray
-  } else {
-    Write-Host $Value -ForegroundColor $ValueColor
-  }
-}
 
 function Get-BoolColor {
   param(
@@ -259,7 +237,7 @@ function Write-ConsoleSummary {
   $colorNoInteract = Get-BoolColor -Value $Summary.DisableInteractivity -TrueColor Green -FalseColor Yellow
   $colorFailFast   = Get-BoolColor -Value $Summary.FailFast -TrueColor Yellow -FalseColor White
 
-  Write-Host ''
+  Write-UiLine ''
   Write-Title '=== WinGet Configuration Summary ==='
 
   Write-KeyValue -Key 'ComputerName'    -Value $Summary.ComputerName
@@ -268,13 +246,13 @@ function Write-ConsoleSummary {
   Write-KeyValue -Key 'LogPath'         -Value $Summary.LogPath
   Write-KeyValue -Key 'Timestamp'       -Value ($Summary.Timestamp.ToString('s'))
 
-  Write-Host ''
+  Write-UiLine ''
   Write-KeyValue -Key 'TestOnly'             -Value ([string]$Summary.TestOnly)             -ValueColor $colorTestOnly
   Write-KeyValue -Key 'AcceptAgreements'     -Value ([string]$Summary.AcceptAgreements)     -ValueColor $colorAccept
   Write-KeyValue -Key 'DisableInteractivity' -Value ([string]$Summary.DisableInteractivity) -ValueColor $colorNoInteract
   Write-KeyValue -Key 'FailFast'             -Value ([string]$Summary.FailFast)             -ValueColor $colorFailFast
 
-  Write-Host ''
+  Write-UiLine ''
   if ($Summary.ExtraArgs -and $Summary.ExtraArgs.Count -gt 0) {
     Write-KeyValue -Key 'ExtraArgs' -Value ($Summary.ExtraArgs -join ' ')
   } else {
@@ -282,11 +260,11 @@ function Write-ConsoleSummary {
   }
 
   if ($Summary.ErrorMessage) {
-    Write-Host ''
+    Write-UiLine ''
     Write-Bad ("ERROR: {0}" -f $Summary.ErrorMessage)
   }
 
-  Write-Host ''
+  Write-UiLine ''
   Write-Title 'Phases'
   if ($Summary.Results -and $Summary.Results.Count -gt 0) {
     foreach ($r in $Summary.Results) {
@@ -297,12 +275,12 @@ function Write-ConsoleSummary {
     Write-Warn "- (no phases executed)"
   }
 
-  Write-Host ''
+  Write-UiLine ''
   if ($Summary.FinalExitCode -eq 0) { Write-Good ("FinalExitCode: {0}" -f $Summary.FinalExitCode) }
   else { Write-Bad ("FinalExitCode: {0}" -f $Summary.FinalExitCode) }
 
   Write-Title '==================================='
-  Write-Host ''
+  Write-UiLine ''
 }
 
 function Stop-UserFriendly {
@@ -324,7 +302,7 @@ function Stop-UserFriendly {
 
   if (-not $QuietConsoleEffective) {
     Write-Bad ("ERROR: {0}" -f $Message)
-    Write-Host "Hint: Provide -ConfigPath 'PATH/TO/config.dsc.yaml' or set 'ConfigPath' in PATH/TO/JSON." -ForegroundColor DarkYellow
+    Write-UiLine "Hint: Provide -ConfigPath 'PATH/TO/config.dsc.yaml' or set 'ConfigPath' in PATH/TO/JSON." -ForegroundColor DarkYellow
   }
 
   $safeResults = $Results

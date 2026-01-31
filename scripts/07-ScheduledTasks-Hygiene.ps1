@@ -130,7 +130,7 @@ param(
   [string]$ConfigPath = "PATH/TO/JSON/config.json"
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
@@ -150,42 +150,8 @@ $DefaultProofOutFile   = 'PATH/TO/PROOF/E5-Tasks.json'
 # Console (pretty)
 # =========================
 
-function Write-UiHeader {
-  param([string]$Title)
-  Write-Host ""
-  Write-Host ("=" * 44) -ForegroundColor DarkGray
-  Write-Host ("  {0}" -f $Title) -ForegroundColor Cyan
-  Write-Host ("=" * 44) -ForegroundColor DarkGray
-}
 
-function Write-UiKV {
-  param(
-    [string]$Key,
-    [object]$Value,
-    [ConsoleColor]$KeyColor = [ConsoleColor]::DarkGray,
-    [ConsoleColor]$ValueColor = [ConsoleColor]::Gray
-  )
-  $v = ""
-  try { $v = [string]$Value } catch { $v = "" }
-  Write-Host ("{0,-12} {1}" -f ($Key + ":"), $v) -ForegroundColor $KeyColor -NoNewline
-  Write-Host "" -ForegroundColor $ValueColor
-}
 
-function Write-UiStatus {
-  param(
-    [string]$Label,
-    [ValidateSet('OK','WARN','FAIL','INFO')]$State,
-    [string]$Text
-  )
-  $c = [ConsoleColor]::Gray
-  if ($State -eq 'OK')   { $c = [ConsoleColor]::Green }
-  if ($State -eq 'WARN') { $c = [ConsoleColor]::Yellow }
-  if ($State -eq 'FAIL') { $c = [ConsoleColor]::Red }
-  if ($State -eq 'INFO') { $c = [ConsoleColor]::Cyan }
-
-  Write-Host ("[{0}] " -f $Label) -ForegroundColor $c -NoNewline
-  Write-Host $Text -ForegroundColor Gray
-}
 
 # =========================
 # Helpers
@@ -868,16 +834,16 @@ try {
   Write-UiKV "Purge"      $Proof.Summary.PurgeEnabled
   Write-UiKV "Strict"     $Proof.Summary.Strict
 
-  Write-Host ""
+  Write-UiLine ""
   Write-UiKV "Tasks"      $Proof.Summary.TotalTasks
   Write-UiKV "Critical"   $Proof.Summary.CriticalKnown
   Write-UiKV "Risky"      $Proof.Summary.RiskyDetected
 
-  Write-Host ""
+  Write-UiLine ""
   Write-UiKV "Proof JSON" $Proof.Summary.ProofOutFile
   Write-UiKV "Quarantine" $Proof.Summary.QuarantineDir
 
-  Write-Host ""
+  Write-UiLine ""
   if ($ok -and -not $Strict) {
     Write-UiStatus -Label "OK"   -State OK   -Text "No drift detected (or Strict is off)."
   } elseif ($ok -and $Strict) {
@@ -887,19 +853,19 @@ try {
   }
 
   if ($changes.Count -gt 0) {
-    Write-Host ""
+    Write-UiLine ""
     Write-UiLine "Changes:" DarkGray
     foreach($c in ($changes | Select-Object -Unique)) { Write-UiStatus -Label "CHG" -State INFO -Text $c }
   }
 
   if ($drifts.Count -gt 0) {
-    Write-Host ""
+    Write-UiLine ""
     Write-UiLine "Drifts:" DarkGray
     foreach($d in ($drifts | Select-Object -Unique)) { Write-UiStatus -Label "DRF" -State WARN -Text $d }
   }
 
-  Write-Host ""
-  Write-Host ("-" * 44) -ForegroundColor DarkGray
+  Write-UiLine ""
+  Write-UiLine ("-" * 44) -ForegroundColor DarkGray
 
   # Pipeline-safe structured output (single object)
   #$Proof

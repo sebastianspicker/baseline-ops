@@ -165,7 +165,8 @@ param(
   [switch]$NoColor
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
@@ -436,8 +437,8 @@ function Write-PrettySummary {
   $useColor = -not $NoColor
 
   function _Color([string]$Text, [ConsoleColor]$Color) {
-    if (-not $useColor) { Write-Host $Text; return }
-    Write-Host $Text -ForegroundColor $Color
+    if (-not $useColor) { Write-UiLine $Text; return }
+    Write-UiLine $Text -ForegroundColor $Color
   }
 
   $ok = [bool]$Summary.Ok
@@ -446,41 +447,41 @@ function Write-PrettySummary {
   $line = "============================================================"
   if ($Sanitize) { $line = Sanitize-Text $line }
 
-  Write-Host $line
+  Write-UiLine $line
   _Color "Sysmon Config Updater" ([ConsoleColor]::Cyan)
-  Write-Host ("Timestamp      : " + (Get-Date).ToString("s"))
-  Write-Host $line
+  Write-UiLine ("Timestamp      : " + (Get-Date).ToString("s"))
+  Write-UiLine $line
 
   if ($ok) { _Color ("Status         : OK") ([ConsoleColor]::Green) }
   else { _Color ("Status         : NOT OK") ([ConsoleColor]::Red) }
 
   if ($drift) { _Color ("DriftDetected  : True") ([ConsoleColor]::Yellow) }
-  else { Write-Host ("DriftDetected  : False") }
+  else { Write-UiLine ("DriftDetected  : False") }
 
-  Write-Host ("Remediate      : " + $Summary.Remediate + " (IsAdmin=" + $Summary.IsAdmin + ")")
-  Write-Host ("EnsureChannel  : " + $Summary.EnsureChannel + " (SizeMiB=" + $ChannelSizeMiB + ")")
-  Write-Host ("ConfigFile     : " + ($(if($Summary.ConfigFile){$Summary.ConfigFile}else{'n/a'})))
-  Write-Host ("DesiredSha256  : " + ($(if($Summary.DesiredSha256){$Summary.DesiredSha256}else{'n/a'})))
-  Write-Host ("PrevSha256     : " + ($(if($Summary.PrevDesiredSha256){$Summary.PrevDesiredSha256}else{'n/a'})))
-  Write-Host ("Service        : " + ($(if($Summary.SysmonService){$Summary.SysmonService}else{'n/a'})))
-  Write-Host ("Exe            : " + ($(if($Summary.SysmonExe){$Summary.SysmonExe}else{'n/a'})))
-  Write-Host ("EngineVersion  : " + ($(if($Summary.EngineVersion){$Summary.EngineVersion}else{'n/a'})))
-  Write-Host ("DumpSha256     : " + ($(if($Summary.CurrentDumpSha256){$Summary.CurrentDumpSha256}else{'n/a'})))
-  Write-Host ("StateWritten   : " + $Summary.StateWritten)
+  Write-UiLine ("Remediate      : " + $Summary.Remediate + " (IsAdmin=" + $Summary.IsAdmin + ")")
+  Write-UiLine ("EnsureChannel  : " + $Summary.EnsureChannel + " (SizeMiB=" + $ChannelSizeMiB + ")")
+  Write-UiLine ("ConfigFile     : " + ($(if($Summary.ConfigFile){$Summary.ConfigFile}else{'n/a'})))
+  Write-UiLine ("DesiredSha256  : " + ($(if($Summary.DesiredSha256){$Summary.DesiredSha256}else{'n/a'})))
+  Write-UiLine ("PrevSha256     : " + ($(if($Summary.PrevDesiredSha256){$Summary.PrevDesiredSha256}else{'n/a'})))
+  Write-UiLine ("Service        : " + ($(if($Summary.SysmonService){$Summary.SysmonService}else{'n/a'})))
+  Write-UiLine ("Exe            : " + ($(if($Summary.SysmonExe){$Summary.SysmonExe}else{'n/a'})))
+  Write-UiLine ("EngineVersion  : " + ($(if($Summary.EngineVersion){$Summary.EngineVersion}else{'n/a'})))
+  Write-UiLine ("DumpSha256     : " + ($(if($Summary.CurrentDumpSha256){$Summary.CurrentDumpSha256}else{'n/a'})))
+  Write-UiLine ("StateWritten   : " + $Summary.StateWritten)
 
   if ($Summary.Actions -and $Summary.Actions.Count -gt 0) {
-    Write-Host ""
+    Write-UiLine ""
     _Color "Actions:" ([ConsoleColor]::Green)
-    foreach ($a in $Summary.Actions) { Write-Host ("  - " + $a) }
+    foreach ($a in $Summary.Actions) { Write-UiLine ("  - " + $a) }
   }
 
   if ($Summary.Warnings -and $Summary.Warnings.Count -gt 0) {
-    Write-Host ""
+    Write-UiLine ""
     _Color "Warnings:" ([ConsoleColor]::Yellow)
-    foreach ($w in $Summary.Warnings) { Write-Host ("  - " + $w) }
+    foreach ($w in $Summary.Warnings) { Write-UiLine ("  - " + $w) }
   }
 
-  Write-Host $line
+  Write-UiLine $line
 }
 
 # -----------------------------

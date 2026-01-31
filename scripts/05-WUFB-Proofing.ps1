@@ -111,7 +111,8 @@ param(
   [switch]$PassThru
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
@@ -123,57 +124,9 @@ $ErrorActionPreference = 'Stop'
 # Console helpers (no pipeline)
 # -----------------------------
 
-function Write-Console {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [AllowEmptyString()]
-    [string]$Message,
 
-    [ConsoleColor]$ForegroundColor = [ConsoleColor]::Gray,
 
-    [switch]$NoNewline
-  )
-  if ($NoNewline) {
-    Write-Host $Message -ForegroundColor $ForegroundColor -NoNewline
-  } else {
-    Write-Host $Message -ForegroundColor $ForegroundColor
-  }
-}
 
-function Write-ConsoleInfo {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [AllowEmptyString()]
-    [string]$Message
-  )
-  Write-Information $Message -InformationAction Continue
-}
-
-function Write-Rule {
-  [CmdletBinding()]
-  param(
-    [string]$Title,
-    [ConsoleColor]$Color = [ConsoleColor]::DarkCyan
-  )
-  $line = ('=' * 78)
-  Write-Console $line -ForegroundColor $Color
-  if ($Title) { Write-Console $Title -ForegroundColor $Color }
-  Write-Console $line -ForegroundColor $Color
-}
-
-function Write-KV {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowEmptyString()][string]$Value,
-    [ConsoleColor]$KeyColor = [ConsoleColor]::DarkGray,
-    [ConsoleColor]$ValueColor = [ConsoleColor]::Gray
-  )
-  Write-Console ("{0,-12}: " -f $Key) -ForegroundColor $KeyColor -NoNewline
-  Write-Console ("{0}" -f $Value) -ForegroundColor $ValueColor
-}
 
 function Write-ConsoleSummary {
   [CmdletBinding()]

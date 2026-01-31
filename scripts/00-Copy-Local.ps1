@@ -33,6 +33,9 @@ param(
   [string]$RepoPath
 )
 
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -71,4 +74,4 @@ if (-not (Test-Path -LiteralPath $sourceLib)) {
 Copy-Item -Path $sourceScripts -Destination $DestinationRoot -Recurse -Force
 Copy-Item -Path $sourceLib -Destination $DestinationRoot -Recurse -Force
 
-Write-Host "Copied scripts/ and lib/ to $DestinationRoot"
+Write-UiLine "Copied scripts/ and lib/ to $DestinationRoot"

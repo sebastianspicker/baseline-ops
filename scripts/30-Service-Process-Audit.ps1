@@ -6,7 +6,7 @@ Audits running processes and services (Top CPU/RAM, service->process mapping, st
 .DESCRIPTION
 Best-practice output model (Windows PowerShell 5.1):
 - Pipeline: one structured object only (easy for ConvertTo-Json, Export-Csv, Where-Object).
-- Console: all human-friendly formatting via Write-Host / Write-Information (no pipeline pollution).
+- Console: all human-friendly formatting via Write-UiLine / Write-Information (no pipeline pollution).
 - Optional JSON config with safe defaults when missing/invalid.
 
 .PARAMETER TopN
@@ -46,7 +46,7 @@ param(
   [switch]$NoColor
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 
@@ -67,44 +67,8 @@ function Test-InteractiveHost {
 $script:IsInteractive = Test-InteractiveHost
 $script:UseColor = (-not $NoColor) -and $script:IsInteractive
 
-function Write-ConsoleInfo {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [string]$Message
-  )
-
-  if ($NoConsole) { return }
-
-  # Information stream is suppressed by default ($InformationPreference=SilentlyContinue),
-  # therefore we force display with -InformationAction Continue. [web:78][web:98]
-  Write-Information -MessageData $Message -InformationAction Continue
-}
 
 
-function Write-ConsoleRule {
-  [CmdletBinding()]
-  param(
-    [string]$Title
-  )
-
-  if ($NoConsole) { return }
-
-  $width = 80
-  try {
-    if ($Host.UI.RawUI.WindowSize.Width -gt 0) { $width = [Math]::Min(120, [Math]::Max(60, $Host.UI.RawUI.WindowSize.Width)) }
-  }
-  catch { }
-
-  if ([string]::IsNullOrWhiteSpace($Title)) {
-    Write-ConsoleLine -Message ('-' * $width) -Style Dim
-    return
-  }
-
-  $titleText = " $Title "
-  $dashCount = [Math]::Max(0, $width - $titleText.Length)
-  Write-ConsoleLine -Message ($titleText + ('-' * $dashCount)) -Style Dim
-}
 
 function Format-Bytes {
   [CmdletBinding()]
@@ -293,13 +257,13 @@ if ($summary.ExportEnabled) {
 # Pretty console output
 # -----------------------------
 if (-not $NoConsole) {
-  Write-Host ""
+  Write-UiLine ""
 
   Write-ConsoleRule -Title "Process/Service Audit"
   Write-ConsoleLine -Message ("Computer : {0}" -f $summary.ComputerName) -Style Header
   Write-ConsoleLine -Message ("Time     : {0}" -f $summary.Timestamp) -Style Dim
 
-  Write-Host ""
+  Write-UiLine ""
   Write-ConsoleRule -Title "Counts"
   Write-ConsoleLine -Message ("Processes        : {0}" -f $summary.ProcessCount) -Style Default
 
@@ -308,7 +272,7 @@ if (-not $NoConsole) {
 
   Write-ConsoleLine -Message ("TopN             : {0}" -f $summary.TopN) -Style Default
 
-  Write-Host ""
+  Write-UiLine ""
   Write-ConsoleRule -Title "Config"
   if ($summary.ConfigLoaded) {
     Write-ConsoleLine -Message "Config loaded    : True" -Style Ok
@@ -328,7 +292,7 @@ if (-not $NoConsole) {
 
   if ($Config.ShowListsInConsole) {
     if ($Config.ShowTopCpuInConsole) {
-      Write-Host ""
+      Write-UiLine ""
       Write-ConsoleRule -Title ("Top CPU (CPU seconds, cumulative) - Top {0}" -f $effectiveTopN)
       $topCpu |
         Select-Object Name, Id, CPU, WorkingSet64, StartTime, Path |
@@ -339,7 +303,7 @@ if (-not $NoConsole) {
     }
 
     if ($Config.ShowTopRamInConsole) {
-      Write-Host ""
+      Write-UiLine ""
       Write-ConsoleRule -Title ("Top RAM (WorkingSet) - Top {0}" -f $effectiveTopN)
       $topRam |
         Select-Object Name, Id, CPU, WorkingSet64, StartTime, Path |
@@ -350,7 +314,7 @@ if (-not $NoConsole) {
     }
 
     if ($Config.ShowServicesInConsole) {
-      Write-Host ""
+      Write-UiLine ""
       Write-ConsoleRule -Title ("Services (sample) - showing up to {0}" -f $Config.ConsoleMaxServices)
 
       $svcSample = $svcEnriched | Select-Object -First $Config.ConsoleMaxServices
@@ -365,7 +329,7 @@ if (-not $NoConsole) {
     }
   }
 
-  Write-Host ""
+  Write-UiLine ""
   Write-ConsoleRule -Title "End"
 }
 

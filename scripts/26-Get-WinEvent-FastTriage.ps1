@@ -6,7 +6,7 @@ Fast event log triage (Windows PowerShell 5.1) using Get-WinEvent -FilterHashtab
 .DESCRIPTION
 Best-practice layout:
 - Success output stream: structured objects only (safe for Export-Csv / ConvertTo-Json / Where-Object). [web:90]
-- Console UX: pretty blocks, separators, and colors via Write-Host / Write-Information only. [web:89][web:104]
+- Console UX: pretty blocks, separators, and colors via Write-UiLine / Write-Information only. [web:89][web:104]
 
 Features:
 - Optional JSON config overrides (PATH/TO/JSON\triage.json). Falls back to defaults if missing/invalid.
@@ -93,7 +93,7 @@ param(
   [string]$ExportPath
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 
@@ -107,45 +107,7 @@ $ErrorActionPreference = 'Stop'
 # -------------------------
 # Console helpers (no pipeline pollution)
 # -------------------------
-function Write-InfoLine {
-  [CmdletBinding()]
-  param([AllowNull()][string]$Message)
 
-  if ($script:Quiet) { return }
-
-  # Write-Information rejects empty strings in PS 5.1; treat them as a blank line via Write-Host. [web:89][web:104]
-  if ([string]::IsNullOrEmpty($Message)) {
-    Write-Host ''
-    return
-  }
-
-  Write-Information $Message -InformationAction Continue
-}
-
-function Write-HostLine {
-  [CmdletBinding()]
-  param(
-    [AllowNull()][string]$Message,
-    [ConsoleColor]$ForegroundColor,
-    [ConsoleColor]$BackgroundColor,
-    [switch]$NoNewLine
-  )
-
-  if ($script:Quiet) { return }
-
-  if ($null -eq $Message) { $Message = '' }
-
-  if ($script:NoColor) {
-    if ($NoNewLine) { Write-Host $Message -NoNewline } else { Write-Host $Message }
-    return
-  }
-
-  $params = @{ Object = $Message }
-  if ($PSBoundParameters.ContainsKey('ForegroundColor')) { $params.ForegroundColor = $ForegroundColor }
-  if ($PSBoundParameters.ContainsKey('BackgroundColor')) { $params.BackgroundColor = $BackgroundColor }
-  if ($NoNewLine) { $params.NoNewline = $true }
-  Write-Host @params
-}
 
 
 function Get-LevelColor {

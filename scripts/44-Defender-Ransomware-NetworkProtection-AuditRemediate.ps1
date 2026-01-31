@@ -7,7 +7,7 @@ Audit + optional remediation for Microsoft Defender (PowerShell 5.1):
 
 .DESCRIPTION
 - Pipeline outputs ONLY structured objects (one final result object).
-- Human-friendly console output uses Write-Host only (colors, sections).
+- Human-friendly console output uses Write-UiLine only (colors, sections).
 - Optional JSON config; safe defaults if JSON is missing/invalid/empty.
 - Optional CSV export of the summary object.
 
@@ -65,7 +65,8 @@ param(
   [string]$ExportPath
 )
 
-$script:LibPath = Join-Path $PSScriptRoot 'lib'
+. (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -178,17 +179,6 @@ function Load-ConfigFromJson {
   }
 }
 
-function Write-ColoredLine {
-  param(
-    # FIX: allow empty string so callers can print blank lines safely. [web:55]
-    [Parameter(Mandatory)]
-    [AllowEmptyString()]
-    [string]$Text,
-
-    [ConsoleColor]$Color = ([ConsoleColor]::Gray)
-  )
-  Write-Host $Text -ForegroundColor $Color
-}
 
 function Write-ConsoleReport {
   param(
