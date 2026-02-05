@@ -16,6 +16,12 @@ Destination root (default: C:\install\mdm\ps1).
 .PARAMETER RepoPath
 Local clone path (default: <DestinationRoot>\_repo).
 
+.PARAMETER RepoRef
+Optional git ref (tag/branch/commit) to check out for deterministic deployments.
+
+.PARAMETER AllowUnsafeRepoPath
+Bypass safety guardrails for RepoPath deletion (use with caution).
+
 .EXAMPLE
 .\00-Copy-Local.ps1
 
@@ -26,11 +32,13 @@ Local clone path (default: <DestinationRoot>\_repo).
 .\00-Copy-Local.ps1 -RepoUrl https://github.com/org/repo.git
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$RepoUrl = 'https://github.com/sebastianspicker/win-mdm-security-hardening-kit.git',
   [string]$DestinationRoot = 'C:\install\mdm\ps1',
-  [string]$RepoPath
+  [string]$RepoPath,
+  [string]$RepoRef,
+  [switch]$AllowUnsafeRepoPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -38,6 +46,44 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+function Invoke-Git {
+  param([Parameter(Mandatory)][string[]]$Args)
+  & git.exe @Args
+  if ($LASTEXITCODE -ne 0) {
+    throw ("git failed (exit {0}): git {1}" -f $LASTEXITCODE, ($Args -join ' '))
+  }
+}
+
+function Get-FullPath {
+  param([Parameter(Mandatory)][string]$Path)
+  try { return [System.IO.Path]::GetFullPath($Path) } catch { return $Path }
+}
+
+function Test-RepoPathSafe {
+  param(
+    [Parameter(Mandatory)][string]$RepoPath,
+    [Parameter(Mandatory)][string]$DestinationRoot,
+    [switch]$AllowUnsafeRepoPath
+  )
+
+  if ($AllowUnsafeRepoPath) { return $true }
+
+  $repoFull = Get-FullPath -Path $RepoPath
+  $destFull = Get-FullPath -Path $DestinationRoot
+  $sep = [System.IO.Path]::DirectorySeparatorChar
+
+  $repoTrim = $repoFull.TrimEnd($sep)
+  $destTrim = $destFull.TrimEnd($sep)
+  $root = [System.IO.Path]::GetPathRoot($repoTrim).TrimEnd($sep)
+
+  if ([string]::IsNullOrWhiteSpace($root)) { return $false }
+  if ($repoTrim -eq $root) { return $false }
+  if ($repoTrim -eq $destTrim) { return $false }
+
+  $destPrefix = $destTrim + $sep
+  return $repoFull.StartsWith($destPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+}
 
 if (-not $RepoPath) {
   $RepoPath = Join-Path $DestinationRoot '_repo'
@@ -52,13 +98,30 @@ if (-not (Test-Path -LiteralPath $DestinationRoot)) {
 }
 
 if (Test-Path -LiteralPath (Join-Path $RepoPath '.git')) {
-  & git.exe -C $RepoPath fetch --all --prune
-  & git.exe -C $RepoPath pull --ff-only
+  Invoke-Git -Args @('-C', $RepoPath, 'fetch', '--all', '--prune', '--tags')
+  if ($RepoRef) {
+    Invoke-Git -Args @('-C', $RepoPath, 'checkout', $RepoRef)
+  } else {
+    Invoke-Git -Args @('-C', $RepoPath, 'pull', '--ff-only')
+  }
 } else {
   if (Test-Path -LiteralPath $RepoPath) {
-    Remove-Item -LiteralPath $RepoPath -Recurse -Force
+    if (-not (Test-RepoPathSafe -RepoPath $RepoPath -DestinationRoot $DestinationRoot -AllowUnsafeRepoPath:$AllowUnsafeRepoPath)) {
+      throw "Unsafe RepoPath for deletion: $RepoPath. Place RepoPath under DestinationRoot or pass -AllowUnsafeRepoPath to override."
+    }
+    if ($PSCmdlet.ShouldProcess($RepoPath, 'Remove existing non-git repo path')) {
+      Remove-Item -LiteralPath $RepoPath -Recurse -Force
+    } else {
+      throw 'Deletion declined by ShouldProcess. Aborting.'
+    }
   }
-  & git.exe clone --depth 1 $RepoUrl $RepoPath
+  $cloneArgs = @('clone')
+  if (-not $RepoRef) { $cloneArgs += @('--depth','1') }
+  $cloneArgs += @($RepoUrl, $RepoPath)
+  Invoke-Git -Args $cloneArgs
+  if ($RepoRef) {
+    Invoke-Git -Args @('-C', $RepoPath, 'checkout', $RepoRef)
+  }
 }
 
 $sourceScripts = Join-Path $RepoPath 'scripts'

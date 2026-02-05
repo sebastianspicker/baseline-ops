@@ -4,6 +4,15 @@ Practical PowerShell automation for Windows endpoint security hardening, auditin
 
 > Status: early iteration — validate in a lab before production use!
 
+## Why
+MDM-managed fleets need consistent, repeatable validation and hardening. This kit provides focused, scriptable checks and guardrails so teams can detect drift, prove posture, and respond quickly.
+
+## Features
+- Audit and (where supported) remediate key Windows security controls.
+- Consistent console output and structured pipeline objects (CSV/JSON-friendly).
+- Shared helper modules to keep scripts uniform and maintainable.
+- Support bundle tooling for rapid triage.
+
 ## What this repo is
 This repository contains standalone PowerShell scripts to assess and (where applicable) remediate security posture on Windows endpoints, with a focus on managed fleets (MDM/Intune-style operations).
 
@@ -28,7 +37,7 @@ See `lib/README.md` for details and the recommended import pattern.
 Scripts resolve `lib/` via a shared bootstrap:
 - `scripts/_lib/Bootstrap.ps1` sets `$script:LibPath` so scripts can import modules consistently (repo checkout or deployed copy).
 
-## Verification (syntax + static checks)
+## Testing (syntax + static checks)
 Run the repo-level verifier to parse all scripts/modules and (optionally) run PSScriptAnalyzer:
 ```
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
@@ -41,6 +50,10 @@ Exit codes:
 - `0`: OK
 - `1`: Parse error(s)
 - `2`: PSScriptAnalyzer issues
+
+## Development
+- See `docs/RUNBOOK.md` for setup, fast loop, and full verification commands.
+- Use `tools/secret-scan.ps1` for a basic local secret scan.
 
 ## Console output (unified)
 All scripts import `lib/Output.psm1` and use a shared console API with a consistent palette and layout:
@@ -69,6 +82,10 @@ Start-Transcript -Path ".\run-$(Get-Date -Format yyyyMMdd-HHmmss).log"
 .\NAME_OF_SCRIPT.ps1
 Stop-Transcript
 ```
+
+## Configuration
+- Many scripts accept optional JSON config paths (look for `-ConfigPath` or `PATH/TO/JSON` placeholders in parameters/examples).
+- For deterministic deployments, `scripts/00-Copy-Local.ps1` supports `-RepoRef` (tag/commit) to pin a version.
 
 ## How to run (deployment-friendly patterns)
 ### Interactive (PowerShell)
@@ -163,6 +180,15 @@ sh.Run cmd, 1, True
 - Some scripts may change security settings (remediation/enforcement). Review code and test in a lab first.
 - Prefer staged rollout (ring-based deployment) and explicit approval gates for remediation.
 - Keep backups of existing configurations (firewall, audit policy, registry, etc.) before enforcing changes.
+
+## Security
+- Vulnerability reporting guidance is in `SECURITY.md`.
+- Treat output artifacts (CSV/JSON/logs/ZIP) as sensitive; store them securely.
+
+## Troubleshooting
+- If PowerShell blocks scripts, run `Unblock-File` on `.ps1` files.
+- If `Invoke-ScriptAnalyzer` is missing, install PSScriptAnalyzer or run `tools/verify.ps1 -SkipAnalyzer`.
+- Run from an elevated prompt when a script requires administrative privileges.
 
 ## Disclaimer
 These scripts are provided “as-is” without warranty. You are responsible for validation, compliance, and safe deployment.

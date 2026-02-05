@@ -68,7 +68,16 @@ if (-not $SkipAnalyzer) {
   if (Get-Command -Name Invoke-ScriptAnalyzer -ErrorAction SilentlyContinue) {
     if (Test-Path -LiteralPath $settingsPath) {
       Write-Info -Message 'Running PSScriptAnalyzer...'
-      $analyzer = Invoke-ScriptAnalyzer -Path (Join-Path $RootPath 'scripts') -Settings $settingsPath -Recurse -ErrorAction Continue
+      $analyzerPaths = @()
+      foreach ($p in @(
+        (Join-Path $RootPath 'scripts'),
+        (Join-Path $RootPath 'lib'),
+        (Join-Path $RootPath 'tools')
+      )) {
+        if (Test-Path -LiteralPath $p) { $analyzerPaths += $p }
+      }
+
+      $analyzer = Invoke-ScriptAnalyzer -Path $analyzerPaths -Settings $settingsPath -Recurse -ErrorAction Continue
       if ($analyzer -and $analyzer.Count -gt 0) {
         Write-Warn -Message ("PSScriptAnalyzer reported {0} issue(s)." -f $analyzer.Count)
         $analyzer | Sort-Object ScriptName,Line,Column | ForEach-Object {

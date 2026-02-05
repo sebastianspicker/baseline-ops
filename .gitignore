@@ -14,3 +14,34 @@ Thumbs.db
 *.tmp
 *.bak
 *.old
+
+# Generated artifacts (may contain sensitive data)
+*.csv
+*.tsv
+*.zip
+*.evtx
+*.cab
+*.etl
+
+# Common output folders (support bundles / proofs)
+support/
+proof/
+proofs/
+reports/
+eventlogs/
+defender/
+defender-support/
+_extracted/
+
+# Environment files
+.env
+.env.*
+
+# Local docs (findings/logs/decisions)
+DECISIONS.md
+FINDINGS.md
+LOG.md
+REFACTOR_PLAN.md
+PHYSICS_AUDIT.md
+validation.md
+HANDOFF.md
