@@ -23,7 +23,8 @@ if ([string]::IsNullOrWhiteSpace($RootPath)) {
   $RootPath = (Resolve-Path (Join-Path $scriptDir '..')).Path
 }
 
-. (Join-Path $RootPath 'scripts\\_lib\\Bootstrap.ps1')
+$bootstrapPath = [System.IO.Path]::Combine($RootPath, 'scripts', '_lib', 'Bootstrap.ps1')
+. $bootstrapPath
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 Write-Section -Title 'verify.ps1 - Static Checks'
@@ -36,7 +37,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $RootPath 'lib'))) {
   Write-ErrorLine -Message "lib/ folder not found under $RootPath"
   exit 1
 }
-if (-not (Test-Path -LiteralPath (Join-Path $RootPath 'scripts' '_lib' 'Bootstrap.ps1'))) {
+if (-not (Test-Path -LiteralPath $bootstrapPath)) {
   Write-ErrorLine -Message "scripts/_lib/Bootstrap.ps1 not found under $RootPath"
   exit 1
 }
