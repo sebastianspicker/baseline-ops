@@ -8,19 +8,41 @@ on:
 
 permissions:
   contents: read
+  actions: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
+    name: Static checks
     runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      PSSCRIPTANALYZER_VERSION: '1.24.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PSScriptAnalyzer
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\Documents\WindowsPowerShell\Modules
+            ~\Documents\PowerShell\Modules
+          key: psmodules-${{ runner.os }}-psscriptanalyzer-${{ env.PSSCRIPTANALYZER_VERSION }}
+
+      - name: Ensure PSScriptAnalyzer
         shell: powershell
         run: |
-          Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
-          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
+          $ErrorActionPreference = 'Stop'
+          $version = "${env:PSSCRIPTANALYZER_VERSION}"
+          $installed = Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { $_.Version -eq $version }
+          if (-not $installed) {
+            Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
+            Install-Module -Name PSScriptAnalyzer -RequiredVersion $version -Scope CurrentUser -Force
+          }
 
       - name: Secret scan (basic)
         shell: powershell

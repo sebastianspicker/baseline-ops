@@ -45,3 +45,21 @@ REFACTOR_PLAN.md
 PHYSICS_AUDIT.md
 validation.md
 HANDOFF.md
+
+# CI/test artifacts
+coverage/
+test-results/
+junit.xml
+*.trx
+*.coverage
+*.coveragexml
+.nyc_output/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.terraform/
+node_modules/
+dist/
+build/
+out/
