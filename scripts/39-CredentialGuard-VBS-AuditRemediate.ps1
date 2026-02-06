@@ -143,9 +143,7 @@ function Write-PrettySummary {
   $cBad    = 'Red'
   $cInfo   = 'Cyan'
   $cDim    = 'DarkGray'
-  $cHeader = 'White'
-
-
+  
   function Show-Kv {
     param(
       [string]$Key,

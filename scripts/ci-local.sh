@@ -18,9 +18,8 @@ fi
 
 "$pwsh_bin" -NoProfile -File "$root_dir/tools/secret-scan.ps1"
 
-verify_args=()
 if [[ -n "$skip_analyzer" ]]; then
-  verify_args+=("-SkipAnalyzer")
+  "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" -SkipAnalyzer
+else
+  "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1"
 fi
-
-"$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" "${verify_args[@]}"

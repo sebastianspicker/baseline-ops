@@ -48,10 +48,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Invoke-Git {
-  param([Parameter(Mandatory)][string[]]$Args)
-  & git.exe @Args
+  param([Parameter(Mandatory)][string[]]$GitArgs)
+  & git.exe @GitArgs
   if ($LASTEXITCODE -ne 0) {
-    throw ("git failed (exit {0}): git {1}" -f $LASTEXITCODE, ($Args -join ' '))
+    throw ("git failed (exit {0}): git {1}" -f $LASTEXITCODE, ($GitArgs -join ' '))
   }
 }
 

@@ -68,8 +68,8 @@ foreach ($f in $files) {
 $findings = New-Object System.Collections.Generic.List[object]
 
 foreach ($p in $patterns) {
-  $matches = Select-String -Path $filtered -Pattern $p.Regex -AllMatches -ErrorAction SilentlyContinue
-  foreach ($m in $matches) {
+  $patternMatches = Select-String -Path $filtered -Pattern $p.Regex -AllMatches -ErrorAction SilentlyContinue
+  foreach ($m in $patternMatches) {
     $findings.Add([pscustomobject]@{
       File     = $m.Path
       Line     = $m.LineNumber

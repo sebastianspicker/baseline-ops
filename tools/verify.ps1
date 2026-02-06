@@ -15,15 +15,15 @@ $ErrorActionPreference = 'Stop'
 Write-Section -Title 'verify.ps1 - Static Checks'
 
 if (-not (Test-Path -LiteralPath (Join-Path $RootPath 'scripts'))) {
-  Write-Error -Message "scripts/ folder not found under $RootPath"
+  Write-ErrorLine -Message "scripts/ folder not found under $RootPath"
   exit 1
 }
 if (-not (Test-Path -LiteralPath (Join-Path $RootPath 'lib'))) {
-  Write-Error -Message "lib/ folder not found under $RootPath"
+  Write-ErrorLine -Message "lib/ folder not found under $RootPath"
   exit 1
 }
 if (-not (Test-Path -LiteralPath (Join-Path $RootPath 'scripts' '_lib' 'Bootstrap.ps1'))) {
-  Write-Error -Message "scripts/_lib/Bootstrap.ps1 not found under $RootPath"
+  Write-ErrorLine -Message "scripts/_lib/Bootstrap.ps1 not found under $RootPath"
   exit 1
 }
 
@@ -54,7 +54,7 @@ foreach ($t in $targets) {
 }
 
 if ($parseErrors.Count -gt 0) {
-  Write-Error -Message ("Parse errors: {0}" -f $parseErrors.Count)
+  Write-ErrorLine -Message ("Parse errors: {0}" -f $parseErrors.Count)
   $parseErrors | Sort-Object File,Line,Column | ForEach-Object {
     Write-UiLine ("- {0}:{1}:{2} {3}" -f $_.File, $_.Line, $_.Column, $_.Message) -ForegroundColor Yellow
   }
@@ -77,7 +77,11 @@ if (-not $SkipAnalyzer) {
         if (Test-Path -LiteralPath $p) { $analyzerPaths += $p }
       }
 
-      $analyzer = Invoke-ScriptAnalyzer -Path $analyzerPaths -Settings $settingsPath -Recurse -ErrorAction Continue
+      $analyzer = @()
+      foreach ($path in $analyzerPaths) {
+        $result = Invoke-ScriptAnalyzer -Path $path -Settings $settingsPath -Recurse -ErrorAction Continue
+        if ($result) { $analyzer += $result }
+      }
       if ($analyzer -and $analyzer.Count -gt 0) {
         Write-Warn -Message ("PSScriptAnalyzer reported {0} issue(s)." -f $analyzer.Count)
         $analyzer | Sort-Object ScriptName,Line,Column | ForEach-Object {

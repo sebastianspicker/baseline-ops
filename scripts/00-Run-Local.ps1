@@ -59,15 +59,15 @@ if (-not (Test-Path -LiteralPath $scriptsRoot)) {
 if ($PSCmdlet.ParameterSetName -eq 'ByNumber') {
   $num = [int]$ScriptNumber
   $prefix = '{0:D2}-' -f $num
-  $matches = Get-ChildItem -Path $scriptsRoot -Filter "$prefix*.ps1" -File
-  if ($matches.Count -eq 0) {
+  $scriptMatches = Get-ChildItem -Path $scriptsRoot -Filter "$prefix*.ps1" -File
+  if ($scriptMatches.Count -eq 0) {
     throw "No script found for number $prefix in $scriptsRoot"
   }
-  if ($matches.Count -gt 1) {
-    $names = ($matches | Select-Object -ExpandProperty Name) -join ', '
+  if ($scriptMatches.Count -gt 1) {
+    $names = ($scriptMatches | Select-Object -ExpandProperty Name) -join ', '
     throw "Multiple scripts match number ${prefix}: $names"
   }
-  $scriptPath = $matches[0].FullName
+  $scriptPath = $scriptMatches[0].FullName
 } else {
   $scriptPath = Join-Path $scriptsRoot $ScriptName
   if (-not (Test-Path -LiteralPath $scriptPath)) {

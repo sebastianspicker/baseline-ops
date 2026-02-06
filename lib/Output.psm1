@@ -270,15 +270,6 @@ function Write-ErrorLine {
   Write-UiLine -Message $text -Style 'Error'
 }
 
-function Write-Error {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][AllowEmptyString()][string]$Message,
-    [switch]$NoPrefix
-  )
-  Write-ErrorLine -Message $Message -NoPrefix:$NoPrefix
-}
-
 function Write-Success {
   [CmdletBinding()]
   param(
@@ -720,4 +711,4 @@ function Write-ColorValue {
   Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
 }
 
-Export-ModuleMember -Function Write-UiLine,Write-ConsoleLine,Write-ConsoleHeader,Write-ConsoleKV,Write-Section,Write-BlankLine,Write-Info,Write-Warn,Write-ErrorLine,Write-Error,Write-Success,Write-StatusLine,Write-UiRule,Write-UiHeader,Write-UiSection,Write-UiSeparator,Write-KeyValue,Write-UiKV,Write-UiKv,Write-UiKeyValue,Write-Kv,Write-KV,Write-KvLine,Write-ConsoleKeyValue,Write-PrettyKeyValue,Write-UiStatus,Write-UiBullet,Write-UiList,Write-UiBlankLine,Write-UiBool,Write-ColorLine,Write-PrettyLine,Write-ColoredLine,Write-PrettyHeader,Write-ConsoleBanner,Write-Console,Write-ConsoleInfo,Write-ConsoleList,Write-Rule,Write-ConsoleRule,Write-ConsoleSeparator,Write-InfoLine,Write-HostLine,Write-Title,Write-Good,Write-Bad,Write-WarnLine,Write-Ui,Write-ColorValue
+Export-ModuleMember -Function Write-UiLine,Write-ConsoleLine,Write-ConsoleHeader,Write-ConsoleKV,Write-Section,Write-BlankLine,Write-Info,Write-Warn,Write-ErrorLine,Write-Success,Write-StatusLine,Write-UiRule,Write-UiHeader,Write-UiSection,Write-UiSeparator,Write-KeyValue,Write-UiKV,Write-UiKv,Write-UiKeyValue,Write-Kv,Write-KV,Write-KvLine,Write-ConsoleKeyValue,Write-PrettyKeyValue,Write-UiStatus,Write-UiBullet,Write-UiList,Write-UiBlankLine,Write-UiBool,Write-ColorLine,Write-PrettyLine,Write-ColoredLine,Write-PrettyHeader,Write-ConsoleBanner,Write-Console,Write-ConsoleInfo,Write-ConsoleList,Write-Rule,Write-ConsoleRule,Write-ConsoleSeparator,Write-InfoLine,Write-HostLine,Write-Title,Write-Good,Write-Bad,Write-WarnLine,Write-Ui,Write-ColorValue
