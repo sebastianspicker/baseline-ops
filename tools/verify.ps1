@@ -2,15 +2,29 @@
 
 [CmdletBinding()]
 param(
-  [string]$RootPath = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
+  [string]$RootPath = '',
   [switch]$SkipAnalyzer
 )
 
-. (Join-Path $PSScriptRoot '..\\scripts\\_lib\\Bootstrap.ps1')
-Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
-
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RootPath)) {
+  $scriptPath = $MyInvocation.MyCommand.Path
+  if (-not $scriptPath) { $scriptPath = $PSCommandPath }
+  if (-not $scriptPath) { $scriptPath = (Get-Location).Path }
+
+  if (Test-Path -LiteralPath $scriptPath -PathType Container) {
+    $scriptDir = $scriptPath
+  } else {
+    $scriptDir = Split-Path -Parent $scriptPath
+  }
+
+  $RootPath = (Resolve-Path (Join-Path $scriptDir '..')).Path
+}
+
+. (Join-Path $RootPath 'scripts\\_lib\\Bootstrap.ps1')
+Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 Write-Section -Title 'verify.ps1 - Static Checks'
 

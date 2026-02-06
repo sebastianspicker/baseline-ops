@@ -52,4 +52,4 @@ jobs:
       - name: Static checks
         shell: powershell
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -RootPath $env:GITHUB_WORKSPACE

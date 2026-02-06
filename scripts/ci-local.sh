@@ -19,7 +19,7 @@ fi
 "$pwsh_bin" -NoProfile -File "$root_dir/tools/secret-scan.ps1" -RootPath "$root_dir"
 
 if [[ -n "$skip_analyzer" ]]; then
-  "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" -SkipAnalyzer
+  "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" -RootPath "$root_dir" -SkipAnalyzer
 else
-  "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1"
+  "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" -RootPath "$root_dir"
 fi
