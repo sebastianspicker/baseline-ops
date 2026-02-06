@@ -47,7 +47,7 @@ jobs:
       - name: Secret scan (basic)
         shell: powershell
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1 -RootPath $env:GITHUB_WORKSPACE
 
       - name: Static checks
         shell: powershell

@@ -16,7 +16,7 @@ if [[ -z "$skip_analyzer" ]]; then
   "$pwsh_bin" -NoProfile -Command "if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { \$_.Version -eq '$psa_version' })) { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted; Install-Module -Name PSScriptAnalyzer -RequiredVersion '$psa_version' -Scope CurrentUser -Force }"
 fi
 
-"$pwsh_bin" -NoProfile -File "$root_dir/tools/secret-scan.ps1"
+"$pwsh_bin" -NoProfile -File "$root_dir/tools/secret-scan.ps1" -RootPath "$root_dir"
 
 if [[ -n "$skip_analyzer" ]]; then
   "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" -SkipAnalyzer
