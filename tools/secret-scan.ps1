@@ -20,13 +20,27 @@ Folder names to exclude from scanning.
 
 [CmdletBinding()]
 param(
-  [string]$RootPath = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
+  [string]$RootPath = '',
   [switch]$FailOnMatch = $true,
   [string[]]$Exclude = @('.git','node_modules','bin','obj','dist','_extracted')
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RootPath)) {
+  $scriptPath = $MyInvocation.MyCommand.Path
+  if (-not $scriptPath) { $scriptPath = $PSCommandPath }
+  if (-not $scriptPath) { $scriptPath = (Get-Location).Path }
+
+  if (Test-Path -LiteralPath $scriptPath -PathType Container) {
+    $scriptDir = $scriptPath
+  } else {
+    $scriptDir = Split-Path -Parent $scriptPath
+  }
+
+  $RootPath = (Resolve-Path (Join-Path $scriptDir '..')).Path
+}
 
 $patterns = @(
   @{ Name = 'AWS Access Key'; Regex = 'AKIA[0-9A-Z]{16}' },
