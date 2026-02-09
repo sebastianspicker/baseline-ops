@@ -377,7 +377,7 @@ function Load-Catalog {
   if ($CatalogPath) {
     if (Test-Path -LiteralPath $CatalogPath) {
       try {
-        $cat = Get-Content -Raw -LiteralPath $CatalogPath | ConvertFrom-Json -ErrorAction Stop
+        $cat = Get-Content -Raw -LiteralPath $CatalogPath -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
         $meta.CatalogLoaded = $true
         $meta.CatalogSource = 'CatalogPath'
         return [pscustomobject]@{ Catalog=$cat; Meta=$meta }
@@ -392,12 +392,12 @@ function Load-Catalog {
   if ($ConfigPath) {
     if (Test-Path -LiteralPath $ConfigPath) {
       try {
-        $cfg = Get-Content -Raw -LiteralPath $ConfigPath | ConvertFrom-Json -ErrorAction Stop
+        $cfg = Get-Content -Raw -LiteralPath $ConfigPath -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
         $p = $null
         if ($cfg -and $cfg.UpdateHealth -and $cfg.UpdateHealth.CatalogPath) { $p = [string]$cfg.UpdateHealth.CatalogPath }
         if ($p) {
           if (Test-Path -LiteralPath $p) {
-            $cat = Get-Content -Raw -LiteralPath $p | ConvertFrom-Json -ErrorAction Stop
+            $cat = Get-Content -Raw -LiteralPath $p -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
             $meta.CatalogLoaded = $true
             $meta.CatalogSource = 'ConfigPath->CatalogPath'
             return [pscustomobject]@{ Catalog=$cat; Meta=$meta }

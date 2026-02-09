@@ -164,7 +164,7 @@ function Try-ReadJsonFile {
 
   try {
     if ($Path -and (Test-Path -LiteralPath $Path)) {
-      return (Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json)
+      return (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
     }
   } catch {}
 

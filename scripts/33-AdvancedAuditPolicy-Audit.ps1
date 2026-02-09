@@ -167,7 +167,7 @@ function Try-ReadDesiredPolicyJson {
   }
 
   try {
-    $desired = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $desired = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($null -eq $desired -or $desired -isnot [psobject]) { throw "Invalid JSON root object." }
 
     # Validate values up-front (prevents remediation surprises).

@@ -188,7 +188,7 @@ function Expand-Env([string]$p){
 function Read-Json([string]$Path){
   try {
     if ($Path -and (Test-Path -LiteralPath $Path)) {
-      return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -ErrorAction Stop
+      return Get-Content -Raw -LiteralPath $Path -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
     }
   } catch { return $null }
   return $null

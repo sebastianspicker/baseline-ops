@@ -184,7 +184,7 @@ function Import-JsonConfigOrDefault {
   try {
     if (-not (Test-Path -LiteralPath $Path)) { return $cfg }
 
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return $cfg }
 
     # ConvertFrom-Json should be guarded via try/catch for invalid JSON. [web:56]

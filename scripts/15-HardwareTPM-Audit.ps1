@@ -214,7 +214,7 @@ function Load-Catalog {
 
   # 1) Explicit catalog
   if ($CatalogPath -and (Test-Path -LiteralPath $CatalogPath)) {
-    $raw = Get-Content -Raw -LiteralPath $CatalogPath -ErrorAction SilentlyContinue
+    $raw = Get-Content -Raw -LiteralPath $CatalogPath -Encoding UTF8 -ErrorAction SilentlyContinue
     if ($raw) {
       $obj = ConvertFrom-JsonSafe -JsonText $raw
       if ($obj) { return (Merge-CatalogWithDefaults -Catalog $obj -Defaults $defaults) }
@@ -223,13 +223,13 @@ function Load-Catalog {
 
   # 2) Config -> Hardware.CatalogPath
   if ($ConfigPath -and (Test-Path -LiteralPath $ConfigPath)) {
-    $rawCfg = Get-Content -Raw -LiteralPath $ConfigPath -ErrorAction SilentlyContinue
+    $rawCfg = Get-Content -Raw -LiteralPath $ConfigPath -Encoding UTF8 -ErrorAction SilentlyContinue
     if ($rawCfg) {
       $cfg = ConvertFrom-JsonSafe -JsonText $rawCfg
       if ($cfg -and $cfg.Hardware -and $cfg.Hardware.CatalogPath) {
         $p = [string]$cfg.Hardware.CatalogPath
         if ($p -and (Test-Path -LiteralPath $p)) {
-          $raw2 = Get-Content -Raw -LiteralPath $p -ErrorAction SilentlyContinue
+          $raw2 = Get-Content -Raw -LiteralPath $p -Encoding UTF8 -ErrorAction SilentlyContinue
           if ($raw2) {
             $obj2 = ConvertFrom-JsonSafe -JsonText $raw2
             if ($obj2) { return (Merge-CatalogWithDefaults -Catalog $obj2 -Defaults $defaults) }

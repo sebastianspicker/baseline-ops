@@ -444,7 +444,7 @@ function Load-Catalog {
   if ($p) {
     if (Test-Path -LiteralPath $p) {
       try {
-        $cat = Get-Content -Raw -Path $p | ConvertFrom-Json -ErrorAction Stop
+        $cat = Get-Content -Raw -Path $p -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
         $loadedFrom = 'CatalogPath'
       } catch {
         $notes.Add('CatalogPath JSON parse failed; using embedded defaults.') | Out-Null
@@ -459,7 +459,7 @@ function Load-Catalog {
     if ($cp) {
       if (Test-Path -LiteralPath $cp) {
         try {
-          $cfg = Get-Content -Raw -Path $cp | ConvertFrom-Json -ErrorAction Stop
+          $cfg = Get-Content -Raw -Path $cp -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
           $cfgCat = $null
 
           if ($cfg -and $cfg.PSObject.Properties['OfficeBrowser']) {
@@ -472,7 +472,7 @@ function Load-Catalog {
           if ($cfgCat) {
             if (Test-Path -LiteralPath $cfgCat) {
               try {
-                $cat = Get-Content -Raw -Path $cfgCat | ConvertFrom-Json -ErrorAction Stop
+                $cat = Get-Content -Raw -Path $cfgCat -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
                 $loadedFrom = 'ConfigPath->OfficeBrowser.CatalogPath'
               } catch {
                 $notes.Add('Config-referenced catalog JSON parse failed; using embedded defaults.') | Out-Null
@@ -795,7 +795,7 @@ function Ensure-Firefox {
 
   $existingRaw = $null
   if (Test-Path -LiteralPath $polPath) {
-    try { $existingRaw = Get-Content -Raw -Path $polPath -ErrorAction Stop } catch { $existingRaw = $null }
+    try { $existingRaw = Get-Content -Raw -Path $polPath -Encoding UTF8 -ErrorAction Stop } catch { $existingRaw = $null }
   }
 
   $same = $false

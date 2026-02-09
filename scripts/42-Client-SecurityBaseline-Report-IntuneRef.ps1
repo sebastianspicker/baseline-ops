@@ -168,7 +168,7 @@ function Load-ReferenceJson {
       return [pscustomobject]$result
     }
 
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) {
       $result.Error = "Reference JSON is empty: $Path"
       $result.Reference = New-ReferenceDefaults

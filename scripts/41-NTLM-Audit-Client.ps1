@@ -162,7 +162,7 @@ function Import-JsonConfigOrDefault {
   if (-not (Test-Path -LiteralPath $Path)) { return $DefaultConfig }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return $DefaultConfig }
 
     # ConvertFrom-Json can behave unexpectedly with errors; try/catch is the robust approach. [web:65][web:62]
@@ -278,7 +278,7 @@ $MinimumLevel  = $config.MinimumLevel
 $configLoaded = $false
 if (-not [string]::IsNullOrWhiteSpace($ConfigPath) -and (Test-Path -LiteralPath $ConfigPath)) {
   try {
-    $raw = Get-Content -LiteralPath $ConfigPath -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 -ErrorAction Stop
     if (-not [string]::IsNullOrWhiteSpace($raw)) {
       $null = $raw | ConvertFrom-Json
       $configLoaded = $true

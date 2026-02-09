@@ -56,6 +56,12 @@ function Write-HealthEvent {
     if (-not $LogName) { $LogName = Get-CallerValue -Name 'EventLog' }
   }
 
+  if ([string]::IsNullOrWhiteSpace($Source) -or [string]::IsNullOrWhiteSpace($LogName)) {
+    $msg = 'Write-HealthEvent: Source or LogName is missing. Set EventSource/EventSourceName and EventLogName/EventLog in caller scope or pass -Source and -LogName.'
+    if ($OnError) { & $OnError $msg }
+    return $false
+  }
+
   try {
     Write-EventLog -LogName $LogName -Source $Source -EntryType $Level -EventId $Id -Message $Message -ErrorAction Stop
     return $true

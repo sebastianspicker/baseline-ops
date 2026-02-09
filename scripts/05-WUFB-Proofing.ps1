@@ -374,7 +374,7 @@ function Load-Catalog {
 
   if ($CatalogPath) {
     if (Test-Path -LiteralPath $CatalogPath) {
-      try { $Notes.Add("Catalog loaded from CatalogPath.") | Out-Null; return (Get-Content -Raw -LiteralPath $CatalogPath | ConvertFrom-Json -ErrorAction Stop) }
+      try { $Notes.Add("Catalog loaded from CatalogPath.") | Out-Null; return (Get-Content -Raw -LiteralPath $CatalogPath -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop) }
       catch { $Notes.Add("CatalogPath JSON invalid. Using defaults. Error: $($_.Exception.Message)") | Out-Null; return $default }
     } else {
       $Notes.Add("CatalogPath not found. Using defaults.") | Out-Null
@@ -384,13 +384,13 @@ function Load-Catalog {
 
   if ($ConfigPath -and (Test-Path -LiteralPath $ConfigPath)) {
     try {
-      $cfg = Get-Content -Raw -LiteralPath $ConfigPath | ConvertFrom-Json -ErrorAction Stop
+      $cfg = Get-Content -Raw -LiteralPath $ConfigPath -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
       $p = $null
       if ($cfg -and $cfg.WUfB -and $cfg.WUfB.CatalogPath) { $p = [string]$cfg.WUfB.CatalogPath }
 
       if ($p) {
         if (Test-Path -LiteralPath $p) {
-          try { $Notes.Add("Catalog loaded from ConfigPath reference.") | Out-Null; return (Get-Content -Raw -LiteralPath $p | ConvertFrom-Json -ErrorAction Stop) }
+          try { $Notes.Add("Catalog loaded from ConfigPath reference.") | Out-Null; return (Get-Content -Raw -LiteralPath $p -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop) }
           catch { $Notes.Add("Referenced catalog JSON invalid. Using defaults. Error: $($_.Exception.Message)") | Out-Null; return $default }
         } else {
           $Notes.Add("Referenced catalog path not found. Using defaults.") | Out-Null

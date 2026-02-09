@@ -56,7 +56,7 @@ function Read-ConfigWithDefaults {
   }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) {
       $meta.Error = 'Config file is empty.'
       $meta.UsedDefaultsBecause = $meta.Error
@@ -89,7 +89,7 @@ function Read-ConfigWithDefaults {
   } catch {
     $meta.Error = $_.Exception.Message
     $meta.UsedDefaultsBecause = 'Config parse failed.'
-    if ($OnWarning) { & $OnWarning ('Config parse failed, using defaults: PATH/TO/JSON') }
+    if ($OnWarning) { & $OnWarning ("Config parse failed, using defaults: $Path") }
     if ($ReturnNullOnError) {
       return [pscustomobject]@{ Config = $null; Meta = $meta }
     }

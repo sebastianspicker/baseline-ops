@@ -238,7 +238,7 @@ function Try-ReadJsonFile {
 
   if (-not (Test-Path -LiteralPath $Path)) { return $null }
   try {
-    $raw = Get-Content -Raw -LiteralPath $Path
+    $raw = Get-Content -Raw -LiteralPath $Path -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
     $raw | ConvertFrom-Json
   } catch {

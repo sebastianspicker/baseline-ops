@@ -156,7 +156,7 @@ function Try-LoadJsonConfig {
   if (-not $Config.JsonPathExists) { return $Config }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($raw)) { return $Config }
 
     $json = $raw | ConvertFrom-Json

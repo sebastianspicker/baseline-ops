@@ -250,14 +250,14 @@ function Get-Config {
 
   try {
     if ($Path -and (Test-Path -LiteralPath $Path)) {
-      return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+      return Get-Content -Raw -LiteralPath $Path -Encoding UTF8 | ConvertFrom-Json
     }
 
     $here = Split-Path -Parent $MyInvocation.MyCommand.Path
     if ($here) {
       $alt = Join-Path (Split-Path -Parent $here) "config\config.json"
       if (Test-Path -LiteralPath $alt) {
-        return Get-Content -Raw -LiteralPath $alt | ConvertFrom-Json
+        return Get-Content -Raw -LiteralPath $alt -Encoding UTF8 | ConvertFrom-Json
       }
     }
   } catch { }

@@ -332,7 +332,7 @@ function Load-JsonFile {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
 
   try {
-    return (Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json)
+    return (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
   }
   catch {
     Write-Warning ("Failed to parse JSON: {0} ({1})" -f (ConvertTo-SafeDisplayPath $Path), $_.Exception.Message)

@@ -98,11 +98,11 @@ if (-not (Test-Path -LiteralPath $DestinationRoot)) {
 }
 
 if (Test-Path -LiteralPath (Join-Path $RepoPath '.git')) {
-  Invoke-Git -Args @('-C', $RepoPath, 'fetch', '--all', '--prune', '--tags')
+  Invoke-Git -GitArgs @('-C', $RepoPath, 'fetch', '--all', '--prune', '--tags')
   if ($RepoRef) {
-    Invoke-Git -Args @('-C', $RepoPath, 'checkout', $RepoRef)
+    Invoke-Git -GitArgs @('-C', $RepoPath, 'checkout', $RepoRef)
   } else {
-    Invoke-Git -Args @('-C', $RepoPath, 'pull', '--ff-only')
+    Invoke-Git -GitArgs @('-C', $RepoPath, 'pull', '--ff-only')
   }
 } else {
   if (Test-Path -LiteralPath $RepoPath) {
@@ -118,9 +118,9 @@ if (Test-Path -LiteralPath (Join-Path $RepoPath '.git')) {
   $cloneArgs = @('clone')
   if (-not $RepoRef) { $cloneArgs += @('--depth','1') }
   $cloneArgs += @($RepoUrl, $RepoPath)
-  Invoke-Git -Args $cloneArgs
+  Invoke-Git -GitArgs $cloneArgs
   if ($RepoRef) {
-    Invoke-Git -Args @('-C', $RepoPath, 'checkout', $RepoRef)
+    Invoke-Git -GitArgs @('-C', $RepoPath, 'checkout', $RepoRef)
   }
 }
 

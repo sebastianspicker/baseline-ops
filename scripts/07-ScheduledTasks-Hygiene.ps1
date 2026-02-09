@@ -177,7 +177,7 @@ function Try-LoadJsonFile {
   if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
   if (-not (Test-Path $Path)) { return $null }
   try {
-    $raw = Get-Content -Raw -Path $Path -ErrorAction Stop
+    $raw = Get-Content -Raw -Path $Path -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
     return ($raw | ConvertFrom-Json -ErrorAction Stop)
   } catch {
@@ -193,10 +193,12 @@ function Get-PropValue {
   )
   if ($null -eq $Object) { return $Default }
   try {
-    if ($Object.PSObject -and $Object.PSObject.Properties -and $Object.PSObject.Properties.Match($Name).Count -gt 0) {
+    if ($Object.PSObject -and $Object.PSObject.Properties -and $null -ne $Object.PSObject.Properties[$Name]) {
       return $Object.PSObject.Properties[$Name].Value
     }
-  } catch { }
+  } catch {
+    # Intentionally swallow: property access can throw in strict mode or with special types
+  }
   return $Default
 }
 

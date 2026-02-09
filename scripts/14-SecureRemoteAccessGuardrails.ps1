@@ -226,7 +226,7 @@ function Read-JsonFileSafe {
   try {
     if (-not $Path) { return $null }
     if (-not (Test-Path -LiteralPath $Path)) { return $null }
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     return (ConvertFrom-JsonSafe -JsonText $raw)
   } catch { return $null }
 }

@@ -81,7 +81,7 @@ function Import-JsonConfig {
   if (-not (Test-Path -LiteralPath $Path)) { return $null }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
     $raw | ConvertFrom-Json
   }

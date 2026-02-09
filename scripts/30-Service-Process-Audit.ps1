@@ -97,7 +97,7 @@ function Import-OptionalJsonConfig {
   if (-not (Test-Path -LiteralPath $Path)) { return $null }
 
   try {
-    $jsonText = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $jsonText = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($jsonText)) { return $null }
     return ($jsonText | ConvertFrom-Json -ErrorAction Stop) # ConvertFrom-Json converts JSON to objects. [web:38]
   }

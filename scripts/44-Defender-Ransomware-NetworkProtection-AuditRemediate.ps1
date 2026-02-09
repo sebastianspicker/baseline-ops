@@ -165,7 +165,7 @@ function Load-ConfigFromJson {
   try {
     if (-not (Test-Path -LiteralPath $Path)) { return @{ Config = $null; FindingList = $FindingList } }
 
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return @{ Config = $null; FindingList = $FindingList } }
 
     $cfg = ($raw | ConvertFrom-Json)

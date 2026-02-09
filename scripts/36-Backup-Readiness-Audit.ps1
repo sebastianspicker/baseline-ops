@@ -101,7 +101,7 @@ function Get-Config {
 
   try {
     # PowerShell 5.1 ConvertFrom-Json errors on JSON comments; keep JSON strictly compliant. [web:64]
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { throw "Config JSON is empty." }
 
     $user = $raw | ConvertFrom-Json -ErrorAction Stop

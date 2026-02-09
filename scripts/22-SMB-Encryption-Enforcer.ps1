@@ -195,7 +195,7 @@ function Load-JsonConfigOrDefault {
   }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($raw)) {
       Write-Verbose -Message ('Config JSON is empty at {0}. Using defaults.' -f $Path)
       return $defaults

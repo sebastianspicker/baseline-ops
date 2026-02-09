@@ -172,7 +172,7 @@ function Read-JsonFile {
     if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
     if (-not (Test-Path -LiteralPath $Path)) { return $null }
 
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
 
     $raw | ConvertFrom-Json -ErrorAction Stop

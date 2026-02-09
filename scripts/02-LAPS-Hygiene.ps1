@@ -204,7 +204,7 @@ function Get-ConfigFromJson {
   if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $cfg }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if (-not $raw -or -not $raw.Trim()) { return $cfg }
     $j = $raw | ConvertFrom-Json -ErrorAction Stop
     return (Merge-ConfigObject -Base $cfg -Override $j)
@@ -653,16 +653,16 @@ try {
   }
 
   if ($result.NeedsRotate -and $Remediate -and $isWin) {
-    $tmp = Try-RotateWindowsLAPS -DoIt
-    $result.Rotated = [bool]$tmp[0]
-    $result.RotationMethod = [string]$tmp[1]
+    $tmp = @(Try-RotateWindowsLAPS -DoIt)
+    $result.Rotated = ($tmp.Count -ge 1) -and ([bool]$tmp[0])
+    $result.RotationMethod = if ($tmp.Count -ge 2) { [string]$tmp[1] } else { '' }
 
     if (-not $result.Rotated) {
       $result.RotationError = $result.RotationMethod
       if ($Config.Remediation.CollectDiagnosticsOnFail) {
-        $dtmp = Try-CollectLapsDiagnostics -DoIt -OutputFolder $Config.Remediation.DiagnosticsFolder
-        $result.DiagnosticsCollected = [bool]$dtmp[0]
-        $result.DiagnosticsInfo = [string]$dtmp[1]
+        $dtmp = @(Try-CollectLapsDiagnostics -DoIt -OutputFolder $Config.Remediation.DiagnosticsFolder)
+        $result.DiagnosticsCollected = ($dtmp.Count -ge 1) -and ([bool]$dtmp[0])
+        $result.DiagnosticsInfo = if ($dtmp.Count -ge 2) { [string]$dtmp[1] } else { '' }
       }
     } else {
       Start-Sleep -Seconds $Config.Remediation.SleepAfterRotateSec

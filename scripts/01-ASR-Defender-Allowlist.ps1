@@ -213,13 +213,13 @@ function Get-Config {
 
   try {
     if (Test-Path -LiteralPath $Path) {
-      return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+      return Get-Content -Raw -LiteralPath $Path -Encoding UTF8 | ConvertFrom-Json
     }
 
     $here = Split-Path -Parent $MyInvocation.MyCommand.Path
     $alt  = Join-Path (Split-Path -Parent $here) "config\CONFIG.json"
     if (Test-Path -LiteralPath $alt) {
-      return Get-Content -Raw -LiteralPath $alt | ConvertFrom-Json
+      return Get-Content -Raw -LiteralPath $alt -Encoding UTF8 | ConvertFrom-Json
     }
   } catch {
     return $null
@@ -494,7 +494,7 @@ try {
 
   if ($ExceptionsPath -and (Test-Path -LiteralPath $ExceptionsPath)) {
     try {
-      $raw = Get-Content -Raw -LiteralPath $ExceptionsPath
+      $raw = Get-Content -Raw -LiteralPath $ExceptionsPath -Encoding UTF8
       if ([string]::IsNullOrWhiteSpace($raw)) {
         $jsonError = "Allowlist JSON file is empty."
         if ($StrictJson) { throw $jsonError }

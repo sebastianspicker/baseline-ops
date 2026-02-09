@@ -165,7 +165,7 @@ function Save-Json([object]$Obj,[string]$Path) {
 function Read-Json([string]$Path) {
   try {
     if ($Path -and (Test-Path -LiteralPath $Path)) {
-      return (Get-Content -Raw -Path $Path -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop)
+      return (Get-Content -Raw -Path $Path -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop)
     }
   } catch { }
   return $null

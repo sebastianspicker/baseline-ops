@@ -272,13 +272,14 @@ function Convert-ToDesiredObjectSafe {
 
   try {
     if (Test-Path -LiteralPath $InputValue) {
-      $raw = Get-Content -LiteralPath $InputValue -Raw
+      $raw = Get-Content -LiteralPath $InputValue -Raw -Encoding UTF8
       return ($raw | ConvertFrom-Json)
     }
 
     return ($InputValue | ConvertFrom-Json)
   } catch {
-    Add-Finding -Code 'SECOPT-DesiredLoadFailed' -Severity 'Medium' -Message ("Desired JSON could not be loaded/parsed; continuing with baseline checks only. Error: {0}" -f $_.Exception.Message)
+    $hint = if (Test-Path -LiteralPath $InputValue) { ' (file read failed or invalid JSON)' } else { ' (path not found; then tried as inline JSON and parse failed)' }
+    Add-Finding -Code 'SECOPT-DesiredLoadFailed' -Severity 'Medium' -Message ("Desired JSON could not be loaded/parsed{0}; continuing with baseline checks only. Error: {1}" -f $hint, $_.Exception.Message)
     return $null
   }
 }

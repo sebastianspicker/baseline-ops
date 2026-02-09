@@ -138,7 +138,7 @@ function Load-Config {
   }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     $obj = $raw | ConvertFrom-Json -ErrorAction Stop
   } catch {
     $result.LoadDetail = 'JSON config could not be loaded/parsed; using defaults.'

@@ -298,7 +298,7 @@ function Load-JsonOrDefault {
   if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $DefaultObject }
 
   try {
-    $raw = Get-Content -Raw -LiteralPath $Path -ErrorAction Stop
+    $raw = Get-Content -Raw -LiteralPath $Path -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return $DefaultObject }
     $obj = $raw | ConvertFrom-Json -ErrorAction Stop
     if ($null -eq $obj) { return $DefaultObject }
@@ -347,7 +347,7 @@ function Select-ConfigFile([string]$Path,[string]$Dir,[string]$NameHint,[object]
 
 function Validate-ConfigXml([string]$file){
   try {
-    [xml]$x = Get-Content -Raw -LiteralPath $file -ErrorAction Stop
+    [xml]$x = Get-Content -Raw -LiteralPath $file -Encoding UTF8 -ErrorAction Stop
     if (-not $x) { return $false,"empty xml" }
     $root = $x.DocumentElement
     if (-not $root) { return $false,"no root element" }

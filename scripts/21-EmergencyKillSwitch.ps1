@@ -207,7 +207,7 @@ function Try-LoadConfigJson {
     }
 
     if ($Path -and (Test-Path -LiteralPath $Path)) {
-      $text = Get-Content -LiteralPath $Path -Raw
+      $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
       if ($text -and $text.Trim()) {
         return ($text | ConvertFrom-Json)
       }

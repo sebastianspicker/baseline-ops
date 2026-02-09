@@ -24,6 +24,10 @@ if ([string]::IsNullOrWhiteSpace($RootPath)) {
 }
 
 $bootstrapPath = [System.IO.Path]::Combine($RootPath, 'scripts', '_lib', 'Bootstrap.ps1')
+if (-not (Test-Path -LiteralPath $bootstrapPath)) {
+  Write-Host "ERROR: Bootstrap not found: $bootstrapPath" -ForegroundColor Red
+  exit 1
+}
 . $bootstrapPath
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 

@@ -82,7 +82,7 @@ function Get-AuditConfig {
   if (-not (Test-Path -LiteralPath $Path)) { return $Defaults }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return $Defaults }
 
     $cfg = $raw | ConvertFrom-Json

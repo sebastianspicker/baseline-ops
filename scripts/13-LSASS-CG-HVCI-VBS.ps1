@@ -200,7 +200,7 @@ function Try-LoadJsonConfig {
   }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
     $obj = $raw | ConvertFrom-Json -ErrorAction Stop
 
     foreach ($k in $cfg.Keys) {

@@ -414,7 +414,7 @@ function SB_LoadJsonConfig {
 
   try {
     if (-not (Test-Path -LiteralPath $Path)) { return $DefaultConfig }
-    $raw = Get-Content -LiteralPath $Path -Raw
+    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($raw)) { return $DefaultConfig }
 
     $cfg = $raw | ConvertFrom-Json
@@ -626,7 +626,7 @@ function SB_ExportKbStatus {
   }
 
   try {
-    $kbfeed = Get-Content -LiteralPath $KbFeedPath -Raw | ConvertFrom-Json
+    $kbfeed = Get-Content -LiteralPath $KbFeedPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $installedKB = @(Get-HotFix | Select-Object -ExpandProperty HotFixID)
 
     $missingCritical = @()

@@ -101,7 +101,7 @@ function Load-Config {
 
   try {
     # ConvertFrom-Json can throw terminating errors; always use try/catch in PS 5.1.
-    $raw = Get-Content -Path $Path -Raw -ErrorAction Stop
+    $raw = Get-Content -Path $Path -Raw -Encoding UTF8 -ErrorAction Stop
     $userCfg = $raw | ConvertFrom-Json
 
     if ($null -ne $userCfg.Thresholds) {
