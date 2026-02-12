@@ -6,19 +6,19 @@ Each item can be turned into a separate issue.
 
 ## Known Limitations / Bugs
 
-### 1. [Bug] “Audit-only” run still modifies firewall (RDP rules disabled)
+### 1. [Bug] "Audit-only" run still modifies firewall (RDP rules disabled)
 
-**Description:** In `scripts/14-SecureRemoteAccessGuardrails.ps1`, `Disable-LocalBuiltinRdpInbound` is invoked unconditionally inside `Ensure-RdpFirewallRules`, regardless of `-Remediate`. The script claims “Running without -Remediate performs an audit only (no changes).”
+**Description:** In `scripts/14-SecureRemoteAccessGuardrails.ps1`, `Disable-LocalBuiltinRdpInbound` is invoked unconditionally inside `Ensure-RdpFirewallRules`, regardless of `-Remediate`. The script claims "Running without -Remediate performs an audit only (no changes)."
 
-**Impact:** Running audit-only on endpoints can silently disable built-in “Remote Desktop” inbound firewall rules and cut off remote access. Violates the audit-only contract.
+**Impact:** Running audit-only on endpoints can silently disable built-in "Remote Desktop" inbound firewall rules and cut off remote access. Violates the audit-only contract.
 
 **Fix:** Only call `Disable-LocalBuiltinRdpInbound` when `$Remediate` is true and when the catalog specifies RDP disabled; otherwise perform read-only checks only.
 
 ---
 
-### 2. [Bug/Operational] “Audit-only” mode can still modify registry (e.g. WUFB, Defender)
+### 2. [Bug/Operational] "Audit-only" mode can still modify registry (e.g. WUFB, Defender)
 
-**Description:** Several scripts create missing registry keys or apply “minimum” baselines even when run in audit-only or proof-only mode. Examples: `06-UpdateHealth-SSU-Proof.ps1` (creates missing keys); `01-ASR-Defender-Allowlist.ps1` (minimum baseline + remediation can remove CFA allowlists when JSON is missing/invalid).
+**Description:** Several scripts create missing registry keys or apply "minimum" baselines even when run in audit-only or proof-only mode. Examples: `06-UpdateHealth-SSU-Proof.ps1` (creates missing keys); `01-ASR-Defender-Allowlist.ps1` (minimum baseline + remediation can remove CFA allowlists when JSON is missing/invalid).
 
 **Impact:** Operators expect audit-only to be read-only. Silent registry changes undermine trust and can cause unintended fleet state.
 
@@ -28,7 +28,7 @@ Each item can be turned into a separate issue.
 
 ### 3. [Bug] Pipeline output is commented out (structured object never emitted)
 
-**Description:** In `scripts/38-SecurityOptions-Drift.ps1`, the script documents “Pipeline output: exactly one structured object” but the object emission is commented out. Automation that does `$r = .\38-SecurityOptions-Drift.ps1; $r.Summary` receives `$null`.
+**Description:** In `scripts/38-SecurityOptions-Drift.ps1`, the script documents "Pipeline output: exactly one structured object" but the object emission is commented out. Automation that does `$r = .\38-SecurityOptions-Drift.ps1; $r.Summary` receives `$null`.
 
 **Impact:** Major advertised functionality (Export-Csv, ConvertTo-Json, filtering) is non-functional; audits/remediation pipelines silently get no data.
 
@@ -38,7 +38,7 @@ Each item can be turned into a separate issue.
 
 ### 4. [Bug] Findings list is not usable (empty list → $null; first Add-Finding throws)
 
-**Description:** `New-FindingsList` returns a `List[object]`; PowerShell enumerates it on the pipeline so the caller receives `$null`. `Add-Finding` treats empty collections as “missing” and throws when no list is found, so the first finding addition fails.
+**Description:** `New-FindingsList` returns a `List[object]`; PowerShell enumerates it on the pipeline so the caller receives `$null`. `Add-Finding` treats empty collections as "missing" and throws when no list is found, so the first finding addition fails.
 
 **Impact:** Scripts cannot reliably build or export findings; they either report FindingsCount=0 with Findings=$null, or crash when reporting the first finding.
 
@@ -48,9 +48,9 @@ Each item can be turned into a separate issue.
 
 ### 5. [Bug] Set-RegDword return value is $null; scripts treat it as boolean
 
-**Description:** `lib/Registry.psm1`’s `Set-RegDword` pipes output to `Out-Null` and does not return `$true`/`$false`. Multiple scripts use `if (Set-RegDword ...) { ... } else { ... }`, so the else branch always runs and remediation is reported as “failed” even when it succeeded.
+**Description:** `lib/Registry.psm1`'s `Set-RegDword` pipes output to `Out-Null` and does not return `$true`/`$false`. Multiple scripts use `if (Set-RegDword ...) { ... } else { ... }`, so the else branch always runs and remediation is reported as "failed" even when it succeeded.
 
-**Impact:** False “Failed to set …” drift entries, incorrect event IDs, and automation repeatedly attempting “failed” remediations. Machine state and reported state diverge.
+**Impact:** False "Failed to set …" drift entries, incorrect event IDs, and automation repeatedly attempting "failed" remediations. Machine state and reported state diverge.
 
 **Fix:** Either make `Set-RegDword` return a boolean (e.g. wrap in try/catch and return $true/$false), or change all call sites to not depend on return value and verify by reading back the value.
 
@@ -76,17 +76,17 @@ Each item can be turned into a separate issue.
 
 ### 8. [Enhancement] Avoid SilentlyContinue for remediation and evidence collection
 
-**Description:** Remediation and evidence paths use `-ErrorAction SilentlyContinue` so failures are not thrown; scripts then record “success” or continue as if the operation succeeded. Applies to service/task disable, firewall rule removal, registry cleanup, and various exports.
+**Description:** Remediation and evidence paths use `-ErrorAction SilentlyContinue` so failures are not thrown; scripts then record "success" or continue as if the operation succeeded. Applies to service/task disable, firewall rule removal, registry cleanup, and various exports.
 
 **Fix:** Use `-ErrorAction Stop` for remediation and critical collection paths, and handle errors in try/catch with explicit logging/findings. Reserve SilentlyContinue only for optional or best-effort steps and document that.
 
 ---
 
-### 9. [Operational] Document “audit-only” vs “remediate” and recovery for stuck state
+### 9. [Operational] Document "audit-only" vs "remediate" and recovery for stuck state
 
-**Description:** Scripts that can change system state (firewall, registry, services) should document clearly when they are read-only vs when they modify. Recovery steps for interrupted runs (e.g. stuck “processing” or half-applied config) are not centralized.
+**Description:** Scripts that can change system state (firewall, registry, services) should document clearly when they are read-only vs when they modify. Recovery steps for interrupted runs (e.g. stuck "processing" or half-applied config) are not centralized.
 
-**Fix:** Add a short “Audit vs Remediate” and “Recovery” subsection in README or `docs/RUNBOOK.md`; reference script-specific behaviour and link to FAQ/operations where applicable.
+**Fix:** Add a short "Audit vs Remediate" and "Recovery" subsection in README; reference script-specific behaviour and link to FAQ/operations where applicable.
 
 ---
 
@@ -148,7 +148,7 @@ Each item can be turned into a separate issue.
 
 ---
 
-### 17. [Bug] WUFB/Update “audit-only” can still create missing registry keys
+### 17. [Bug] WUFB/Update "audit-only" can still create missing registry keys
 
 **Description:** In audit-only mode, the script can create missing keys for Windows Update policy, changing system state.
 
@@ -156,11 +156,11 @@ Each item can be turned into a separate issue.
 
 ---
 
-### 18. [Bug] Defender ASR “minimum” baseline + remediation can remove CFA allowlists when JSON missing/invalid
+### 18. [Bug] Defender ASR "minimum" baseline + remediation can remove CFA allowlists when JSON missing/invalid
 
 **Description:** When JSON is missing or invalid, minimum baseline plus remediation can remove existing CFA allowlists.
 
-**Fix:** In the “no config” path, do not apply remediation that removes allowlists; or require explicit confirmation and document behaviour.
+**Fix:** In the "no config" path, do not apply remediation that removes allowlists; or require explicit confirmation and document behaviour.
 
 ---
 
@@ -176,7 +176,7 @@ Each item can be turned into a separate issue.
 
 **Description:** `Is-DomainLikePrincipal` only checks a fixed list of `PrincipalSource` strings. Entra principals may report `AzureAD` or other values not in the list and are then treated as removable without `-AllowDomainRemediation`.
 
-**Fix:** Extend the list to include all known Entra/Azure AD principal source values (e.g. `AzureAD`, `Azure Active Directory`) and/or derive from documentation or runtime discovery. Prefer over-inclusion for “domain-like” to avoid accidental removal.
+**Fix:** Extend the list to include all known Entra/Azure AD principal source values (e.g. `AzureAD`, `Azure Active Directory`) and/or derive from documentation or runtime discovery. Prefer over-inclusion for "domain-like" to avoid accidental removal.
 
 **Sources:** `audit/05-laps-localadmin.md` Finding #16, INDEX #10
 
@@ -236,7 +236,7 @@ Each item can be turned into a separate issue.
 
 ### 26. [Bug] Output.psm1: Get-CallerSwitchValue finds local params first (Quiet/NoConsole/NoColor not inherited)
 
-**Description:** Caller-scope lookup uses scope 1..3; scope 1 is the function’s own params (e.g. Quiet, NoConsole), which default to $false. Script-level flags are often never seen.
+**Description:** Caller-scope lookup uses scope 1..3; scope 1 is the function's own params (e.g. Quiet, NoConsole), which default to $false. Script-level flags are often never seen.
 
 **Fix:** Adjust scope order or parameter resolution so script-level switches are respected when not explicitly passed (e.g. skip scope 1 for these names, or document that callers must pass switches explicitly).
 
@@ -264,11 +264,11 @@ Each item can be turned into a separate issue.
 
 ---
 
-### 29. [Bug] Add-Finding: empty list treated as “missing” and causes throw on first finding
+### 29. [Bug] Add-Finding: empty list treated as "missing" and causes throw on first finding
 
 **Description:** Truthiness of empty list is $false; Add-Finding then tries caller lookup, fails, and throws when the first finding is added.
 
-**Fix:** Treat “empty list” as valid (e.g. only treat $null as missing, or allow creating list when caller provided $null and lookup fails).
+**Fix:** Treat "empty list" as valid (e.g. only treat $null as missing, or allow creating list when caller provided $null and lookup fails).
 
 **Sources:** `audit/14-output-results.md` Finding #2
 
@@ -276,7 +276,7 @@ Each item can be turned into a separate issue.
 
 ### 30. [Bug] auditpol.exe output and remediation exit code not validated
 
-**Description:** Get-AuditPolText and remediation both call auditpol without checking $LASTEXITCODE. Parser and “remediated” state can be wrong.
+**Description:** Get-AuditPolText and remediation both call auditpol without checking $LASTEXITCODE. Parser and "remediated" state can be wrong.
 
 **Fix:** Check $LASTEXITCODE after each auditpol invocation; treat non-zero as failure and set/return error state.
 
@@ -306,7 +306,7 @@ Each item can be turned into a separate issue.
 
 ### 33. [Bug] Firewall helper returns $true even when rule not found (Remove-LocalFirewallRuleByDisplayName)
 
-**Description:** Function returns $true even if Get-NetFirewallRule returned $null, so “Removed local rule” is logged when nothing was removed.
+**Description:** Function returns $true even if Get-NetFirewallRule returned $null, so "Removed local rule" is logged when nothing was removed.
 
 **Fix:** Return $true only when a rule was found and removed; otherwise $false and optionally record finding.
 
@@ -324,9 +324,9 @@ Each item can be turned into a separate issue.
 
 ---
 
-### 35. [Bug] 38-SecurityOptions-Drift: Registry type “Unknown” and REG_DWORD-style strings
+### 35. [Bug] 38-SecurityOptions-Drift: Registry type "Unknown" and REG_DWORD-style strings
 
-**Description:** Normalize-RegistryType allows “Unknown” but New-ItemProperty does not support PropertyType Unknown. Common strings like REG_DWORD are rejected.
+**Description:** Normalize-RegistryType allows "Unknown" but New-ItemProperty does not support PropertyType Unknown. Common strings like REG_DWORD are rejected.
 
 **Fix:** Map REG_* to valid PropertyType; do not allow Unknown for write path, or map to a supported type and document.
 
@@ -334,9 +334,9 @@ Each item can be turned into a separate issue.
 
 ---
 
-### 36. [Bug] Local admins: ADSI fallback misclassifies local COMPUTERNAME\* as “Active Directory”
+### 36. [Bug] Local admins: ADSI fallback misclassifies local COMPUTERNAME\* as "Active Directory"
 
-**Description:** Pattern `^[^\\]+\\` matches local computer accounts as well as domain; they are then protected as “domain-like” and may require -AllowDomainRemediation to remove local drift.
+**Description:** Pattern `^[^\\]+\\` matches local computer accounts as well as domain; they are then protected as "domain-like" and may require -AllowDomainRemediation to remove local drift.
 
 **Fix:** Exclude local computer name (e.g. match against $env:COMPUTERNAME) or use a more precise classification so local accounts are not treated as domain.
 
@@ -349,12 +349,12 @@ Each item can be turned into a separate issue.
 | Symptom | Typical cause | Fix / see |
 |--------|----------------|-----------|
 | Parameter binding error (Write-HealthEvent / Ensure-EventSource) | Unknown params or missing mandatory -LogName / wrong param name | Extend lib/EventLog.psm1 or fix call sites (§12, §13) |
-| “Failed to set …” despite successful registry change | Set-RegDword returns $null, used as boolean | Fix Set-RegDword return or call sites (§5, §14) |
+| "Failed to set …" despite successful registry change | Set-RegDword returns $null, used as boolean | Fix Set-RegDword return or call sites (§5, §14) |
 | Findings empty or $null; Add-Finding throws on first finding | New-FindingsList enumerated; empty list treated as missing | Fix Results.psm1 return and Add-Finding logic (§4, §15, §29) |
 | Audit-only run changed firewall/registry | Logic calls remediation or key creation without -Remediate check | Gate all writes on -Remediate (§1, §2, §16, §17) |
 | Script not found / wrong script executed (Run-Local) | -ScriptName path traversal or non-.ps1 | Validate ScriptName and resolve path under scripts root (§11, §10) |
-| External command “succeeded” but nothing changed | Exit code not checked (schtasks, auditpol, reg, wevtutil) | Check $LASTEXITCODE after every external call (§7, §21, §30, §32) |
-| Remediation “success” but operation failed | -ErrorAction SilentlyContinue on critical ops | Use -ErrorAction Stop and try/catch for remediation (§8, §31, §33) |
+| External command "succeeded" but nothing changed | Exit code not checked (schtasks, auditpol, reg, wevtutil) | Check $LASTEXITCODE after every external call (§7, §21, §30, §32) |
+| Remediation "success" but operation failed | -ErrorAction SilentlyContinue on critical ops | Use -ErrorAction Stop and try/catch for remediation (§8, §31, §33) |
 | RID 500 or Entra admin removed unintentionally | SID resolution failed or PrincipalSource not in list | Harden RID 500 fallback; extend PrincipalSource list (§19, §20, §36) |
 | Pipeline output $null (e.g. 38-SecurityOptions-Drift) | Pipeline object commented out | Emit documented object (§3) |
 | Copy-Local pulls wrong repo / ref | .git exists and RepoUrl ignored; RepoRef unvalidated | Verify remote; validate refs (§24, §23) |
@@ -366,4 +366,4 @@ Each item can be turned into a separate issue.
 - **Labels:** `bug`, `enhancement`, `documentation`, `operational`, `critical`, `high` as appropriate.
 - **Title:** Use the **[Bug]** / **[Enhancement]** / **[Operational]** prefix; include short descriptor.
 - **Body:** Copy the relevant section (description, impact, fix).
-- The **quick reference** table can be linked from README or RUNBOOK as “Common issues / Troubleshooting”.
+- The **quick reference** table can be linked from README as "Common issues / Troubleshooting".

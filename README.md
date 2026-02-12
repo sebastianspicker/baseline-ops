@@ -37,23 +37,24 @@ See `lib/README.md` for details and the recommended import pattern.
 Scripts resolve `lib/` via a shared bootstrap:
 - `scripts/_lib/Bootstrap.ps1` sets `$script:LibPath` so scripts can import modules consistently (repo checkout or deployed copy).
 
-## Testing (syntax + static checks)
-Run the repo-level verifier to parse all scripts/modules and (optionally) run PSScriptAnalyzer:
-```
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
-```
-Options:
-```
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer
-```
-Exit codes:
-- `0`: OK
-- `1`: Parse error(s)
-- `2`: PSScriptAnalyzer issues
+## Validation (build / run / test)
+
+There is no traditional build; validation is syntax and static analysis only.
+
+| Action | Command |
+|--------|--------|
+| **Verify (syntax only)** | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer` |
+| **Verify (syntax + PSScriptAnalyzer)** | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1` |
+| **Secret scan** | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1` |
+| **CI-equivalent (PowerShell 7+, cross-platform)** | `./scripts/ci-local.sh` (or `CI_SKIP_ANALYZER=1 ./scripts/ci-local.sh` to skip analyzer) |
+
+Run from repo root. For CI (e.g. GitHub Actions), pass `-RootPath $env:GITHUB_WORKSPACE` to `verify.ps1` and `secret-scan.ps1`.
+
+Exit codes for `verify.ps1`: `0` = OK; `1` = parse error(s); `2` = PSScriptAnalyzer issues.
 
 ## Development
-- See `docs/RUNBOOK.md` for setup, fast loop, and full verification commands.
 - Use `tools/secret-scan.ps1` for a basic local secret scan.
+- Known bugs and required fixes are tracked in [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md).
 
 ## Console output (unified)
 All scripts import `lib/Output.psm1` and use a shared console API with a consistent palette and layout:
@@ -189,6 +190,7 @@ sh.Run cmd, 1, True
 - If PowerShell blocks scripts, run `Unblock-File` on `.ps1` files.
 - If `Invoke-ScriptAnalyzer` is missing, install PSScriptAnalyzer or run `tools/verify.ps1 -SkipAnalyzer`.
 - Run from an elevated prompt when a script requires administrative privileges.
+- For common failure causes and fix references, see [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md#quick-reference-common-failure-causes).
 
 ## Disclaimer
 These scripts are provided “as-is” without warranty. You are responsible for validation, compliance, and safe deployment.
