@@ -330,7 +330,7 @@ if (-not $PSBoundParameters.ContainsKey('ExportPath')) {
 $logName = Get-ConfigValueString -ConfigObject $configObj -Name 'LogName' -DefaultValue $defaults.LogName
 
 # Preconditions
-if (-not (Test-IsAdmin)) { throw "Administrative privileges are required." }
+Require-Admin
 
 if (-not (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
   throw "Cert: drive is not available. The Microsoft.PowerShell.Security provider/module may be missing."

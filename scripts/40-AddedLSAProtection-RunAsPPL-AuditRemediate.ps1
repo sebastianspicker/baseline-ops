@@ -406,7 +406,7 @@ function Write-PrettySummary {
 # ----------------------------
 # MAIN
 # ----------------------------
-if (-not (Test-IsAdmin)) { throw 'Administrative privileges required.' }
+Require-Admin
 
 $configPath = Get-TokenValue -ArgsList $args -Token 'Config'
 $cfgResult = Read-ConfigWithDefaults -Path $configPath -Defaults (New-DefaultConfig) -AsHashtable -OnWarning { param($m) Write-WarnLine $m }

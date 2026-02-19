@@ -1,5 +1,20 @@
 Set-StrictMode -Version Latest
 
+function Get-CallerValue {
+  [CmdletBinding()]
+  param([Parameter(Mandatory)][string]$Name)
+
+  foreach ($scope in 1..3) {
+    try {
+      $var = Get-Variable -Name $Name -Scope $scope -ErrorAction Stop
+      return $var.Value
+    } catch {
+      # continue
+    }
+  }
+  return $null
+}
+
 function Test-IsAdmin {
   [CmdletBinding()]
   param()
@@ -16,6 +31,16 @@ function Test-IsAdministrator {
   [CmdletBinding()]
   param()
   return (Test-IsAdmin)
+}
+
+function Require-Admin {
+  [CmdletBinding()]
+  param(
+    [string]$Message = 'Administrative privileges are required. Run the script elevated.'
+  )
+  if (-not (Test-IsAdmin)) {
+    throw $Message
+  }
 }
 
 function Ensure-Directory {
@@ -59,4 +84,4 @@ function Read-JsonConfig {
   }
 }
 
-Export-ModuleMember -Function Test-IsAdmin,Test-IsAdministrator,Ensure-Directory,Ensure-DirectoryForFile,Ensure-Dir,Read-JsonConfig
+Export-ModuleMember -Function Get-CallerValue,Test-IsAdmin,Test-IsAdministrator,Require-Admin,Ensure-Directory,Ensure-DirectoryForFile,Ensure-Dir,Read-JsonConfig

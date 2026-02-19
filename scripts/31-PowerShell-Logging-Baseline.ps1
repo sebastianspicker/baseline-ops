@@ -364,7 +364,7 @@ function Write-ConsoleSummary {
 # ---------------------------
 # Main
 # ---------------------------
-if (-not (Test-IsAdmin)) { throw 'Administrative privileges required.' }
+Require-Admin
 
 $Findings = New-FindingsList
 

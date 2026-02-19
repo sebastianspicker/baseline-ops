@@ -52,6 +52,13 @@ Run from repo root. For CI (e.g. GitHub Actions), pass `-RootPath $env:GITHUB_WO
 
 Exit codes for `verify.ps1`: `0` = OK; `1` = parse error(s); `2` = PSScriptAnalyzer issues.
 
+Script exit codes (convention): many scripts use `0` = success, `1` = error, `2` = partial/no change; see each script’s comment-based help for details.
+
+## Audit vs. Remediate and recovery
+- **Audit-only:** Scripts that support a mode or switch for “audit only” (e.g. no `-Remediate`) are intended to be read-only: they report drift and do not change registry, firewall, or services. If a script still modifies state without `-Remediate`, report it (see [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md)).
+- **Remediate:** When you pass `-Remediate` (or equivalent), the script may change system state (registry, firewall, scheduled tasks, etc.). Prefer `-WhatIf` / `-Confirm` where supported.
+- **Recovery:** If a run is interrupted (e.g. half-applied config), re-run the script in audit mode to see current state, then remediate again if needed. There is no single “rollback” script; restore from backups or revert specific settings per script.
+
 ## Development
 - Use `tools/secret-scan.ps1` for a basic local secret scan.
 - Known bugs and required fixes are tracked in [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md).
@@ -189,7 +196,7 @@ sh.Run cmd, 1, True
 ## Troubleshooting
 - If PowerShell blocks scripts, run `Unblock-File` on `.ps1` files.
 - If `Invoke-ScriptAnalyzer` is missing, install PSScriptAnalyzer or run `tools/verify.ps1 -SkipAnalyzer`.
-- Run from an elevated prompt when a script requires administrative privileges.
+- Run from an elevated prompt when a script requires administrative privileges (or use `Require-Admin` from `lib/Common.psm1` in your own scripts).
 - For common failure causes and fix references, see [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md#quick-reference-common-failure-causes).
 
 ## Disclaimer

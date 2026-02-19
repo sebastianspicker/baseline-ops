@@ -69,10 +69,27 @@ if ($PSCmdlet.ParameterSetName -eq 'ByNumber') {
   }
   $scriptPath = $scriptMatches[0].FullName
 } else {
-  $scriptPath = Join-Path $scriptsRoot $ScriptName
-  if (-not (Test-Path -LiteralPath $scriptPath)) {
+  # Constrain to basename only to prevent path traversal (§11/§10)
+  if ($ScriptName -match '[/\\]' -or $ScriptName -match '\.\.') {
+    throw "ScriptName must be a script file name without path components (e.g. 18-Firewall-Baseline.ps1)."
+  }
+  $baseName = [System.IO.Path]::GetFileName($ScriptName)
+  if ([string]::IsNullOrWhiteSpace($baseName)) {
+    throw "ScriptName must be a script file name (e.g. 18-Firewall-Baseline.ps1)."
+  }
+  if ([System.IO.Path]::GetExtension($baseName) -ne '.ps1') {
+    throw "ScriptName must reference a .ps1 file."
+  }
+  $scriptPath = Join-Path $scriptsRoot $baseName
+  if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
     throw "Script not found: $scriptPath"
   }
+  $scriptsRootFull = [System.IO.Path]::GetFullPath($scriptsRoot)
+  $resolvedFull = [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $scriptPath).Path)
+  if (-not $resolvedFull.StartsWith($scriptsRootFull, [StringComparison]::OrdinalIgnoreCase) -or $resolvedFull -eq $scriptsRootFull) {
+    throw "Resolved script path is outside scripts root or invalid."
+  }
+  $scriptPath = $resolvedFull
 }
 
 if ($ScriptArgs) {

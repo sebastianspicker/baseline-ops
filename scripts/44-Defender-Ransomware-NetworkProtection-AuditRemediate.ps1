@@ -267,7 +267,7 @@ function Write-ConsoleReport {
 # Preconditions
 # -----------------------------
 
-if (-not (Test-IsAdmin)) { throw "Administrative privileges are required." }
+Require-Admin
 
 Ensure-Cmdlet -Name 'Get-MpPreference'
 Ensure-Cmdlet -Name 'Set-MpPreference'

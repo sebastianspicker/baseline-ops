@@ -47,6 +47,22 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Validate deployment parameters to prevent option injection and unsafe paths (§10/§23/§24)
+if ($RepoUrl -match '^\s*-') {
+  throw 'RepoUrl must not start with "-" or leading whitespace (option injection prevention).'
+}
+if (-not [string]::IsNullOrWhiteSpace($RepoPath) -and $RepoPath -match '^\s*-') {
+  throw 'RepoPath must not start with "-" or leading whitespace (option injection prevention).'
+}
+if (-not [string]::IsNullOrWhiteSpace($RepoRef) -and $RepoRef -match '^\s*-') {
+  throw 'RepoRef must not start with "-" or leading whitespace (option injection prevention).'
+}
+$destRootFull = [System.IO.Path]::GetFullPath($DestinationRoot)
+$destRootRoot = [System.IO.Path]::GetPathRoot($destRootFull).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+if ($destRootFull -eq $destRootRoot -or [string]::IsNullOrWhiteSpace($destRootRoot)) {
+  throw 'DestinationRoot must be a subdirectory, not a volume root (e.g. use C:\install\mdm\ps1 not C:\).'
+}
+
 function Invoke-Git {
   param([Parameter(Mandatory)][string[]]$GitArgs)
   & git.exe @GitArgs
@@ -98,6 +114,18 @@ if (-not (Test-Path -LiteralPath $DestinationRoot)) {
 }
 
 if (Test-Path -LiteralPath (Join-Path $RepoPath '.git')) {
+  # Verify existing clone matches intended RepoUrl to avoid supply-chain drift (§24)
+  try {
+    $configuredRemote = (git -C $RepoPath remote get-url origin 2>$null).Trim()
+    $normalizedUrl = $RepoUrl.Trim().ToLowerInvariant()
+    $normalizedRemote = $configuredRemote.Trim().ToLowerInvariant()
+    if (-not [string]::IsNullOrWhiteSpace($configuredRemote) -and $normalizedRemote -ne $normalizedUrl) {
+      throw ("Configured remote URL does not match -RepoUrl. Remote: {0}; Expected: {1}. Use a clean path or re-clone." -f $configuredRemote, $RepoUrl)
+    }
+  } catch {
+    if ($_.Exception.Message -match 'does not match') { throw }
+    # git remote get-url can fail if no origin; continue
+  }
   Invoke-Git -GitArgs @('-C', $RepoPath, 'fetch', '--all', '--prune', '--tags')
   if ($RepoRef) {
     Invoke-Git -GitArgs @('-C', $RepoPath, 'checkout', $RepoRef)

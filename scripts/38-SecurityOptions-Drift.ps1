@@ -328,9 +328,7 @@ function Compare-Value {
 # Preconditions
 # -------------------------
 
-if (-not (Test-IsAdmin)) {
-  throw "Administrative privileges required."
-}
+Require-Admin
 
 # -------------------------
 # Built-in baseline checks (always)
@@ -506,11 +504,11 @@ if ($ExportPath) {
 
 Write-ConsoleSummary -Summary $summary -Findings $script:Findings -CurrentValues $script:CurrentValues -Drift $script:Drift
 
-# Pipeline output: exactly one structured object.
-#[pscustomobject]@{
-#  Summary       = $summary
-#  Findings      = $script:Findings
-#  CurrentValues = $script:CurrentValues
-#  Drift         = $script:Drift
-#  DesiredLoaded = $desiredLoaded
-#}
+# Pipeline output: exactly one structured object (§3).
+[pscustomobject]@{
+  Summary       = $summary
+  Findings      = [object[]]$script:Findings
+  CurrentValues = [object[]]$script:CurrentValues
+  Drift         = [object[]]$script:Drift
+  DesiredLoaded = $desiredLoaded
+}

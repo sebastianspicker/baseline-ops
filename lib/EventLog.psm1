@@ -1,29 +1,32 @@
 Set-StrictMode -Version Latest
 
-function Get-CallerValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Name
-  )
-
-  foreach ($scope in 1..3) {
-    try {
-      $var = Get-Variable -Name $Name -Scope $scope -ErrorAction Stop
-      return $var.Value
-    } catch {
-      # continue
-    }
-  }
-  return $null
-}
-
 function Ensure-EventSource {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory)][string]$Source,
-    [Parameter(Mandatory)][Alias('Log')][string]$LogName,
+    [Parameter(Mandatory = $false)]
+    [string]$Source,
+    [Parameter(Mandatory = $false)]
+    [Alias('SourceName')]
+    [string]$SourceName,
+    [Parameter(Mandatory = $false)]
+    [Alias('Log')]
+    [string]$LogName,
     [scriptblock]$OnError
   )
+  if (-not $Source -and $SourceName) { $Source = $SourceName }
+  if ([string]::IsNullOrWhiteSpace($Source)) {
+    $Source = Get-CallerValue -Name 'EventSource'
+    if (-not $Source) { $Source = Get-CallerValue -Name 'EventSourceName' }
+  }
+  if ([string]::IsNullOrWhiteSpace($LogName)) {
+    $LogName = Get-CallerValue -Name 'EventLogName'
+    if (-not $LogName) { $LogName = Get-CallerValue -Name 'EventLog' }
+    if ([string]::IsNullOrWhiteSpace($LogName)) { $LogName = 'Application' }
+  }
+  if ([string]::IsNullOrWhiteSpace($Source)) {
+    if ($OnError) { & $OnError 'Ensure-EventSource: -Source or -SourceName is required, or set EventSource/EventSourceName in caller scope.' }
+    return $false
+  }
 
   try {
     if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
@@ -43,7 +46,9 @@ function Write-HealthEvent {
     [Parameter(Mandatory)][Alias('Msg')][string]$Message,
     [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
     [string]$Source,
-    [Alias('Log','LogName')][string]$LogName,
+    [Alias('Log')][string]$LogName,
+    [switch]$EventLogReady,
+    [switch]$CanEventLog,
     [scriptblock]$OnError
   )
 

@@ -25,6 +25,8 @@ function Read-ConfigWithDefaults {
     [scriptblock]$OnWarning
   )
 
+  if ($null -eq $Defaults) { $Defaults = @{} }
+
   $meta = [pscustomobject]@{
     Path               = $Path
     Provided           = [bool]$Path

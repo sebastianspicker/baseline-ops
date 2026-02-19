@@ -344,7 +344,10 @@ function Ensure-RdpFirewallRules {
   $nameUDPBlock = "Guardrails RDP UDP-In Blocked"
   $group        = "Guardrails RDP Scoped"
 
-  Disable-LocalBuiltinRdpInbound
+  # Only disable built-in RDP inbound rules when remediating and catalog specifies RDP disabled (§1/§16)
+  if ($Remediate -and -not [bool]$Rdp.Enable) {
+    Disable-LocalBuiltinRdpInbound
+  }
 
   if (-not [bool]$Rdp.Enable) {
     if ($Remediate) {

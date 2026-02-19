@@ -320,7 +320,7 @@ function Write-SummaryToConsole {
 # -------------------------
 # Pre-flight
 # -------------------------
-if (-not (Test-IsAdmin)) { throw "Administrative privileges are required." }
+Require-Admin
 
 $cfg = Import-JsonConfigOrDefault -Path $ConfigPath
 $mp  = Normalize-MountPoint -Value $MountPoint

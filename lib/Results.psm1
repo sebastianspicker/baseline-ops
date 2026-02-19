@@ -1,24 +1,10 @@
 Set-StrictMode -Version Latest
 
-function Get-CallerValue {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Name)
-
-  foreach ($scope in 1..3) {
-    try {
-      $var = Get-Variable -Name $Name -Scope $scope -ErrorAction Stop
-      return $var.Value
-    } catch {
-      # continue
-    }
-  }
-  return $null
-}
-
 function New-FindingsList {
   [CmdletBinding()]
   param()
-  return (New-Object System.Collections.Generic.List[object])
+  $list = New-Object System.Collections.Generic.List[object]
+  return , $list
 }
 
 function New-FindingObject {
@@ -59,11 +45,11 @@ function Add-Finding {
     [hashtable]$Extra
   )
 
-  if (-not $FindingList) {
+  if ($null -eq $FindingList) {
     $FindingList = Get-CallerValue -Name 'Findings'
-    if (-not $FindingList) { $FindingList = Get-CallerValue -Name 'script:Findings' }
+    if ($null -eq $FindingList) { $FindingList = Get-CallerValue -Name 'script:Findings' }
   }
-  if (-not $FindingList) {
+  if ($null -eq $FindingList) {
     throw 'FindingList not provided and no $Findings/$script:Findings found.'
   }
 

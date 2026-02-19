@@ -261,7 +261,7 @@ function Write-FindingsConsole {
 
 # -------------------- Main --------------------
 
-if (-not (Test-IsAdmin)) { throw "Administrative privileges are required." }
+Require-Admin
 Ensure-Exe -Name 'auditpol.exe'
 
 $txt = Get-AuditPolText

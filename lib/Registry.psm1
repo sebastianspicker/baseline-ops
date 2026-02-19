@@ -41,8 +41,13 @@ function Set-RegDword {
     [Parameter(Mandatory)][int]$Value
   )
 
-  Ensure-RegistryKey -Path $Path
-  New-ItemProperty -LiteralPath $Path -Name $Name -PropertyType DWord -Value $Value -Force | Out-Null
+  try {
+    Ensure-RegistryKey -Path $Path
+    New-ItemProperty -LiteralPath $Path -Name $Name -PropertyType DWord -Value $Value -Force -ErrorAction Stop | Out-Null
+    return $true
+  } catch {
+    return $false
+  }
 }
 
 function Remove-RegValueIfExists {

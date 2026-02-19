@@ -233,7 +233,7 @@ function Write-PrettySummary {
 # Start
 # -----------------------------
 
-if (-not (Test-IsAdmin)) { throw "Administrative rights required." }
+Require-Admin
 
 $Findings       = New-FindingsList
 $Changes        = New-Object System.Collections.Generic.List[string]

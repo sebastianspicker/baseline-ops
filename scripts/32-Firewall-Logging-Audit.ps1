@@ -326,7 +326,7 @@ function Write-PrettySummary {
 
 # region Preconditions
 
-if (-not (Test-IsAdmin)) { throw "Administrative privileges are required." }
+Require-Admin
 
 Ensure-Cmdlet -Name 'Get-NetFirewallProfile'
 Ensure-Cmdlet -Name 'Set-NetFirewallProfile'

@@ -405,9 +405,7 @@ if (-not $PSBoundParameters.ContainsKey('Force') -and $cfg.Force) {
 # -------------------------
 # Preconditions
 # -------------------------
-if (-not (Test-IsAdmin)) {
-  throw 'Administrator privileges required (run PowerShell elevated).'
-}
+Require-Admin
 
 Ensure-Cmdlet 'Get-SmbServerConfiguration'
 Ensure-Cmdlet 'Set-SmbServerConfiguration'
