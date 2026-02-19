@@ -52,6 +52,9 @@ function Write-HealthEvent {
     [scriptblock]$OnError
   )
 
+  # Compatibility only: callers may pass -EventLogReady / -CanEventLog; reference so PSScriptAnalyzer does not flag as unused.
+  $null = $EventLogReady, $CanEventLog
+
   if (-not $Source) {
     $Source = Get-CallerValue -Name 'EventSource'
     if (-not $Source) { $Source = Get-CallerValue -Name 'EventSourceName' }
