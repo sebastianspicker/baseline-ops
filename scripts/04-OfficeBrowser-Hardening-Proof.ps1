@@ -116,12 +116,12 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
   [switch]$Remediate,
   [switch]$Strict,
-  [string]$ConfigPath = "PATH/TO/CONFIG.json"
+  [string]$ConfigPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -324,7 +324,8 @@ function Set-RegValueProof {
     [switch]$Remediate
   )
 
-  Ensure-Key -Path $Path
+  # Only ensure key exists when remediating (§2/§17)
+  if ($Remediate) { Ensure-Key -Path $Path }
 
   $expected = Convert-RegValue -Type $Type -Value $Value
   $cur      = Get-RegValue -Path $Path -Name $Name

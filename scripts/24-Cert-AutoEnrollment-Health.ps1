@@ -50,7 +50,7 @@ param(
 
   [string]$ExportPath,
 
-  [string]$ConfigPath = "PATH/TO/JSON/config.json",
+  [string]$ConfigPath,
 
   [switch]$IncludeExpired,
 

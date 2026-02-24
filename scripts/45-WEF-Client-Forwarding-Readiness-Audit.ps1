@@ -47,7 +47,7 @@ PowerShell 5.1 compatible.
 param(
   [string]$ExportPath,
   [switch]$IncludeWecutilCheck,
-  [string]$ConfigPath = 'PATH/TO/JSON/wef-audit.json',
+  [string]$ConfigPath,
   [switch]$PassThru
 )
 

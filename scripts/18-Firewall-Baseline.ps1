@@ -117,7 +117,7 @@ param(
   [switch]$Remediate,
   [switch]$Strict,
 
-  [string]$ConfigPath = "PATH/TO/CONFIG.json",
+  [string]$ConfigPath,
 
   [ValidateSet('PersistentStore','LocalHost','StaticServiceStore','ConfigurableServiceStore')]
   [string]$LocalPolicyStore = 'PersistentStore',
@@ -136,6 +136,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -326,18 +327,27 @@ function Get-EffectiveCatalog {
   )
 
   if ($CatalogPath) {
-    $obj = Try-ReadJsonFile -Path $CatalogPath
-    if ($obj) { return $obj }
+    $sanitized = Sanitize-Path -Path $CatalogPath -MustExist
+    if ($sanitized) {
+      $obj = Try-ReadJsonFile -Path $sanitized
+      if ($obj) { return $obj }
+    }
   }
 
   if ($ConfigPath) {
-    $cfg = Try-ReadJsonFile -Path $ConfigPath
-    if ($cfg) {
-      $fw = Get-ObjProp -Object $cfg -Name 'Firewall' -Default $null
-      $cp = if ($fw) { [string](Get-ObjProp -Object $fw -Name 'CatalogPath' -Default '') } else { '' }
-      if (-not [string]::IsNullOrWhiteSpace($cp)) {
-        $obj = Try-ReadJsonFile -Path $cp
-        if ($obj) { return $obj }
+    $sanitizedCfg = Sanitize-Path -Path $ConfigPath -MustExist
+    if ($sanitizedCfg) {
+      $cfg = Try-ReadJsonFile -Path $sanitizedCfg
+      if ($cfg) {
+        $fw = Get-ObjProp -Object $cfg -Name 'Firewall' -Default $null
+        $cp = if ($fw) { [string](Get-ObjProp -Object $fw -Name 'CatalogPath' -Default '') } else { '' }
+        if (-not [string]::IsNullOrWhiteSpace($cp)) {
+          $sanitizedCp = Sanitize-Path -Path $cp -MustExist
+          if ($sanitizedCp) {
+            $obj = Try-ReadJsonFile -Path $sanitizedCp
+            if ($obj) { return $obj }
+          }
+        }
       }
     }
   }
@@ -754,6 +764,7 @@ Ensure-EventSource -Source $EventSource -LogName $EventLogName
 $start = Get-Date
 $isAdmin = Test-IsAdmin
 
+$script:Findings = New-FindingsList
 $results = New-Object System.Collections.Generic.List[object]
 
 if (-not $isAdmin) {
@@ -770,17 +781,35 @@ $cat = Ensure-CatalogDefaults -Catalog $cat -DefaultCatalog $DefaultCatalog
 # Profiles
 foreach ($n in @('Domain','Private','Public')) {
   $def = Get-ObjProp -Object $cat.Profiles -Name $n -Default $DefaultCatalog.Profiles.$n
-  (Ensure-Profile -Name $n -Def $def -Remediate:$Remediate) | ForEach-Object { $results.Add($_) }
+  $resArr = Ensure-Profile -Name $n -Def $def -Remediate:$Remediate
+  foreach ($r in $resArr) {
+      $results.Add($r)
+      if ($r.Status -eq 'Drift') {
+          Add-Finding -Code 'FW-Profile-Drift' -Severity 'Medium' -Message "Firewall profile drift: $($r.Target)" -Extra @{ Profile = $r.Target; Detail = $r.Detail }
+      }
+  }
 }
 
 # Disable inbound patterns
 $patterns = @((Get-ObjProp -Object $cat -Name 'DisableInboundByNameLike' -Default @()) | Where-Object { $_ -is [string] -and $_ })
-(Disable-InboundByNameLike -Patterns $patterns -Remediate:$Remediate -LocalPolicyStore $LocalPolicyStore) | ForEach-Object { $results.Add($_) }
+$inboundResults = Disable-InboundByNameLike -Patterns $patterns -Remediate:$Remediate -LocalPolicyStore $LocalPolicyStore
+foreach ($r in $inboundResults) {
+    $results.Add($r)
+    if ($r.Status -eq 'Drift') {
+        Add-Finding -Code 'FW-InboundRule-Enabled' -Severity 'Medium' -Message "Risky inbound rule enabled: $($r.DisplayName)" -Extra @{ Name = $r.Name; DisplayName = $r.DisplayName; Pattern = $r.Target }
+    }
+}
 
 # Ensure rules
 $ensureRules = @((Get-ObjProp -Object $cat -Name 'EnsureRules' -Default @()) | Where-Object { $_ })
 foreach ($rule in $ensureRules) {
-  (Ensure-FwRule -Spec $rule -Remediate:$Remediate -LocalPolicyStore $LocalPolicyStore) | ForEach-Object { $results.Add($_) }
+  $ensureResults = Ensure-FwRule -Spec $rule -Remediate:$Remediate -LocalPolicyStore $LocalPolicyStore
+  foreach ($r in $ensureResults) {
+      $results.Add($r)
+      if ($r.Status -eq 'Drift') {
+          Add-Finding -Code 'FW-EnsureRule-Drift' -Severity 'Medium' -Message "Required firewall rule drift/missing: $($r.Target)" -Extra @{ RuleId = $r.Target; Detail = $r.Detail; Name = $r.Name; DisplayName = $r.DisplayName }
+      }
+  }
 }
 
 $duration = (New-TimeSpan -Start $start -End (Get-Date))

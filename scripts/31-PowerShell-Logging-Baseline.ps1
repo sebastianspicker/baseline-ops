@@ -379,7 +379,8 @@ $defaults = @{
   ModuleNames                        = @('*')
 }
 
-$cfgResult = Read-ConfigWithDefaults -Path $ConfigJsonPath -Defaults $defaults
+$sanitized = Sanitize-Path -Path $ConfigJsonPath -MustExist
+$cfgResult = Read-ConfigWithDefaults -Path $sanitized -Defaults $defaults
 $config = $cfgResult.Config
 if ($cfgResult.Meta.Provided -and -not $cfgResult.Meta.Loaded) {
   $code = 'PSLOG-ConfigJsonInvalid'
@@ -424,23 +425,23 @@ $effectiveBefore = if ($IncludeHKCU -and $currentHKCU) { Get-EffectiveSettings -
 
 # Audit findings (effective)
 if ($targetEnableTranscription -and $effectiveBefore.Transcription_EnableTranscripting -ne 1) {
-  Add-Finding -FindingList $Findings -Code 'PSLOG-TranscriptionOff' -Severity 'Medium' -Message 'Transcription is not enabled (effective policy).'
+  Add-Finding -Code 'PSLOG-TranscriptionOff' -Severity 'Medium' -Message 'Transcription is not enabled (effective policy).'
 }
 if ($targetEnableInvocationHeader -and $targetEnableTranscription -and $effectiveBefore.Transcription_EnableInvocationHeader -ne 1) {
-  Add-Finding -FindingList $Findings -Code 'PSLOG-InvocationHeaderOff' -Severity 'Low' -Message 'Invocation Header is not enabled (effective policy).'
+  Add-Finding -Code 'PSLOG-InvocationHeaderOff' -Severity 'Low' -Message 'Invocation Header is not enabled (effective policy).'
 }
 if ($targetEnableScriptBlockLogging -and $effectiveBefore.ScriptBlock_EnableScriptBlockLogging -ne 1) {
-  Add-Finding -FindingList $Findings -Code 'PSLOG-ScriptBlockOff' -Severity 'Medium' -Message 'Script Block Logging is not enabled (effective policy).'
+  Add-Finding -Code 'PSLOG-ScriptBlockOff' -Severity 'Medium' -Message 'Script Block Logging is not enabled (effective policy).'
 }
 if ($targetEnableScriptBlockInvocationLogging -and $targetEnableScriptBlockLogging -and $effectiveBefore.ScriptBlock_EnableScriptBlockInvocationLogging -ne 1) {
-  Add-Finding -FindingList $Findings -Code 'PSLOG-ScriptBlockInvocationOff' -Severity 'Low' -Message 'Script Block Invocation Logging is not enabled (effective policy).'
+  Add-Finding -Code 'PSLOG-ScriptBlockInvocationOff' -Severity 'Low' -Message 'Script Block Invocation Logging is not enabled (effective policy).'
 }
 if ($targetEnableModuleLogging -and $effectiveBefore.Module_EnableModuleLogging -ne 1) {
-  Add-Finding -FindingList $Findings -Code 'PSLOG-ModuleLoggingOff' -Severity 'Low' -Message 'Module Logging is not enabled (effective policy).'
+  Add-Finding -Code 'PSLOG-ModuleLoggingOff' -Severity 'Low' -Message 'Module Logging is not enabled (effective policy).'
 }
 
 if ($targetEnableScriptBlockLogging -and $Mode -eq 'AuditOnly') {
-  Add-Finding -FindingList $Findings -Code 'PSLOG-Recommend-ProtectedEventLogging' -Severity 'Info' -Message 'Consider enabling Protected Event Logging when using Script Block Logging beyond diagnostics.'
+  Add-Finding -Code 'PSLOG-Recommend-ProtectedEventLogging' -Severity 'Info' -Message 'Consider enabling Protected Event Logging when using Script Block Logging beyond diagnostics.'
 }
 
 # Remediate (HKLM only)

@@ -102,10 +102,10 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
-  [string]$ConfigPath = "PATH/TO/CONFIG.json",
+  [string]$ConfigPath,
   [switch]$Remediate,
   [switch]$Strict,
   [switch]$PassThru
@@ -223,7 +223,8 @@ function Set-REGDWORD {
     [switch]$Remediate
   )
 
-  Ensure-Key -Path $Path
+  # Only ensure key exists when remediating (§2/§17)
+  if ($Remediate) { Ensure-Key -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($cur -eq $Value) {
@@ -251,7 +252,8 @@ function Set-REGSZ {
     [switch]$Remediate
   )
 
-  Ensure-Key -Path $Path
+  # Only ensure key exists when remediating (§2/§17)
+  if ($Remediate) { Ensure-Key -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($cur -eq $Value) {
@@ -278,7 +280,8 @@ function Remove-REGValue {
     [switch]$Remediate
   )
 
-  Ensure-Key -Path $Path
+  # Only ensure key exists when remediating (§2/§17)
+  if ($Remediate) { Ensure-Key -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($null -eq $cur) {

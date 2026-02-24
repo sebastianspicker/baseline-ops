@@ -105,14 +105,14 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [switch]$Remediate,
 
-  # Generic placeholders for GitHub
-  [string]$ConfigPath = "PATH/TO/CONFIG.json",
+  # Optional config paths - use $null to skip, or provide actual paths
+  [string]$ConfigPath,
   [string]$ExceptionsPath,
-  [string]$AuditPath  = "PATH/TO/AUDIT.json",
+  [string]$AuditPath,
 
   [switch]$Passthru,
   [switch]$StrictJson,
@@ -124,6 +124,8 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -212,14 +214,16 @@ function Get-Config {
   param([Parameter(Mandatory=$true)][string]$Path)
 
   try {
-    if (Test-Path -LiteralPath $Path) {
-      return Get-Content -Raw -LiteralPath $Path -Encoding UTF8 | ConvertFrom-Json
+    $sanitized = Sanitize-Path -Path $Path -MustExist
+    if ($sanitized) {
+      return Get-Content -Raw -LiteralPath $sanitized -Encoding UTF8 | ConvertFrom-Json
     }
 
     $here = Split-Path -Parent $MyInvocation.MyCommand.Path
     $alt  = Join-Path (Split-Path -Parent $here) "config\CONFIG.json"
-    if (Test-Path -LiteralPath $alt) {
-      return Get-Content -Raw -LiteralPath $alt -Encoding UTF8 | ConvertFrom-Json
+    $sanitizedAlt = Sanitize-Path -Path $alt -MustExist
+    if ($sanitizedAlt) {
+      return Get-Content -Raw -LiteralPath $sanitizedAlt -Encoding UTF8 | ConvertFrom-Json
     }
   } catch {
     return $null
@@ -267,8 +271,10 @@ function To-NormList {
 
     switch ($Kind) {
       'path' {
-        $t = $s.TrimEnd('\')
+        $t = $s.TrimEnd('\','/')
         if ($t.Length -eq 2 -and $t -match '^[a-zA-Z]:$') { $t = $t + '\' }
+        # For UNC paths, ensure we don't accidentally trim the root if it was just \\server\share\
+        if ($s -like '\\*\*' -and $t -notlike '\\*\*') { $t = $s } 
         $arr.Add($t.ToLowerInvariant())
       }
       'process' { $arr.Add($s.ToLowerInvariant()) }
@@ -468,7 +474,7 @@ function Write-ConsoleSummary {
 }
 
 # ----------------------------- Main ------------------------------------------------
-
+$script:Findings = New-FindingsList
 $eventLogReady = Ensure-EventSource
 
 try {
@@ -484,7 +490,7 @@ try {
     elseif ($cfg -and $cfg.DefenderAllowListPath) { $ExceptionsPath = [string]$cfg.DefenderAllowListPath }
   }
 
-  $sourceJson = $(if ($ExceptionsPath) { $ExceptionsPath } else { "PATH/TO/JSON (not provided)" })
+  $sourceJson = $(if ($ExceptionsPath) { $ExceptionsPath } else { "(not provided)" })
 
   $jsonLoaded   = $false
   $jsonError    = $null
@@ -560,6 +566,11 @@ try {
   elseif (-not $Remediate) {
     $resultCode = "DRIFT_NO_REMEDIATION"
     Write-HealthEvent -Id 3210 -Msg "Defender/ASR allowlist drift: add=$totalAdd remove=$totalRem rejected=$totalBad (no remediation). JSON=$sourceJson Audit=$AuditPath" -Level Warning -EventLogReady:$eventLogReady
+    foreach ($d in $diffs) {
+        if ($d.ToAdd.Count -gt 0) { Add-Finding -Code 'ASR-Drift-Add' -Severity 'Low' -Message "ASR drift (missing): $($d.Name)" -Extra @{ Missing = $d.ToAdd } }
+        if ($d.ToRemove.Count -gt 0) { Add-Finding -Code 'ASR-Drift-Remove' -Severity 'Low' -Message "ASR drift (extra): $($d.Name)" -Extra @{ Extra = $d.ToRemove } }
+        if ($d.Rejected.Count -gt 0) { Add-Finding -Code 'ASR-Rejected' -Severity 'Medium' -Message "ASR risky entry rejected: $($d.Name)" -Extra @{ Rejected = $d.Rejected } }
+    }
   }
   else {
     foreach ($d in $diffs) { $results += Apply-Diff -Diff $d -Remediate:$true }
@@ -619,7 +630,7 @@ catch {
     Timestamp     = (Get-Date).ToString("o")
     ComputerName  = $env:COMPUTERNAME
     Remediate     = [bool]$Remediate
-    SourceJson    = $(if ($ExceptionsPath) { $ExceptionsPath } else { "PATH/TO/JSON (unknown)" })
+    SourceJson    = $(if ($ExceptionsPath) { $ExceptionsPath } else { "(not provided)" })
     AuditPath     = $AuditPath
     JsonLoaded    = $false
     JsonError     = $msg

@@ -126,9 +126,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # -------------------- Defaults (anonymized) --------------------
-$DefaultConfigPath = 'PATH/TO/JSON/config.json'
-$DefaultProofDir   = 'PATH/TO/PROOF'
-$DefaultKbFeedPath = 'PATH/TO/CRITICAL-KB-FEED/critical-kb-feed.json'
+$DefaultConfigPath = $null
+$DefaultProofDir   = $null
+$DefaultKbFeedPath = $null
 
 # Registry trigger (anonymized)
 $FlagKey     = 'HKLM:\SOFTWARE\Company\Product\SupportBundle'

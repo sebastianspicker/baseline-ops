@@ -127,7 +127,7 @@
 param(
   [string]$CatalogPath,
   [switch]$Strict,
-  [string]$ConfigPath = "PATH/TO/CONFIG.json"
+  [string]$ConfigPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')

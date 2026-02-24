@@ -173,15 +173,15 @@ Forces re-extraction and prints a plain (non-colored) console summary.
 param(
   [Parameter()]
   [ValidateNotNullOrEmpty()]
-  [string]$SupportDir = "PATH/TO/SUPPORT",
+  [string]$SupportDir,
 
   [Parameter()]
   [ValidateNotNullOrEmpty()]
-  [string]$ConfigPath = "PATH/TO/JSON/config.json",
+  [string]$ConfigPath,
 
   [Parameter()]
   [ValidateNotNullOrEmpty()]
-  [string]$ExtractRoot = "PATH/TO/SUPPORT/_extracted",
+  [string]$ExtractRoot,
 
   [Parameter()]
   [switch]$ForceExtract,

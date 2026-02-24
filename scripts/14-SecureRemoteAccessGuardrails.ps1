@@ -127,8 +127,8 @@ param(
   [string]$CatalogPath,
   [switch]$Remediate,
   [switch]$Strict,
-  [string]$ConfigPath = "PATH/TO/JSON/global-config.json",
-  [string]$ProofPath  = "PATH/TO/JSON/proof/14-SecureRemoteAccessGuardrails.json"
+  [string]$ConfigPath,
+  [string]$ProofPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -309,9 +309,9 @@ function Remove-LocalFirewallRuleByDisplayName {
 
 function Disable-LocalBuiltinRdpInbound {
   try {
-    $rules = Get-NetFirewallRule -PolicyStore PersistentStore -DisplayGroup 'Remote Desktop' -Direction Inbound -ErrorAction SilentlyContinue
+    $rules = Get-NetFirewallRule -PolicyStore PersistentStore -DisplayGroup 'Remote Desktop' -Direction Inbound -ErrorAction Stop
     foreach ($r in @($rules)) {
-      try { $r | Disable-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null } catch { }
+      try { $r | Disable-NetFirewallRule -ErrorAction Stop | Out-Null } catch { }
     }
   } catch { }
 }

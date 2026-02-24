@@ -110,12 +110,12 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [switch]$Remediate,
   [bool]$Strict = $true,
   [bool]$RequireBlockList = $true,
-  [string]$ConfigPath = "PATH/TO/JSON"
+  [string]$ConfigPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -123,6 +123,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 # -----------------------------
@@ -192,15 +193,13 @@ function Try-LoadJsonConfig {
     Baseline_Blocklist_Enable           = 1
   }
 
-  if ([string]::IsNullOrWhiteSpace($Path) -or $Path -eq 'PATH/TO/JSON') {
-    return [pscustomobject]@{ Config=$cfg; Loaded=$false; Reason='ConfigPath not set (using defaults)' }
-  }
-  if (-not (Test-Path -LiteralPath $Path)) {
-    return [pscustomobject]@{ Config=$cfg; Loaded=$false; Reason='Config file not found (using defaults)' }
+  $sanitized = Sanitize-Path -Path $Path -MustExist
+  if (-not $sanitized) {
+    return [pscustomobject]@{ Config=$cfg; Loaded=$false; Reason='ConfigPath not set or not found (using defaults)' }
   }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 -ErrorAction Stop
     $obj = $raw | ConvertFrom-Json -ErrorAction Stop
 
     foreach ($k in $cfg.Keys) {
@@ -390,6 +389,8 @@ function Write-PrettySummary {
 # -----------------------------
 # Main
 # -----------------------------
+$script:Findings = New-FindingsList
+
 $eventOkId  = 3600
 $eventBadId = 3610
 $eventErrId = 3611
@@ -480,6 +481,7 @@ try {
   if (-not $result.Lsa_PplConfigured) {
     $result.Compliant = $false
     $result.Issues   += "LSASS PPL not configured"
+    Add-Finding -Code 'LSA-PPL-Missing' -Severity 'High' -Message 'LSASS PPL is not configured via registry.'
   }
 
   if ($Strict) {
@@ -495,7 +497,12 @@ try {
   if ($RequireBlockList -and -not $result.Ci_Blocklist_Active) {
     $result.Compliant = $false
     $result.Issues += "Vulnerable Driver Blocklist not active"
+    Add-Finding -Code 'Blocklist-Missing' -Severity 'Medium' -Message 'Vulnerable Driver Blocklist is not active.'
   }
+
+  if (-not $result.Vbs_Running) { Add-Finding -Code 'VBS-NotRunning' -Severity 'Medium' -Message 'Virtualization-Based Security is not running.' }
+  if (-not $result.Cg_Running)  { Add-Finding -Code 'CG-NotRunning' -Severity 'Medium' -Message 'Credential Guard is not running.' }
+  if (-not $result.Hvci_Running) { Add-Finding -Code 'HVCI-NotRunning' -Severity 'Medium' -Message 'Hypervisor-Enforced Code Integrity (HVCI) is not running.' }
 
   # -----------------------------
   # Remediation gate

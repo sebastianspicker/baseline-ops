@@ -114,8 +114,8 @@
 
 [CmdletBinding()]
 param(
-  [string]$KBFeedPath = "PATH/TO/JSON/critical-kb-feed.json",
-  [string]$StatePath  = "PATH/TO/STATE/update-reminder.json",
+  [string]$KBFeedPath,
+  [string]$StatePath,
   [switch]$Strict,
   [switch]$PassThru,
   [switch]$UseInformationStream

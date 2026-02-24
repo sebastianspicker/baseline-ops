@@ -105,7 +105,7 @@ param(
   [ValidateRange(0, 1440)]
   [int]$AutoRollbackMinutes = 0,
 
-  [string]$ConfigJsonPath = "PATH/TO/JSON/kill-switch.json",
+  [string]$ConfigJsonPath,
   [string]$ConfigJsonRaw
 )
 
@@ -271,7 +271,15 @@ function New-OrReplaceRule {
     [string]$Description = ''
   )
 
-  Get-NetFirewallRule -Name $Name -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
+  # Remove existing rule if present (ignore if not found)
+  try {
+    $existingRule = Get-NetFirewallRule -Name $Name -ErrorAction Stop
+    if ($existingRule) {
+      Remove-NetFirewallRule -Name $Name -ErrorAction Stop
+    }
+  } catch {
+    # Rule doesn't exist, which is fine
+  }
 
   $params = @{
     Name        = $Name

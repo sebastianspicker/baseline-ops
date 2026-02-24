@@ -39,23 +39,21 @@ function Read-ConfigWithDefaults {
   $config = @{}
   foreach ($k in $Defaults.Keys) { $config[$k] = $Defaults[$k] }
 
-  if ([string]::IsNullOrWhiteSpace($Path)) {
-    $meta.UsedDefaultsBecause = 'No ConfigPath provided.'
-    if ($ReturnNullWhenMissing) {
-      return [pscustomobject]@{ Config = $null; Meta = $meta }
+  $sanitized = Sanitize-Path -Path $Path -MustExist
+  if (-not $sanitized) {
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        $meta.UsedDefaultsBecause = 'No ConfigPath provided.'
+    } else {
+        $meta.Error = 'ConfigPath not found or invalid.'
+        $meta.UsedDefaultsBecause = $meta.Error
+        if ($OnWarning) { & $OnWarning ($meta.Error + ' Using defaults.') }
     }
-    return [pscustomobject]@{ Config = (if ($AsHashtable) { $config } else { [pscustomobject]$config }); Meta = $meta }
+    
+    $resultConfig = if ($AsHashtable) { $config } else { [pscustomobject]$config }
+    return [pscustomobject]@{ Config = $resultConfig; Meta = $meta }
   }
 
-  if (-not (Test-Path -LiteralPath $Path)) {
-    $meta.Error = 'ConfigPath not found.'
-    $meta.UsedDefaultsBecause = $meta.Error
-    if ($OnWarning) { & $OnWarning ($meta.Error + ' Using defaults.') }
-    if ($ReturnNullWhenMissing -or $ReturnNullOnError) {
-      return [pscustomobject]@{ Config = $null; Meta = $meta }
-    }
-    return [pscustomobject]@{ Config = (if ($AsHashtable) { $config } else { [pscustomobject]$config }); Meta = $meta }
-  }
+  $Path = $sanitized # Use sanitized path for Get-Content
 
   try {
     $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
@@ -66,7 +64,8 @@ function Read-ConfigWithDefaults {
       if ($ReturnNullOnError) {
         return [pscustomobject]@{ Config = $null; Meta = $meta }
       }
-      return [pscustomobject]@{ Config = (if ($AsHashtable) { $config } else { [pscustomobject]$config }); Meta = $meta }
+      $resultConfig = if ($AsHashtable) { $config } else { [pscustomobject]$config }
+      return [pscustomobject]@{ Config = $resultConfig; Meta = $meta }
     }
 
     $obj = $raw | ConvertFrom-Json -ErrorAction Stop
@@ -77,7 +76,8 @@ function Read-ConfigWithDefaults {
       if ($ReturnNullOnError) {
         return [pscustomobject]@{ Config = $null; Meta = $meta }
       }
-      return [pscustomobject]@{ Config = (if ($AsHashtable) { $config } else { [pscustomobject]$config }); Meta = $meta }
+      $resultConfig = if ($AsHashtable) { $config } else { [pscustomobject]$config }
+      return [pscustomobject]@{ Config = $resultConfig; Meta = $meta }
     }
 
     $meta.Loaded = $true
@@ -87,7 +87,8 @@ function Read-ConfigWithDefaults {
     $objHash = ConvertTo-Hashtable -Object $obj
     foreach ($k in $objHash.Keys) { $config[$k] = $objHash[$k] }
 
-    return [pscustomobject]@{ Config = (if ($AsHashtable) { $config } else { [pscustomobject]$config }); Meta = $meta }
+    $resultConfig = if ($AsHashtable) { $config } else { [pscustomobject]$config }
+    return [pscustomobject]@{ Config = $resultConfig; Meta = $meta }
   } catch {
     $meta.Error = $_.Exception.Message
     $meta.UsedDefaultsBecause = 'Config parse failed.'
@@ -95,7 +96,8 @@ function Read-ConfigWithDefaults {
     if ($ReturnNullOnError) {
       return [pscustomobject]@{ Config = $null; Meta = $meta }
     }
-    return [pscustomobject]@{ Config = (if ($AsHashtable) { $config } else { [pscustomobject]$config }); Meta = $meta }
+    $resultConfig = if ($AsHashtable) { $config } else { [pscustomobject]$config }
+    return [pscustomobject]@{ Config = $resultConfig; Meta = $meta }
   }
 }
 

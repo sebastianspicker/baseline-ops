@@ -158,16 +158,13 @@ function Get-DefaultDesiredPolicy {
 function Try-ReadDesiredPolicyJson {
   param([string]$Path)
 
-  if ([string]::IsNullOrWhiteSpace($Path)) {
-    return [pscustomobject]@{ Desired = $null; Source = 'None'; Error = $null }
-  }
-
-  if (-not (Test-Path -LiteralPath $Path)) {
-    return [pscustomobject]@{ Desired = $null; Source = 'Missing'; Error = "DesiredPolicyJson not found: $Path" }
+  $sanitized = Sanitize-Path -Path $Path -MustExist
+  if (-not $sanitized) {
+    return [pscustomobject]@{ Desired = $null; Source = 'Missing'; Error = "DesiredPolicyJson not found or invalid: $Path" }
   }
 
   try {
-    $desired = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+    $desired = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($null -eq $desired -or $desired -isnot [psobject]) { throw "Invalid JSON root object." }
 
     # Validate values up-front (prevents remediation surprises).
@@ -322,7 +319,7 @@ foreach ($catProp in $desired.PSObject.Properties) {
     }
 
     if ([string]$current.Setting -ne $wanted) {
-      Add-Finding -Code 'AUD-Drift' -Severity 'Medium' -Message ("Drift: '{0} -> {1}' is '{2}', expected '{3}'." -f $catName, $subName, $current.Setting, $wanted)
+      Add-Finding -Code 'AUD-Drift' -Severity 'Medium' -Message ("Drift: '{0} -> {1}' is '{2}', expected '{3}'." -f $catName, $subName, $current.Setting, $wanted) -Extra @{ Category = $catName; Subcategory = $subName; Current = $current.Setting; Desired = $wanted }
     }
   }
 }

@@ -299,7 +299,8 @@ $configDefaults = @{
   PreferWriteInformation= $false  # if true: summary uses Write-Information additionally
 }
 
-$cfgResult = Read-ConfigWithDefaults -Path $ConfigJsonPath -Defaults $configDefaults
+$sanitized = Sanitize-Path -Path $ConfigJsonPath -MustExist
+$cfgResult = Read-ConfigWithDefaults -Path $sanitized -Defaults $configDefaults
 $config = $cfgResult.Config
 
 if (-not $cfgResult.Meta.Provided) {
@@ -437,6 +438,8 @@ $policyFiles = @($policyFiles)
 
 if ($policyFiles.Count -eq 0) {
   Add-Finding -Code 'AC-NoPolicyFilesFound' -Severity 'Info' -Message 'No policy files found in scanned roots (deployment can still exist via other mechanisms).'
+} else {
+    Add-Finding -Code 'AC-PoliciesDetected' -Severity 'Low' -Message "Detected $($policyFiles.Count) App Control policy files." -Extra @{ Files = $policyFiles.Path }
 }
 
 # 3) Indicators + Summary

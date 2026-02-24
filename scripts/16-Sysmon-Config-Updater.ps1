@@ -137,7 +137,7 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
   [string]$ConfigPath,
   [string]$SourceDir,
@@ -149,7 +149,7 @@ param(
   [int]$ChannelSizeMiB = 256,
 
   # Anonymized default (override in production)
-  [string]$StatePath = "PATH/TO/STATE/applied.json",
+  [string]$StatePath,
 
   [string]$ConfigPathFallback,
   [string]$MinEngine,

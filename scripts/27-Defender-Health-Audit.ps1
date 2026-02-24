@@ -51,7 +51,7 @@ param(
 
   [Parameter(Mandatory = $false)]
   [ValidateNotNullOrEmpty()]
-  [string]$SettingsJsonPath = 'PATH/TO/JSON/defender-audit.json',
+  [string]$SettingsJsonPath,
 
   [Parameter(Mandatory = $false)]
   [ValidateRange(0, 3650)]

@@ -117,13 +117,14 @@ param(
   [switch]$CollectSamples,
   [switch]$HashAllProcesses,
   [switch]$Strict,
-  [string]$ConfigPath = "PATH/TO/JSON/config.json"
+  [string]$ConfigPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
@@ -240,13 +241,23 @@ function Copy-ToEvidence {
     if ($sizeBytes -gt $maxFileBytes) { return $false, "too-large-file" }
     if ($runningTotalBytes.Value + $sizeBytes -gt $maxTotBytes) { return $false, "total-limit" }
 
-    $rel = $Src.Replace(':','').TrimStart('\') -replace '[\\/:*?"<>|]','_'
-    $dst = Join-Path $BaseDir $rel
-    Ensure-Dir (Split-Path -Parent $dst)
+    # Robust sanitization for evidence path
+    $safeName = [System.IO.Path]::GetFileName($Src)
+    $safeRel  = $Src.Replace(':','_').Replace('..','__') -replace '[*?"<>|]','_'
+    $dst = Join-Path $BaseDir $safeRel
+    
+    # Final check: is destination still inside BaseDir?
+    $fullBase = [System.IO.Path]::GetFullPath($BaseDir).TrimEnd('\','/')
+    $fullDst  = [System.IO.Path]::GetFullPath($dst)
+    if (-not $fullDst.StartsWith($fullBase, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $false, "traversal-detected"
+    }
 
-    Copy-Item -LiteralPath $Src -Destination $dst -Force -ErrorAction Stop
+    Ensure-Dir (Split-Path -Parent $fullDst)
+
+    Copy-Item -LiteralPath $Src -Destination $fullDst -Force -ErrorAction Stop
     $runningTotalBytes.Value += $sizeBytes
-    return $true, $dst
+    return $true, $fullDst
   } catch {
     return $false, $_.Exception.Message
   }
@@ -345,18 +356,25 @@ function Load-Catalog {
   $CatalogLoadNote.Value = $null
   $cat = $null
 
-  if ($CatalogPath) {
-    $cat = Read-Json $CatalogPath
+  $sanitizedCatalog = Sanitize-Path -Path $CatalogPath -MustExist
+  if ($sanitizedCatalog) {
+    $cat = Read-Json $sanitizedCatalog
     if ($cat) { $CatalogLoadNote.Value = "Catalog loaded from -CatalogPath" }
   }
 
   if ($null -eq $cat -and $ConfigPath) {
-    $cfg = Read-Json $ConfigPath
-    $p = $null
-    try { $p = $cfg.Grabber.CatalogPath } catch { $p = $null }
-    if ($p) {
-      $cat = Read-Json ([string]$p)
-      if ($cat) { $CatalogLoadNote.Value = "Catalog loaded from ConfigPath reference" }
+    $sanitizedConfig = Sanitize-Path -Path $ConfigPath -MustExist
+    if ($sanitizedConfig) {
+      $cfg = Read-Json $sanitizedConfig
+      $p = $null
+      try { $p = $cfg.Grabber.CatalogPath } catch { $p = $null }
+      if ($p) {
+        $sanitizedP = Sanitize-Path -Path $p -MustExist
+        if ($sanitizedP) {
+          $cat = Read-Json $sanitizedP
+          if ($cat) { $CatalogLoadNote.Value = "Catalog loaded from ConfigPath reference" }
+        }
+      }
     }
   }
 
@@ -698,6 +716,10 @@ function Collect-Tasks {
     } else {
       $res.Counts.XmlExported = 0
     }
+
+    foreach ($t in ($flat | Where-Object { $_.Suspicious })) {
+        Add-Finding -Code 'Grabber-SuspiciousTask' -Severity 'Medium' -Message "Suspicious scheduled task detected: $($t.TaskPath)$($t.TaskName)" -Extra $t
+    }
   } catch {
     Add-Error $res ("tasks: " + $_.Exception.Message)
     $res.Counts.Total = 0
@@ -883,6 +905,7 @@ function Print-ConsoleSummary {
 # -------------------------
 # MAIN
 # -------------------------
+$script:Findings = New-FindingsList
 Ensure-EventSource
 
 $errors   = New-Object System.Collections.Generic.List[string]
@@ -1010,7 +1033,10 @@ try {
 
         $okc, $dstOrWhy = Copy-ToEvidence -Src $path -BaseDir $sDir -MaxFileSizeMB $maxFileMB -MaxTotalMB $maxTotalMB -runningTotalBytes $totalBytes
         $sha = $null
-        if ($okc) { $sha = Get-FileSha256 $dstOrWhy }
+        if ($okc) { 
+            $sha = Get-FileSha256 $dstOrWhy
+            Add-Finding -Code 'Grabber-SampleCollected' -Severity 'Low' -Message "Suspicious sample collected: $path" -Extra @{ Path = $path; Sha256 = $sha; Evidence = $dstOrWhy }
+        }
 
         $summary.Samples += [pscustomobject]@{
           Source = $path
@@ -1065,4 +1091,4 @@ try {
   } else {
     Write-UiStatus -Label 'IR Grabber' -State 'FAIL' -Text "No summary object created."
   }
-}
+} # end script try

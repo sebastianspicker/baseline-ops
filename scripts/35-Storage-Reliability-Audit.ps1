@@ -38,7 +38,7 @@ Windows PowerShell 5.1 compatible (no ternary operator; avoid List+@() binder ed
 [CmdletBinding()]
 param(
   [string]$ExportPath,
-  [string]$ConfigJsonPath = "PATH/TO/JSON/storage-audit.json",
+  [string]$ConfigJsonPath,
   [switch]$PassThru,
   [switch]$NoConsole
 )

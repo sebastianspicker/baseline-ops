@@ -135,7 +135,7 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
   [switch]$Remediate,
@@ -143,7 +143,7 @@ param(
   [ValidateSet('Quick','Full','None')] [string]$ScanType = 'Full',
   [string[]]$CustomScanPaths,
   [switch]$Strict,
-  [string]$ConfigPath = "PATH/TO/JSON/config.json",
+  [string]$ConfigPath,
   [switch]$PassThru
 )
 
@@ -151,6 +151,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 $ErrorActionPreference = 'Stop'
@@ -158,8 +159,8 @@ $ErrorActionPreference = 'Stop'
 # -----------------------------
 # Globals / Defaults (anonymized)
 # -----------------------------
-$DefaultProofOutFile = "PATH/TO/PROOF/IOC-Sweep.json"
-$DefaultEvidenceDir  = "PATH/TO/EVIDENCE"
+$DefaultProofOutFile = $null
+$DefaultEvidenceDir  = $null
 
 # -----------------------------
 # Console helpers (host-only)
@@ -234,30 +235,43 @@ function Load-Catalog {
 
   $res = [ordered]@{ Catalog = $null; Source = 'Default'; Errors = @() }
 
-  if ($CatalogPath) {
-    $c = Read-Json $CatalogPath
+  $sanitizedCatalog = Sanitize-Path -Path $CatalogPath -MustExist
+  if ($sanitizedCatalog) {
+    $c = Read-Json $sanitizedCatalog
     if ($c) { $res.Catalog = $c; $res.Source = 'CatalogPath'; return $res }
-    $res.Errors += ("CatalogPath not loaded: {0}" -f $CatalogPath)
+    $res.Errors += ("CatalogPath not loaded: {0}" -f $sanitizedCatalog)
   }
 
   $cfg = $null
-  if ($ConfigPath) {
-    $cfg = Read-Json $ConfigPath
-    if (-not $cfg) { $res.Errors += ("ConfigPath not loaded: {0}" -f $ConfigPath) }
+  $sanitizedConfig = Sanitize-Path -Path $ConfigPath -MustExist
+  if ($sanitizedConfig) {
+    $cfg = Read-Json $sanitizedConfig
+    if (-not $cfg) { $res.Errors += ("ConfigPath not loaded: {0}" -f $sanitizedConfig) }
   }
 
   $p = $null
   try { if ($cfg -and $cfg.IOC -and $cfg.IOC.CatalogPath) { $p = [string]$cfg.IOC.CatalogPath } } catch { $p = $null }
 
   if ($p) {
-    $c2 = Read-Json $p
-    if ($c2) { $res.Catalog = $c2; $res.Source = 'Config->IOC.CatalogPath'; return $res }
-    $res.Errors += ("Config IOC.CatalogPath not loaded: {0}" -f $p)
+    $sanitizedP = Sanitize-Path -Path $p -MustExist
+    if ($sanitizedP) {
+      $c2 = Read-Json $sanitizedP
+      if ($c2) { $res.Catalog = $c2; $res.Source = 'Config->IOC.CatalogPath'; return $res }
+      $res.Errors += ("Config IOC.CatalogPath not loaded: {0}" -f $sanitizedP)
+    }
   }
 
   $res.Catalog = (New-DefaultCatalog)
   $res.Source  = 'Default'
   return $res
+}
+
+function Get-ProcessImageSha256([int]$ProcessId){
+  try {
+    $p = Get-Process -Id $ProcessId -ErrorAction Stop
+    if ($p.Path) { return Get-FileSha256 $p.Path }
+  } catch { }
+  return $null
 }
 
 function Get-FilePublisher([string]$File){
@@ -356,6 +370,7 @@ $Proof = [ordered]@{
   Summary   = @{}
 }
 
+$script:Findings = New-FindingsList
 Ensure-EventSource
 
 $ok       = $true
@@ -450,7 +465,7 @@ try {
         if ($okc) { $evPath = $ev } else { $Proof.Errors += "Evidence copy failed ($p): $ev"; $ok = $false }
       }
 
-      $Proof.Findings.Files += [ordered]@{
+      $finding = [ordered]@{
         Kind      = 'File'
         Path      = $p
         Sha256    = $sha
@@ -460,6 +475,8 @@ try {
         Action    = (Get-ObjPropValue $f 'Action')
         Match     = [ordered]@{ Sha256 = $matchSha; Signer = $matchSig }
       }
+      $Proof.Findings.Files += $finding
+      Add-Finding -Code 'IOC-FileMatch' -Severity 'High' -Message "IOC file match: $p" -Extra $finding
     }
   }
 
@@ -540,12 +557,14 @@ try {
           if ($okx) { $regExp = $exportOut } else { $Proof.Errors += "Reg export failed ($key): $exportOut"; $ok = $false }
         }
 
-        $Proof.Findings.Registry += [ordered]@{
+        $finding = [ordered]@{
           Path     = $path
           Data     = $data
           Evidence = $regExp
           Action   = (Get-ObjPropValue $r 'Action')
         }
+        $Proof.Findings.Registry += $finding
+        Add-Finding -Code 'IOC-RegistryMatch' -Severity 'High' -Message "IOC registry match: $path" -Extra $finding
 
         if ($Remediate -and ((Get-ObjPropValue $r 'Action') -eq 'neutralize')) {
           try {
@@ -577,7 +596,7 @@ try {
         $foundAny = $true
         $action = [string](Get-ObjPropValue $s 'Action')
 
-        $Proof.Findings.Services += [ordered]@{
+        $finding = [ordered]@{
           Name        = $svc.Name
           DisplayName = $svc.DisplayName
           State       = $svc.State
@@ -585,11 +604,13 @@ try {
           ImagePath   = $img
           Action      = $action
         }
+        $Proof.Findings.Services += $finding
+        Add-Finding -Code 'IOC-ServiceMatch' -Severity 'High' -Message "IOC service match: $($svc.Name)" -Extra $finding
 
         if ($Remediate -and ($action -in @('disable','stop'))) {
           try {
-            if ($svc.State -ne 'Stopped') { Stop-Service -Name $svc.Name -Force -ErrorAction SilentlyContinue }
-            if ($action -eq 'disable')    { Set-Service -Name $svc.Name -StartupType Disabled -ErrorAction SilentlyContinue }
+            if ($svc.State -ne 'Stopped') { Stop-Service -Name $svc.Name -Force -ErrorAction Stop }
+            if ($action -eq 'disable')    { Set-Service -Name $svc.Name -StartupType Disabled -ErrorAction Stop }
             $Proof.Actions += "Service remediated: $($svc.Name) ($action)"
           } catch {
             $Proof.Errors += "Service remediation failed ($($svc.Name)): $($_.Exception.Message)"
@@ -621,16 +642,18 @@ try {
 
         $action = [string](Get-ObjPropValue $t 'Action')
 
-        $Proof.Findings.Tasks += [ordered]@{
+        $finding = [ordered]@{
           Path    = $full
           Enabled = [bool]$task.Enabled
           State   = $state
           Action  = $action
         }
+        $Proof.Findings.Tasks += $finding
+        Add-Finding -Code 'IOC-TaskMatch' -Severity 'High' -Message "IOC task match: $full" -Extra $finding
 
         if ($Remediate -and ($action -eq 'disable')) {
           try {
-            Disable-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction SilentlyContinue | Out-Null
+            Disable-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction Stop | Out-Null
             $Proof.Actions += "Task disabled: $full"
           } catch {
             $Proof.Errors += "Task disable failed ($full): $($_.Exception.Message)"
@@ -653,19 +676,23 @@ try {
       if (-not $img) { continue }
 
       if ($img -match $imgRx) {
+        $sha = Get-ProcessImageSha256 -ProcessId $pr.Id
         $pub,$valid = Get-FilePublisher $img
         $signer = [string](Get-ObjPropValue $pRule 'Signer')
         if ($signer -and $pub -and ($pub -notlike ("*{0}*" -f $signer))) { continue }
 
         $foundAny = $true
-        $Proof.Findings.Processes += [ordered]@{
+        $finding = [ordered]@{
           Name      = $pr.Name
           Id        = $pr.Id
           Path      = $img
+          Sha256    = $sha
           Publisher = $pub
           Signed    = $valid
           Action    = (Get-ObjPropValue $pRule 'Action')
         }
+        $Proof.Findings.Processes += $finding
+        Add-Finding -Code 'IOC-ProcessMatch' -Severity 'High' -Message "IOC process match: $($pr.Name) ($($pr.Id))" -Extra $finding
       }
     }
   }
@@ -684,7 +711,7 @@ try {
           $pName = $null
           try { $pName = (Get-Process -Id $c.OwningProcess -ErrorAction Stop).Name } catch { $pName = $null }
 
-          $nFind += [ordered]@{
+          $finding = [ordered]@{
             Kind          = 'IP'
             Remote        = $c.RemoteAddress
             Local         = $c.LocalAddress
@@ -694,6 +721,8 @@ try {
             OwningProcess = $c.OwningProcess
             ProcessName   = $pName
           }
+          $nFind += $finding
+          Add-Finding -Code 'IOC-NetworkIPMatch' -Severity 'High' -Message "IOC network match: IP $($c.RemoteAddress)" -Extra $finding
         }
       }
     }
@@ -714,12 +743,14 @@ try {
               if (-not $typ) { $typ = Get-ObjPropValue $h 'RecordType' }
               $dat = Get-ObjPropValue $h 'Data'
 
-              $nFind += [ordered]@{
+              $finding = [ordered]@{
                 Kind  = 'Domain'
                 Entry = $entry
                 Type  = $typ
                 Data  = $dat
               }
+              $nFind += $finding
+              Add-Finding -Code 'IOC-NetworkDomainMatch' -Severity 'High' -Message "IOC network match: Domain $entry" -Extra $finding
             }
           }
         }

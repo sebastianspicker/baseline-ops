@@ -106,16 +106,18 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [switch]$Remediate,
   [int]$MinDaysBeforeRotate = 0,
-  [string]$ConfigPath = "PATH/TO/JSON/config.json"
+  [string]$ConfigPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
@@ -204,7 +206,9 @@ function Get-ConfigFromJson {
   if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $cfg }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+    $sanitized = Sanitize-Path -Path $Path -MustExist
+    if (-not $sanitized) { return $cfg }
+    $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 -ErrorAction Stop
     if (-not $raw -or -not $raw.Trim()) { return $cfg }
     $j = $raw | ConvertFrom-Json -ErrorAction Stop
     return (Merge-ConfigObject -Base $cfg -Override $j)
@@ -541,6 +545,7 @@ function Convert-BackupDirectoryToText {
 if ($Config.EventLog.Enabled) {
   Ensure-EventSource -Source $Config.EventLog.Source -LogName $Config.EventLog.LogName
 }
+$script:Findings = New-FindingsList
 
 $reasonsList = New-Object System.Collections.Generic.List[string]
 
@@ -649,6 +654,7 @@ try {
 
     if ($isWin -and ($null -eq $result.BackupDirectoryRaw -or $result.BackupDirectoryRaw -eq 0)) {
       $reasonsList.Add("BackupDirectory is not configured or disabled")
+      Add-Finding -Code 'LAPS-MissingBackup' -Severity 'High' -Message "Windows LAPS backup directory is not configured or is disabled."
     }
   }
 
@@ -681,10 +687,14 @@ try {
   if ($Remediate -and $isLeg -and $result.NeedsRotate) { $ok = $false; $reasonsList.Add("Remediation for Legacy LAPS is not implemented") }
 
   $result.OkOverall = $ok
-
+  if (-not $result.OkOverall) {
+      Add-Finding -Code 'LAPS-NotCompliant' -Severity 'Medium' -Message "LAPS health check failed: $([string]::Join('; ', $result.Reasons))" -Extra @{ Reasons = $result.Reasons }
+  }
 } catch {
   $result.OkOverall = $false
-  $reasonsList.Add("Unhandled error: $($_.Exception.Message)")
+  $msg = "Unhandled error: $($_.Exception.Message)"
+  $reasonsList.Add($msg)
+  Add-Finding -Code 'LAPS-Error' -Severity 'High' -Message $msg
 }
 
 $result.Reasons = @($reasonsList)

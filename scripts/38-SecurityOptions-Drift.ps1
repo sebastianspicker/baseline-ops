@@ -272,8 +272,11 @@ function Convert-ToDesiredObjectSafe {
 
   try {
     if (Test-Path -LiteralPath $InputValue) {
-      $raw = Get-Content -LiteralPath $InputValue -Raw -Encoding UTF8
-      return ($raw | ConvertFrom-Json)
+      $sanitized = Sanitize-Path -Path $InputValue -MustExist
+      if ($sanitized) {
+        $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8
+        return ($raw | ConvertFrom-Json)
+      }
     }
 
     return ($InputValue | ConvertFrom-Json)
@@ -361,7 +364,7 @@ if ($null -eq $lmVal) {
 } else {
   $lmValInt = [int]$lmVal
   if ($lmValInt -lt 3) {
-    Add-Finding -Code 'SECOPT-LmCompatibilityWeak' -Severity 'High' -Message ("LmCompatibilityLevel={0} is low (legacy/NTLM risk)." -f $lmValInt)
+    Add-Finding -Code 'SECOPT-LmCompatibilityWeak' -Severity 'High' -Message ("LmCompatibilityLevel={0} is low (legacy/NTLM risk)." -f $lmValInt) -Extra @{ Level = $lmValInt }
   }
 }
 
@@ -453,7 +456,7 @@ if (-not $desiredLoaded) {
       }
 
       if ($isDrift) {
-        Add-Finding -Code 'SECOPT-Drift' -Severity 'Medium' -Message ("Drift detected: {0}\{1} Current='{2}' Desired='{3}' (Type={4})." -f $path, $name, $have, $want, $type)
+        Add-Finding -Code 'SECOPT-Drift' -Severity 'Medium' -Message ("Drift detected: {0}\{1} Current='{2}' Desired='{3}' (Type={4})." -f $path, $name, $have, $want, $type) -Extra @{ Path = $path; Name = $name; Current = $have; Desired = $want; Type = $type }
 
         if ($Mode -eq 'Remediate') {
           if ($PSCmdlet.ShouldProcess("$path\$name", "Set to '$want' ($type)")) {

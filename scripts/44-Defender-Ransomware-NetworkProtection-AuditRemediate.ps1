@@ -159,13 +159,13 @@ function Load-ConfigFromJson {
     [System.Collections.Generic.List[object]]$FindingList
   )
 
-  $Path = Normalize-OptionalPath -Path $Path
-  if (-not $Path) { return @{ Config = $null; FindingList = $FindingList } }
+  $sanitized = Sanitize-Path -Path $Path -MustExist
+  if (-not $sanitized) { return @{ Config = $null; FindingList = $FindingList } }
 
   try {
-    if (-not (Test-Path -LiteralPath $Path)) { return @{ Config = $null; FindingList = $FindingList } }
+    if (-not $sanitized) { return @{ Config = $null; FindingList = $FindingList } }
 
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 -ErrorAction Stop
     if ([string]::IsNullOrWhiteSpace($raw)) { return @{ Config = $null; FindingList = $FindingList } }
 
     $cfg = ($raw | ConvertFrom-Json)
@@ -174,7 +174,7 @@ function Load-ConfigFromJson {
   catch {
     $FindingList = Add-Finding -FindingList $FindingList -Code 'CFG-JSON-LoadFailed' -Severity 'Low' -Message (
       "JSON config could not be loaded; using safe defaults/CLI. Path='{0}'. Error='{1}'" -f 'PATH/TO/JSON', $_.Exception.Message
-    ) -TypeName 'Defender.AuditFinding'
+    )
     return @{ Config = $null; FindingList = $FindingList }
   }
 }
@@ -344,13 +344,13 @@ $before = [pscustomobject]@{
 if ($EnableControlledFolderAccess -ne $before.ControlledFolderAccess) {
   $findingList = Add-Finding -FindingList $findingList -Code 'DEF-CFA-NotDesired' -Severity 'Medium' -Message (
     "ControlledFolderAccess is '{0}', desired '{1}'." -f $before.ControlledFolderAccess, $EnableControlledFolderAccess
-  ) -TypeName 'Defender.AuditFinding'
+  ) -Extra @{ Current = $before.ControlledFolderAccess; Desired = $EnableControlledFolderAccess }
 }
 
 if ($EnableNetworkProtection -ne $before.NetworkProtection) {
   $findingList = Add-Finding -FindingList $findingList -Code 'DEF-NP-NotDesired' -Severity 'Medium' -Message (
     "NetworkProtection is '{0}', desired '{1}'." -f $before.NetworkProtection, $EnableNetworkProtection
-  ) -TypeName 'Defender.AuditFinding'
+  ) -Extra @{ Current = $before.NetworkProtection; Desired = $EnableNetworkProtection }
 }
 
 if ($isServer -and $ApplyNetworkProtectionServerPrereqs) {

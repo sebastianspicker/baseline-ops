@@ -128,7 +128,7 @@ All nested properties are structured to support filtering and exporting.
 param(
   [switch]$Remediate,
   [switch]$AllowDomainRemediation,
-  [string]$ConfigPath = "PATH/TO/JSON/global.config.json",
+  [string]$ConfigPath,
   [string]$AllowListPath,
   [string[]]$ExtraAllow,
   [switch]$Quiet,

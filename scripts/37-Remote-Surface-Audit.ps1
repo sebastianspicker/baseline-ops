@@ -32,7 +32,7 @@ A single PSCustomObject:
 [CmdletBinding()]
 param(
   [string]$ExportPath,
-  [string]$ConfigPath = 'PATH/TO/JSON',
+  [string]$ConfigPath,
   [switch]$NoConsoleSummary
 )
 

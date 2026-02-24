@@ -128,11 +128,11 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
   [switch]$Remediate,
   [bool]$RequirePrivateSource = $true,
-  [string]$ConfigPath = "PATH/TO/JSON",
+  [string]$ConfigPath,
 
   [string]$PrivateSourceName = $null,
   [string]$PrivateSourceUrl  = $null,
@@ -147,6 +147,8 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 $script:NoConsole = [bool]$NoConsole
@@ -249,15 +251,17 @@ function Get-Config {
   param([string]$Path)
 
   try {
-    if ($Path -and (Test-Path -LiteralPath $Path)) {
-      return Get-Content -Raw -LiteralPath $Path -Encoding UTF8 | ConvertFrom-Json
+    $sanitized = Sanitize-Path -Path $Path -MustExist
+    if ($sanitized) {
+      return Get-Content -Raw -LiteralPath $sanitized -Encoding UTF8 | ConvertFrom-Json
     }
 
     $here = Split-Path -Parent $MyInvocation.MyCommand.Path
     if ($here) {
       $alt = Join-Path (Split-Path -Parent $here) "config\config.json"
-      if (Test-Path -LiteralPath $alt) {
-        return Get-Content -Raw -LiteralPath $alt -Encoding UTF8 | ConvertFrom-Json
+      $sanitizedAlt = Sanitize-Path -Path $alt -MustExist
+      if ($sanitizedAlt) {
+        return Get-Content -Raw -LiteralPath $sanitizedAlt -Encoding UTF8 | ConvertFrom-Json
       }
     }
   } catch { }
@@ -311,8 +315,10 @@ function Resolve-WingetPath {
 
 function ConvertTo-QuotedArg {
   param([Parameter(Mandatory)][string]$Value)
-  if ($Value -match '[\s"&]') { return '"' + ($Value -replace '"','\"') + '"' }
-  return $Value
+  # Basic robust quoting for cmd.exe/shell characters
+  # We escape existing quotes and wrap the whole thing.
+  $escaped = $Value -replace '"', '\"'
+  return '"' + $escaped + '"'
 }
 
 function Invoke-Winget {
@@ -546,7 +552,7 @@ function Ensure-PrivateSource {
 }
 
 # ---------------- Main ----------------
-
+$script:Findings = New-FindingsList
 $records = New-Object System.Collections.Generic.List[object]
 
 # Settings with sane defaults when config missing:
@@ -613,6 +619,7 @@ try {
       Add-Record -List $records -Record (New-CheckRecord -Name 'WinGet' -Status 'OK' -Message 'OK.' -Data @{
         Version = $v.Raw; Path = $wg
       })
+      Add-Finding -Code 'Winget-Found' -Severity 'Low' -Message "WinGet version $($v.Raw) located at $wg"
     }
 
     $supportAcceptForSourceUpdate = Test-WingetSupportsAcceptSourceAgreements -WingetPath $wg

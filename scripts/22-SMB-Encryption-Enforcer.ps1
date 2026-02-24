@@ -133,12 +133,13 @@ param(
 
   [switch]$Force,
 
-  [string]$JsonPath = 'PATH/TO/JSON/config.json'
+  [string]$JsonPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -387,7 +388,8 @@ function Write-ConsoleSummary {
 # -------------------------
 # Apply JSON defaults (only when parameters not explicitly provided)
 # -------------------------
-$cfg = Load-JsonConfigOrDefault -Path $JsonPath
+$sanitized = Sanitize-Path -Path $JsonPath -MustExist
+$cfg = Load-JsonConfigOrDefault -Path $sanitized
 
 if (-not $PSBoundParameters.ContainsKey('Mode')) { $Mode = $cfg.Mode }
 if (-not $PSBoundParameters.ContainsKey('ShareName')) { $ShareName = @($cfg.ShareName) }
@@ -431,6 +433,8 @@ if ($ApplyClientRequireEncryption -and -not $hasClientRequireEncryption) {
 # -------------------------
 # Main
 # -------------------------
+$script:Findings = New-FindingsList
+
 $start = Get-Date
 
 $serverCfgBefore = Get-SmbServerConfiguration
@@ -451,7 +455,17 @@ try {
   switch ($Mode) {
 
     'AuditOnly' {
-      # Intentionally no changes.
+      if (-not $serverCfgBefore.EncryptData) {
+        Add-Finding -Code 'SMB-Encryption-Disabled' -Severity 'Medium' -Message 'Server-wide SMB encryption is disabled.'
+      }
+      if ($hasRejectUnencryptedAccess -and -not $serverCfgBefore.RejectUnencryptedAccess) {
+        Add-Finding -Code 'SMB-RejectUnencrypted-Disabled' -Severity 'Low' -Message 'SMB server RejectUnencryptedAccess is disabled.'
+      }
+      foreach ($s in $sharesBefore) {
+        if (-not $s.EncryptData) {
+          Add-Finding -Code 'SMB-Share-NotEncrypted' -Severity 'Low' -Message "Share '$($s.Name)' encryption is disabled." -Extra @{ Share = $s.Name }
+        }
+      }
     }
 
     'ServerGlobal' {

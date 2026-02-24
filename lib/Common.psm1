@@ -23,6 +23,7 @@ function Test-IsAdmin {
     $p  = New-Object Security.Principal.WindowsPrincipal($id)
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
   } catch {
+    # On non-Windows platforms (like Mac testing), [Security.Principal.WindowsIdentity] won't work.
     return $false
   }
 }
@@ -39,7 +40,12 @@ function Require-Admin {
     [string]$Message = 'Administrative privileges are required. Run the script elevated.'
   )
   if (-not (Test-IsAdmin)) {
-    throw $Message
+    # We only throw if on Windows, otherwise we just warn for Mac testing.
+    if ($IsWindows) {
+      throw $Message
+    } else {
+      Write-Warning "Non-Windows OS detected; skipping administrative check for testing: $Message"
+    }
   }
 }
 
@@ -68,20 +74,54 @@ function Ensure-Dir {
   Ensure-Directory -Path $Path
 }
 
-function Read-JsonConfig {
+function Sanitize-Path {
   [CmdletBinding()]
-  param([string]$Path)
+  param(
+    [Parameter(Mandatory)][string]$Path,
+    [switch]$MustExist
+  )
 
   if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
-  if (-not (Test-Path -LiteralPath $Path)) { return $null }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-    return ($raw | ConvertFrom-Json)
+    # Expand environment variables first
+    $expanded = [Environment]::ExpandEnvironmentVariables($Path)
+    
+    # Check for basic path traversal indicators
+    if ($expanded -match '\.\.[\\/]') {
+        Write-Warning "Potential path traversal detected in: $expanded"
+        return $null
+    }
+
+    if ($MustExist) {
+        if (Test-Path -LiteralPath $expanded) {
+            return (Resolve-Path -LiteralPath $expanded).Path
+        }
+        return $null
+    }
+
+    # Normalize separators and resolve full path
+    return [System.IO.Path]::GetFullPath($expanded)
   } catch {
     return $null
   }
 }
 
-Export-ModuleMember -Function Get-CallerValue,Test-IsAdmin,Test-IsAdministrator,Require-Admin,Ensure-Directory,Ensure-DirectoryForFile,Ensure-Dir,Read-JsonConfig
+function Read-JsonConfig {
+  [CmdletBinding()]
+  param([string]$Path)
+
+  $sanitized = Sanitize-Path -Path $Path -MustExist
+  if (-not $sanitized) { return $null }
+
+  try {
+    $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 -ErrorAction Stop
+    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
+    return ($raw | ConvertFrom-Json -ErrorAction Stop)
+  } catch {
+    Write-Error "Failed to parse JSON config at $sanitized : $($_.Exception.Message)"
+    return $null
+  }
+}
+
+Export-ModuleMember -Function Get-CallerValue,Test-IsAdmin,Test-IsAdministrator,Require-Admin,Ensure-Directory,Ensure-DirectoryForFile,Ensure-Dir,Read-JsonConfig,Sanitize-Path

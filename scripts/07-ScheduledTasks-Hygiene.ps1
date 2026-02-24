@@ -127,7 +127,7 @@ param(
   [string]$CatalogPath,
   [switch]$Remediate,
   [switch]$Strict,
-  [string]$ConfigPath = "PATH/TO/JSON/config.json"
+  [string]$ConfigPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -143,8 +143,8 @@ $ErrorActionPreference = 'Stop'
 # Defaults (anonymized)
 # =========================
 $DefaultEventSource    = 'TasksHygiene'
-$DefaultQuarantineDir  = 'PATH/TO/QUARANTINE/tasks'
-$DefaultProofOutFile   = 'PATH/TO/PROOF/E5-Tasks.json'
+$DefaultQuarantineDir  = $null
+$DefaultProofOutFile   = $null
 
 # =========================
 # Console (pretty)

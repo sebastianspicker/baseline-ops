@@ -39,7 +39,7 @@ param(
 
   [string]$ExportPath,
 
-  [string]$ConfigJsonPath = "PATH/TO/JSON\process-service-audit.json",
+  [string]$ConfigJsonPath,
 
   [switch]$NoConsole,
 

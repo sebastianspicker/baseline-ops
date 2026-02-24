@@ -174,8 +174,8 @@ param(
   [ValidateRange(1,168)]
   [int]$WindowHours = 24,
 
-  [string]$CatalogPath = "PATH/TO/JSON/drift-catalog.json",
-  [string]$StatePath   = "PATH/TO/JSON/drift_state.json",
+  [string]$CatalogPath,
+  [string]$StatePath,
 
   [ValidateRange(0.01,1.0)]
   [double]$Alpha = 0.3,
@@ -195,7 +195,7 @@ param(
 
   [switch]$TriggerReapply,
 
-  [string]$RemediationScriptPath = "PATH/TO/SCRIPTS/C2-Sysmon-Config-Updater.ps1",
+  [string]$RemediationScriptPath,
 
   [switch]$RequireSignedRemediationScript,
 

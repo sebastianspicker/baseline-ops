@@ -103,12 +103,12 @@ Runs and displays only key output fields while preserving the full JSON proof fi
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
   [switch]$Remediate,
   [switch]$Strict,
-  [string]$ConfigPath = "PATH/TO/JSON/config.json"
+  [string]$ConfigPath
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -120,7 +120,7 @@ Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 # ------------------------------------ Globals --------------------------------------
 $script:EventSource = 'UpdateHealth-SSU-Proof'
 $script:EventLog    = 'Application'
-$script:FallbackLog = "PATH/TO/JSON/logs/UpdateHealth-SSU-Proof.log"
+$script:FallbackLog = $null
 
 # -------------------------------- Console helpers ----------------------------------
 

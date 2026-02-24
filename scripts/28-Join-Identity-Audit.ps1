@@ -33,7 +33,7 @@ PSCustomObject with:
 param(
   [string]$ExpectedDomain,
   [string]$ExportPath,
-  [string]$ConfigPath = 'PATH/TO/JSON\identity-audit.json',
+  [string]$ConfigPath,
   [switch]$NoConsoleSummary
 )
 
