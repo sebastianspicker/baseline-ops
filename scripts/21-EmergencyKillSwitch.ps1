@@ -308,25 +308,46 @@ function Schedule-AutoRollback {
   if ($Minutes -le 0) { return $false }
 
   $runAt = (Get-Date).AddMinutes($Minutes)
+  $logPath = Join-Path $env:TEMP "KillSwitch-Rollback-$($TaskName -replace '[^a-zA-Z0-9]', '').log"
 
+  # Improved rollback script with proper error handling and logging (fixes #21)
   $rollbackPs = @"
-`$ErrorActionPreference='SilentlyContinue';
-Set-NetFirewallProfile -All -Enabled True -DefaultInboundAction Allow -DefaultOutboundAction Allow;
-Get-NetFirewallRule -Name '$($RuleNames -join "','")' | Remove-NetFirewallRule;
-schtasks.exe /Delete /TN '$TaskName' /F | Out-Null;
+`$ErrorActionPreference = 'Stop'
+`$logPath = '$logPath'
+function Write-RollbackLog { param([string]`$Message) try { Add-Content -Path `$logPath -Value "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') `$Message" } catch {} }
+try {
+  Write-RollbackLog 'Starting rollback...'
+  Set-NetFirewallProfile -All -Enabled True -DefaultInboundAction Allow -DefaultOutboundAction Allow
+  Write-RollbackLog 'Firewall profiles reset to Allow'
+  try {
+    Get-NetFirewallRule -Name '$($RuleNames -join "','")' | Remove-NetFirewallRule -ErrorAction Stop
+    Write-RollbackLog 'Kill switch rules removed'
+  } catch {
+    Write-RollbackLog "Rule removal warning: `$(`$_.Exception.Message)"
+  }
+  `$delOutput = schtasks.exe /Delete /TN '$TaskName' /F 2>&1
+  if (`$LASTEXITCODE -eq 0) { Write-RollbackLog 'Rollback task removed' }
+  else { Write-RollbackLog "Task removal exit code: `$LASTEXITCODE - `$delOutput" }
+  Write-RollbackLog 'Rollback completed successfully'
+} catch {
+  Write-RollbackLog "ERROR: `$(`$_.Exception.Message)"
+  exit 1
+}
 "@
 
   $bytes = [System.Text.Encoding]::Unicode.GetBytes($rollbackPs)
   $enc   = [Convert]::ToBase64String($bytes)
   $tr    = "PowerShell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand $enc"
 
-  try {
-    schtasks.exe /Create /TN $TaskName /SC ONCE /ST $runAt.ToString('HH:mm') /TR $tr /RL HIGHEST /F | Out-Null
-    return $true
-  } catch {
-    Add-RunError "Auto-rollback schedule failed: $($_.Exception.Message)"
+  # Validate schtasks exit code (fixes #21)
+  $output = schtasks.exe /Create /TN $TaskName /SC ONCE /ST $runAt.ToString('HH:mm') /TR $tr /RL HIGHEST /F 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    Add-RunError "Auto-rollback schedule failed (exit code $LASTEXITCODE): $output"
     return $false
   }
+
+  Write-UiLine "Auto-rollback scheduled for $runAt (log: $logPath)" -Style Info
+  return $true
 }
 
 function Update-Outcome {
