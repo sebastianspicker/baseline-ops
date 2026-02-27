@@ -107,7 +107,7 @@ Launcher supports:
 - argument presets and live output
 - saving output to log file
 
-![Launcher GUI Preview](reports/screenshots/launcher-gui-preview.png)
+![Launcher GUI Preview](./reports/screenshots/launcher-gui-preview.png)
 
 ## Security and safety notes
 
