@@ -30,6 +30,11 @@ support/
 proof/
 proofs/
 reports/
+!reports/
+reports/*
+!reports/screenshots/
+reports/screenshots/*
+!reports/screenshots/launcher-gui-preview.png
 eventlogs/
 defender/
 defender-support/
