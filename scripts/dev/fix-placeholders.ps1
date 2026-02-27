@@ -38,7 +38,6 @@ $pattern2 = [regex]"(\[\s*string\s*\]\s*\$\w+)\s*=\s*'[^']*PATH/TO/[^']*'"
 
 foreach ($file in $files) {
   $content = Get-Content -Path $file.FullName -Raw
-  $originalContent = $content
   $fileReplacements = 0
   
   # Replace double-quoted PATH/TO defaults

@@ -34,6 +34,12 @@ function Test-IsAdministrator {
   return (Test-IsAdmin)
 }
 
+function Is-Admin {
+  [CmdletBinding()]
+  param()
+  return (Test-IsAdmin)
+}
+
 function Require-Admin {
   [CmdletBinding()]
   param(
@@ -54,6 +60,10 @@ function Ensure-Directory {
   param([Parameter(Mandatory)][string]$Path)
 
   if ([string]::IsNullOrWhiteSpace($Path)) { return }
+  if ($Path -match '\.\.') {
+    Write-Warning "Ensure-Directory: Path must not contain '..' (path traversal not allowed)."
+    return
+  }
   if (-not (Test-Path -LiteralPath $Path)) {
     New-Item -Path $Path -ItemType Directory -Force | Out-Null
   }
@@ -74,6 +84,18 @@ function Ensure-Dir {
   Ensure-Directory -Path $Path
 }
 
+function Ensure-Folder {
+  [CmdletBinding()]
+  param([Parameter(Mandatory)][string]$Path)
+  Ensure-Directory -Path $Path
+}
+
+function Ensure-FolderForFile {
+  [CmdletBinding()]
+  param([Parameter(Mandatory)][string]$FilePath)
+  Ensure-DirectoryForFile -FilePath $FilePath
+}
+
 function Sanitize-Path {
   [CmdletBinding()]
   param(
@@ -86,21 +108,24 @@ function Sanitize-Path {
   try {
     # Expand environment variables first
     $expanded = [Environment]::ExpandEnvironmentVariables($Path)
-    
-    # Check for basic path traversal indicators
-    if ($expanded -match '\.\.[\\/]') {
-        Write-Warning "Potential path traversal detected in: $expanded"
-        return $null
+    if ([string]::IsNullOrWhiteSpace($expanded)) { return $null }
+
+    # Reject any path containing ".." to prevent traversal (covers "..\", "../", "....\", leading "\..", etc.)
+    if ($expanded -match '\.\.') {
+      Write-Warning "Path traversal not allowed (contains '..'): path rejected."
+      return $null
     }
 
     if ($MustExist) {
-        if (Test-Path -LiteralPath $expanded) {
-            return (Resolve-Path -LiteralPath $expanded).Path
-        }
-        return $null
+      if (Test-Path -LiteralPath $expanded) {
+        $resolved = [System.IO.Path]::GetFullPath($expanded)
+        if ($resolved -match '\.\.') { return $null }
+        return $resolved
+      }
+      return $null
     }
 
-    # Normalize separators and resolve full path
+    # Normalize and resolve full path; GetFullPath can throw on invalid chars
     return [System.IO.Path]::GetFullPath($expanded)
   } catch {
     return $null
@@ -124,4 +149,16 @@ function Read-JsonConfig {
   }
 }
 
-Export-ModuleMember -Function Get-CallerValue,Test-IsAdmin,Test-IsAdministrator,Require-Admin,Ensure-Directory,Ensure-DirectoryForFile,Ensure-Dir,Read-JsonConfig,Sanitize-Path
+Export-ModuleMember -Function `
+  Get-CallerValue, `
+  Test-IsAdmin, `
+  Test-IsAdministrator, `
+  Is-Admin, `
+  Require-Admin, `
+  Ensure-Directory, `
+  Ensure-DirectoryForFile, `
+  Ensure-Dir, `
+  Ensure-Folder, `
+  Ensure-FolderForFile, `
+  Read-JsonConfig, `
+  Sanitize-Path

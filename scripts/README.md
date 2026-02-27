@@ -1,6 +1,6 @@
 # Security Hardening Scripts
 
-This directory contains 45 PowerShell scripts for Windows MDM security hardening, organized by category.
+This directory contains PowerShell scripts for Windows MDM security hardening and v2 orchestration, organized by category.
 
 ## Categories
 
@@ -10,8 +10,8 @@ Scripts that check configuration and report drift without making changes.
 | Script | Purpose | Key Parameters |
 |--------|---------|----------------|
 | `01-ASR-Defender-Allowlist.ps1` | ASR rules and Defender exclusions audit | `-ExceptionsPath`, `-ConfigPath` |
-| `02-LAPS-Hygiene.ps1` | LAPS password rotation hygiene | `-MinDaysBeforeRotate`, `-Remediate` |
-| `05-WUFB-Proofing.ps1` | Windows Update for Business proofing | `-CatalogPath`, `-Remediate` |
+| `02-LAPS-Hygiene.ps1` | LAPS password rotation hygiene | `-MinDaysBeforeRotate`, `-Mode Remediate` |
+| `05-WUFB-Proofing.ps1` | Windows Update for Business proofing | `-CatalogPath`, `-Mode Remediate` |
 | `06-UpdateHealth-SSU-Proof.ps1` | Update health and SSU verification | `-CatalogPath`, `-ConfigPath` |
 | `09-SupportBundle.ps1` | Collect diagnostic support bundle | `-BundleName`, `-IncludeKbFeed` |
 | `10-SupportBundle-Parser.ps1` | Parse support bundle archives | `-SupportDir`, `-ConfigPath` |
@@ -23,17 +23,17 @@ Scripts that check configuration and report drift without making changes.
 | `28-Join-Identity-Audit.ps1` | Domain join and identity audit | `-ConfigPath`, `-ExportPath` |
 | `29-Network-Config-Audit.ps1` | Network configuration audit | `-JsonPath`, `-ExportPath` |
 | `30-Service-Process-Audit.ps1` | Running services and processes | `-ConfigJsonPath` |
-| `33-AdvancedAuditPolicy-Audit.ps1` | Advanced audit policy settings | `-DesiredPolicyJson`, `-Remediate` |
+| `33-AdvancedAuditPolicy-Audit.ps1` | Advanced audit policy settings | `-DesiredPolicyJson`, `-Mode Remediate` |
 | `35-Storage-Reliability-Audit.ps1` | Storage and disk health | `-ConfigJsonPath`, `-ExportPath` |
 | `36-Backup-Readiness-Audit.ps1` | Backup configuration readiness | `-ConfigJsonPath` |
 | `37-Remote-Surface-Audit.ps1` | Remote access surface audit | `-ConfigPath`, `-ExportPath` |
 | `42-Client-SecurityBaseline-Report-IntuneRef.ps1` | Security baseline comparison | `-ReferenceJsonPath` |
 | `43-AppControlForBusiness-Audit.ps1` | App Control for Business audit | `-ConfigPath` |
-| `44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1` | Ransomware protection audit | `-ConfigJsonPath`, `-Remediate` |
+| `44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1` | Ransomware protection audit | `-ConfigJsonPath`, `-Mode Remediate` |
 | `45-WEF-Client-Forwarding-Readiness-Audit.ps1` | WEF client readiness | `-ConfigPath`, `-IncludeWecutilCheck` |
 
 ### Remediation Scripts
-Scripts that can apply fixes when run with `-Remediate` flag.
+Scripts that can apply fixes when run with `-Mode Remediate`.
 
 | Script | Purpose | What It Remediate |
 |--------|---------|-------------------|
@@ -72,6 +72,10 @@ Helper scripts for setup and operations.
 |--------|---------|
 | `00-Copy-Local.ps1` | Copy repository to local machine |
 | `00-Run-Local.ps1` | Run scripts from local copy |
+| `00-Validate-Profile.ps1` | Validate v2 orchestration profile JSON |
+| `00-Run-Profile.ps1` | Execute profile steps with dependency + fail strategy |
+| `00-Run-Batch.ps1` | Execute category/tag based batches via profile layer |
+| `00-Report-Aggregate.ps1` | Aggregate v2 JSON results into a summary report |
 | `25-WinGet-Config-Baseline-Runner.ps1` | WinGet configuration deployment |
 | `08-WinGet-SelfHeal.ps1` | WinGet self-healing for apps |
 
@@ -85,18 +89,28 @@ Scripts for ongoing monitoring and drift detection.
 | `38-SecurityOptions-Drift.ps1` | Security options drift | Periodic |
 | `32-Firewall-Logging-Audit.ps1` | Firewall logging status | Periodic |
 
-## Common Parameters
+## Common Parameters and Conventions
 
 Most scripts support these common parameters:
 
 | Parameter | Description |
 |-----------|-------------|
-| `-Remediate` | Apply fixes instead of audit-only mode |
-| `-ConfigPath` | Path to JSON configuration file |
-| `-Strict` | Fail on warnings, not just errors |
-| `-PassThru` | Output structured result object |
+| `-Mode` | v2 normalized mode for orchestration (`Audit`/`Remediate`) |
+| `-ConfigPath` / `-CatalogPath` | Path to JSON configuration or catalog file |
+| `-OutputFormat` | `Console`, `Json`, `Csv`, or `None` |
+| `-OutputPath` | Target path for `Json`/`Csv` output modes |
+| `-ExportPath` | Base path for CSV/JSON export (scripts append suffixes) |
+| `-Strict` | Fail on warnings, not just errors (where supported) |
+| `-PassThru` | Emit a single structured object to the pipeline (Summary, Findings, etc.) |
+| `-Quiet` / `-NoColor` | Reduce console noise / disable color where supported |
 | `-WhatIf` | Preview changes without applying (where supported) |
 | `-Confirm` | Require confirmation before changes (where supported) |
+
+**Pipeline output:** Scripts that document pipeline output emit exactly one structured object (e.g. `Summary`, `Findings`, `Config`) for automation (Export-Csv, ConvertTo-Json, Where-Object). Use `-PassThru` where the script gates pipeline output on that switch.
+
+**Lib usage:** Scripts should use `lib/Console.psm1` for severity colors and summary output, `lib/JsonCatalog.psm1` for JSON read/write, and `lib/Evidence.psm1` for hashing and evidence copy where applicable; see `lib/README.md`.
+
+**Optional behaviour:** Some scripts support `-Strict` (treat warnings as errors) or reduced output; see each script’s comment-based help. Version and change history are in the repository root `CHANGELOG.md`.
 
 ## Usage Patterns
 
@@ -112,12 +126,12 @@ Most scripts support these common parameters:
 
 ### Remediation with Preview
 ```powershell
-.\03-LocalAdmins-Guardrail.ps1 -Remediate -WhatIf
+.\03-LocalAdmins-Guardrail.ps1 -Mode Remediate -WhatIf
 ```
 
 ### Remediation with Confirmation
 ```powershell
-.\03-LocalAdmins-Guardrail.ps1 -Remediate -Confirm
+.\03-LocalAdmins-Guardrail.ps1 -Mode Remediate -Confirm
 ```
 
 ### Get Structured Output

@@ -107,6 +107,16 @@ param(
 
   [string]$ConfigJsonPath,
   [string]$ConfigJsonRaw
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -116,6 +126,30 @@ Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # -------------------- Safe defaults
@@ -503,7 +537,12 @@ try {
       $Run.Actions.ConfirmDeclined = $true
     }
   } else {
-    Get-NetFirewallRule -Name $RuleBgName -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
+    try {
+      $rule = Get-NetFirewallRule -Name $RuleBgName -ErrorAction Stop
+      if ($rule) { $rule | Remove-NetFirewallRule -ErrorAction Stop }
+    } catch {
+      Write-Warning "Could not remove break-glass firewall rule: $($_.Exception.Message)"
+    }
   }
 
   if ($DisableAdapters) {
@@ -562,4 +601,8 @@ finally {
 }
 
 # Pipeline output: one structured object, no formatting
-#[pscustomobject]$Run
+[pscustomobject]$Run
+
+
+
+

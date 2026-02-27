@@ -13,7 +13,7 @@ Best-practice output model:
 - Console output: human-readable "pretty" summary via Write-UiLine (information stream in PS 5.1). [web:148]
 
 .PARAMETER Mode
-AuditOnly | Remediate
+Audit | Remediate
 
 .PARAMETER SettingsJsonPath
 Optional JSON path (example: PATH/TO/JSON/firewall-logging.json).
@@ -51,8 +51,8 @@ Summary, Desired, Findings, ProfilesBefore, ProfilesAfter.
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [ValidateSet('AuditOnly','Remediate')]
-  [string]$Mode = 'AuditOnly',
+  [ValidateSet('Audit','Remediate')]
+  [string]$Mode = 'Audit',
 
   [string]$SettingsJsonPath,
 
@@ -67,6 +67,15 @@ param(
   [switch]$FailOnHigh,
 
   [switch]$NoConsoleSummary
+
+,
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -76,6 +85,30 @@ Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version 2
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # region Helpers
@@ -435,6 +468,10 @@ if ($FailOnHigh) {
 }
 
 # Pipeline output: structured object only
-# $result
+$result
 
 # endregion Execution
+
+
+
+

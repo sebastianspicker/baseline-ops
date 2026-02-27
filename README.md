@@ -1,203 +1,124 @@
 # Windows MDM Endpoint Security Hardening Kit
 
-Practical PowerShell automation for Windows endpoint security hardening, auditing, drift detection, and rapid triage in MDM-managed environments.
+PowerShell toolkit for Windows endpoint hardening, drift detection, triage, and controlled remediation in MDM-managed environments.
 
-> Status: early iteration — validate in a lab before production use!
+## Repository policy
 
-## Why
-MDM-managed fleets need consistent, repeatable validation and hardening. This kit provides focused, scriptable checks and guardrails so teams can detect drift, prove posture, and respond quickly.
+This repository uses a lean root layout. The root intentionally keeps only core project docs:
 
-## Features
-- Audit and (where supported) remediate key Windows security controls.
-- Consistent console output and structured pipeline objects (CSV/JSON-friendly).
-- Shared helper modules to keep scripts uniform and maintainable.
-- Support bundle tooling for rapid triage.
+- `README.md`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `CHANGELOG.md`
 
-## What this repo is
-This repository contains standalone PowerShell scripts to assess and (where applicable) remediate security posture on Windows endpoints, with a focus on managed fleets (MDM/Intune-style operations).
-
-Typical use cases:
-- Baseline verification and drift detection.
-- Security hygiene checks (local admin, LAPS, logging, firewall, auditing).
-- Update/health proofing and readiness.
-- Incident response collection and fast triage.
+Operational bug tracking and investigation history live in GitHub Issues/PRs, not in large root markdown artifacts.
 
 ## Requirements
-- Windows 10/11 or Windows Server (depending on script scope).
-- PowerShell 5.1+ (some scripts may also work with PowerShell 7.x).
-- Administrator rights for scripts that change system settings.
-- Optional: Sysmon, Microsoft Defender, BitLocker, WinGet (depending on script).
 
-## Shared modules (lib)
-Common helper functions live in `lib/` to keep scripts consistent and deduplicated:
-- `Common.psm1`, `Output.psm1`, `Registry.psm1`, `Config.psm1`, `EventLog.psm1`, `Results.psm1`
-- Findings are standardized via `Results.psm1` (Code/Severity/Message + optional metadata)
-See `lib/README.md` for details and the recommended import pattern.
+- Windows 10/11 or Windows Server (script dependent)
+- PowerShell 5.1+ (PowerShell 7.x supported for local dev tooling)
+- Elevated shell for scripts that modify system state
+- Optional components by script: Defender, BitLocker, Sysmon, WinGet
 
-Scripts resolve `lib/` via a shared bootstrap:
-- `scripts/_lib/Bootstrap.ps1` sets `$script:LibPath` so scripts can import modules consistently (repo checkout or deployed copy).
+## Core structure
 
-## Validation (build / run / test)
+- `scripts/` : operational scripts
+- `lib/` : shared modules
+- `examples/` : sample JSON configs and profiles
+- `tests/` : Pester tests
+- `tools/` : CI and operator utilities (GUI launcher, verify, secret scan)
 
-There is no traditional build; validation is syntax and static analysis only.
+## v2 execution model
 
-| Action | Command |
-|--------|--------|
-| **Verify (syntax only)** | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer` |
-| **Verify (syntax + PSScriptAnalyzer)** | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1` |
-| **Secret scan** | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1` |
-| **CI-equivalent (PowerShell 7+, cross-platform)** | `./scripts/ci-local.sh` (or `CI_SKIP_ANALYZER=1 ./scripts/ci-local.sh` to skip analyzer) |
+New orchestration scripts provide a normalized execution layer:
 
-Run from repo root. For CI (e.g. GitHub Actions), pass `-RootPath $env:GITHUB_WORKSPACE` to `verify.ps1` and `secret-scan.ps1`.
+- `scripts/00-Validate-Profile.ps1` : validates profile JSON
+- `scripts/00-Run-Profile.ps1` : executes profile steps with dependency/order controls
+- `scripts/00-Run-Batch.ps1` : runs category/tag based script batches
+- `scripts/00-Report-Aggregate.ps1` : aggregates multiple JSON outputs
 
-Exit codes for `verify.ps1`: `0` = OK; `1` = parse error(s); `2` = PSScriptAnalyzer issues.
+Deployment helpers:
 
-Script exit codes (convention): many scripts use `0` = success, `1` = error, `2` = partial/no change; see each script’s comment-based help for details.
+- `scripts/00-Copy-Local.ps1`
+- `scripts/00-Run-Local.ps1`
 
-## Audit vs. Remediate and recovery
-- **Audit-only:** Scripts that support a mode or switch for “audit only” (e.g. no `-Remediate`) are intended to be read-only: they report drift and do not change registry, firewall, or services. If a script still modifies state without `-Remediate`, report it (see [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md)).
-- **Remediate:** When you pass `-Remediate` (or equivalent), the script may change system state (registry, firewall, scheduled tasks, etc.). Prefer `-WhatIf` / `-Confirm` where supported.
-- **Recovery:** If a run is interrupted (e.g. half-applied config), re-run the script in audit mode to see current state, then remediate again if needed. There is no single “rollback” script; restore from backups or revert specific settings per script.
+### Breaking changes (v2 hard cutover)
 
-## Development
-- Use `tools/secret-scan.ps1` for a basic local secret scan.
-- Known bugs and required fixes are tracked in [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md).
+- `-Mode` is the normalized execution switch (`Audit|Remediate`) for productive scripts.
+- Legacy top-level `-Remediate` parameters were removed from productive scripts.
+- Legacy `AuditOnly` mode values were removed from script parameter contracts.
 
-## Console output (unified)
-All scripts import `lib/Output.psm1` and use a shared console API with a consistent palette and layout:
-- `Write-Section`, `Write-UiLine`
-- `Write-Info`, `Write-Warn`, `Write-Error`, `Write-Success`
-- `Write-KeyValue` (and compatibility wrappers like `Write-UiKV`)
+## Profile schema (v2)
 
-Scripts should avoid direct `Write-Host` and instead route output through the shared helpers.
+`examples/profiles/*.json` follow this shape:
 
-## Quick start (safe defaults)
-### 1) Clone
-```
-git clone https://github.com/sebastianspicker/win-mdm-security-hardening-kit.git
-cd win-mdm-security-hardening-kit
-```
+- `ProfileName`
+- `Version`
+- `Defaults`
+  - `Mode` (`Audit` or `Remediate`)
+  - `Strict`
+  - `OutputFormat` (`Console|Json|Csv|None`)
+  - `OutputPath`
+- `Steps[]`
+  - `Script`
+  - `Args`
+  - `ContinueOnError`
+  - `DependsOn`
+- `Integrity`
+  - `RequireSigned`
+  - `ExpectedHashes`
 
-### 2) Unblock downloaded files (if needed)
-```
-Get-ChildItem -Recurse -Filter *.ps1 | Unblock-File
-```
+## Validation and local CI
 
-### 3) Run with transcript logging
-```
-Start-Transcript -Path ".\run-$(Get-Date -Format yyyyMMdd-HHmmss).log"
-# Prefer -WhatIf / -Confirm if the script supports it
-.\NAME_OF_SCRIPT.ps1
-Stop-Transcript
-```
+From repository root:
 
-## Configuration
-- Many scripts accept optional JSON config paths (look for `-ConfigPath` or `PATH/TO/JSON` placeholders in parameters/examples).
-- For deterministic deployments, `scripts/00-Copy-Local.ps1` supports `-RepoRef` (tag/commit) to pin a version.
+```powershell
+# Parse checks only
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer
 
-## How to run (deployment-friendly patterns)
-### Interactive (PowerShell)
-```
-# Example: run a single script
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\NAME_OF_SCRIPT.ps1
+# Parse + PSScriptAnalyzer
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
+
+# Secret scan
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1
+
+# Tests
+pwsh -NoProfile -Command "Invoke-Pester -Path .\tests -Output Detailed"
 ```
 
-## Deployment helpers
-Two helper scripts are included to pull the latest repo and run scripts from a local staging path:
-- `scripts/00-Copy-Local.ps1`: Pulls the latest repo (default URL) into `C:\install\mdm\ps1\_repo` and copies `scripts/` + `lib/` to `C:\install\mdm\ps1\`.
-- `scripts/00-Run-Local.ps1`: Runs a script from `C:\install\mdm\ps1\scripts\` by name or number.
+Cross-platform local CI wrapper:
 
-Examples:
-```
-.\scripts\00-Copy-Local.ps1
-.\scripts\00-Copy-Local.ps1 -RepoUrl https://github.com/org/repo.git
-.\scripts\00-Run-Local.ps1 -ScriptNumber 18
-.\scripts\00-Run-Local.ps1 -ScriptName 31-PowerShell-Logging-Baseline.ps1 -ScriptArgs @('-Mode','AuditOnly')
+```bash
+./scripts/ci-local.sh
 ```
 
-### Batch wrapper (CMD)
-```
-@echo off
-set "SCRIPT=%~dp0\NAME_OF_SCRIPT.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%"
-```
+## Launcher GUI
 
-### VBScript wrapper (legacy)
-```
-Option Explicit
-Dim sh, cmd
-Set sh = CreateObject("WScript.Shell")
-cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File """ & _
-      CreateObject("Scripting.FileSystemObject").GetAbsolutePathName(".\NAME_OF_SCRIPT.ps1") & """"
-sh.Run cmd, 1, True
+Run the launcher from repository root:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\tools\Launcher-GUI.ps1
 ```
 
-## Script inventory
-<details>
-<summary>Click to expand the full list of scripts</summary>
+Launcher supports:
 
-- 01-ASR-Defender-Allowlist.ps1
-- 02-LAPS-Hygiene.ps1
-- 03-LocalAdmins-Guardrail.ps1
-- 04-OfficeBrowser-Hardening-Proof.ps1
-- 05-WUFB-Proofing.ps1
-- 06-UpdateHealth-SSU-Proof.ps1
-- 07-ScheduledTasks-Hygiene.ps1
-- 08-WinGet-SelfHeal.ps1
-- 09-SupportBundle.ps1
-- 10-SupportBundle-Parser.ps1
-- 11-IOC-Sweep-Defender.ps1
-- 12-Suspicious-Artifact-Grabber.ps1
-- 13-LSASS-CG-HVCI-VBS.ps1
-- 14-SecureRemoteAccessGuardrails.ps1
-- 15-HardwareTPM-Audit.ps1
-- 16-Sysmon-Config-Updater.ps1
-- 17-Sysmon-Rule-Drift-Sensor.ps1
-- 18-Firewall-Baseline.ps1
-- 19-Software-Audit.ps1
-- 20-MissingPatch-Notification.ps1
-- 21-EmergencyKillSwitch.ps1
-- 22-SMB-Encryption-Enforcer.ps1
-- 23-BitLocker-Operations-Audit.ps1
-- 24-Cert-AutoEnrollment-Health.ps1
-- 25-WinGet-Config-Baseline-Runner.ps1
-- 26-Get-WinEvent-FastTriage.ps1
-- 27-Defender-Health-Audit.ps1
-- 28-Join-Identity-Audit.ps1
-- 29-Network-Config-Audit.ps1
-- 30-Service-Process-Audit.ps1
-- 31-PowerShell-Logging-Baseline.ps1
-- 32-Firewall-Logging-Audit.ps1
-- 33-AdvancedAuditPolicy-Audit.ps1
-- 34-TimeSync-Health.ps1
-- 35-Storage-Reliability-Audit.ps1
-- 36-Backup-Readiness-Audit.ps1
-- 37-Remote-Surface-Audit.ps1
-- 38-SecurityOptions-Drift.ps1
-- 39-CredentialGuard-VBS-AuditRemediate.ps1
-- 40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1
-- 41-NTLM-Audit-Client.ps1
-- 42-Client-SecurityBaseline-Report-IntuneRef.ps1
-- 43-AppControlForBusiness-Audit.ps1
-- 44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1
-- 45-WEF-Client-Forwarding-Readiness-Audit.ps1
+- single script runs via `00-Run-Local.ps1`
+- profile runs via `00-Run-Profile.ps1`
+- argument presets and live output
+- saving output to log file
 
-</details>
+![Launcher GUI Preview](reports/screenshots/launcher-gui-preview.png)
 
-## Safety & risk notes (read before use)
-- Some scripts may change security settings (remediation/enforcement). Review code and test in a lab first.
-- Prefer staged rollout (ring-based deployment) and explicit approval gates for remediation.
-- Keep backups of existing configurations (firewall, audit policy, registry, etc.) before enforcing changes.
+## Security and safety notes
 
-## Security
-- Vulnerability reporting guidance is in `SECURITY.md`.
-- Treat output artifacts (CSV/JSON/logs/ZIP) as sensitive; store them securely.
+- Validate all remediation flows in a lab before production.
+- Prefer `-WhatIf` / `-Confirm` when supported.
+- Use script signing or expected hash checks in deployment pipelines.
+- Treat generated evidence and export artifacts as sensitive.
 
-## Troubleshooting
-- If PowerShell blocks scripts, run `Unblock-File` on `.ps1` files.
-- If `Invoke-ScriptAnalyzer` is missing, install PSScriptAnalyzer or run `tools/verify.ps1 -SkipAnalyzer`.
-- Run from an elevated prompt when a script requires administrative privileges (or use `Require-Admin` from `lib/Common.psm1` in your own scripts).
-- For common failure causes and fix references, see [BUGS_AND_FIXES.md](BUGS_AND_FIXES.md#quick-reference-common-failure-causes).
+## Related docs
 
-## Disclaimer
-These scripts are provided “as-is” without warranty. You are responsible for validation, compliance, and safe deployment.
+- [scripts/README.md](scripts/README.md)
+- [lib/README.md](lib/README.md)
+- [examples/README.md](examples/README.md)
+- [SECURITY.md](SECURITY.md)

@@ -39,7 +39,7 @@ Valid values: SHA256, SHA384, SHA512, MD5, SHA1
 .\00-Run-Local.ps1 -ScriptNumber 18
 
 .EXAMPLE
-.\00-Run-Local.ps1 -ScriptName 31-PowerShell-Logging-Baseline.ps1 -ScriptArgs @('-Mode','AuditOnly')
+.\00-Run-Local.ps1 -ScriptName 31-PowerShell-Logging-Baseline.ps1 -ScriptArgs @('-Mode','Audit')
 
 .EXAMPLE
 .\00-Run-Local.ps1 -ScriptNumber 18 -RequireSigned
@@ -53,7 +53,7 @@ $hash = (Get-Content .\hashes.txt | Where-Object { $_ -like "18-Firewall-Baselin
 .\00-Run-Local.ps1 -ScriptNumber 18 -ExpectedHash $hash
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [Parameter(Mandatory, ParameterSetName = 'ByName')]
   [ValidateNotNullOrEmpty()]
@@ -73,18 +73,82 @@ param(
 
   [ValidateSet('SHA256','SHA384','SHA512','MD5','SHA1')]
   [string]$HashAlgorithm = 'SHA256'
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Execution.psm1') -Force
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 $scriptsRoot = Join-Path $RootPath 'scripts'
 
 if (-not (Test-Path -LiteralPath $scriptsRoot)) {
   throw "Scripts root not found: $scriptsRoot"
+}
+
+function Test-ResolvedPathUnderScriptsRoot {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$Path,
+    [Parameter(Mandatory)][string]$ScriptsRootPath
+  )
+
+  try {
+    $resolvedPath = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
+    $resolvedRoot = (Resolve-Path -LiteralPath $ScriptsRootPath -ErrorAction Stop).Path
+  } catch {
+    return $false
+  }
+
+  $sepChars = @([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+  $rootPrefix = $resolvedRoot.TrimEnd($sepChars) + [System.IO.Path]::DirectorySeparatorChar
+  return $resolvedPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Test-PathIsSymlink {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$Path
+  )
+
+  try {
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+  } catch {
+    return $false
+  }
+
+  return [bool]($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
 }
 
 if ($PSCmdlet.ParameterSetName -eq 'ByNumber') {
@@ -99,6 +163,13 @@ if ($PSCmdlet.ParameterSetName -eq 'ByNumber') {
     throw "Multiple scripts match number ${prefix}: $names"
   }
   $scriptPath = $scriptMatches[0].FullName
+  if (Test-PathIsSymlink -Path $scriptPath) {
+    throw "Refusing to execute reparse-point script path: $scriptPath"
+  }
+  if (-not (Test-ResolvedPathUnderScriptsRoot -Path $scriptPath -ScriptsRootPath $scriptsRoot)) {
+    throw "Resolved script path is outside scripts root or invalid."
+  }
+  $scriptPath = (Resolve-Path -LiteralPath $scriptPath).Path
 } else {
   # Constrain to basename only to prevent path traversal (§11/§10)
   if ($ScriptName -match '[/\\]' -or $ScriptName -match '\.\.') {
@@ -115,12 +186,13 @@ if ($PSCmdlet.ParameterSetName -eq 'ByNumber') {
   if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
     throw "Script not found: $scriptPath"
   }
-  $scriptsRootFull = [System.IO.Path]::GetFullPath($scriptsRoot)
-  $resolvedFull = [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $scriptPath).Path)
-  if (-not $resolvedFull.StartsWith($scriptsRootFull, [StringComparison]::OrdinalIgnoreCase) -or $resolvedFull -eq $scriptsRootFull) {
+  if (Test-PathIsSymlink -Path $scriptPath) {
+    throw "Refusing to execute reparse-point script path: $scriptPath"
+  }
+  if (-not (Test-ResolvedPathUnderScriptsRoot -Path $scriptPath -ScriptsRootPath $scriptsRoot)) {
     throw "Resolved script path is outside scripts root or invalid."
   }
-  $scriptPath = $resolvedFull
+  $scriptPath = (Resolve-Path -LiteralPath $scriptPath).Path
 }
 
 # Integrity verification (fixes #25)
@@ -151,8 +223,32 @@ if (-not [string]::IsNullOrWhiteSpace($ExpectedHash)) {
   Write-UiLine "Hash verified ($expectedAlg)" -Style Success
 }
 
-if ($ScriptArgs) {
-  & $scriptPath @ScriptArgs
+function Invoke-TargetScript {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$Path,
+    [string[]]$Arguments = @()
+  )
+
+  if (-not $Arguments -or $Arguments.Count -eq 0) {
+    & $Path
+    return
+  }
+
+  $parsed = Convert-ArgumentTokens -Arguments $Arguments
+  $namedArgs = $parsed.Named
+  $positionalArgs = @($parsed.Positional)
+
+  if ($positionalArgs.Count -gt 0) {
+    & $Path @namedArgs @positionalArgs
+  } else {
+    & $Path @namedArgs
+  }
+}
+
+if ($PSCmdlet.ShouldProcess((Split-Path -Leaf $scriptPath), 'Execute local script')) {
+  Invoke-TargetScript -Path $scriptPath -Arguments $ScriptArgs
 } else {
-  & $scriptPath
+  Write-UiLine -Text ("[SKIP] {0} (WhatIf/Confirm)" -f (Split-Path -Leaf $scriptPath)) -ForegroundColor DarkGray
+  exit 0
 }

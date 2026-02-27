@@ -42,7 +42,7 @@ Pipeline emits:
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [ValidateRange(0,5)]
   [int]$MinimumLevel = 3,
@@ -50,34 +50,53 @@ param(
   [string]$ExportPath,
 
   [string]$ConfigPath
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 #region Helpers
-
-function Get-RegDword {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] [string]$Path,
-    [Parameter(Mandatory)] [string]$Name
-  )
-  try {
-    $p = Get-ItemProperty -Path $Path -Name $Name -ErrorAction Stop
-    $v = $p.$Name
-    if ($null -ne $v) { [int]$v } else { $null }
-  } catch {
-    $null
-  }
-}
-
 
 function Convert-LmCompatibilityLevelToText {
   [CmdletBinding()]
@@ -176,31 +195,6 @@ function Import-JsonConfigOrDefault {
 }
 
 
-function Get-SeverityRank {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)] [ValidateSet('Info','Low','Medium','High')] [string]$Severity)
-
-  switch ($Severity) {
-    'High'   { 3 }
-    'Medium' { 2 }
-    'Low'    { 1 }
-    'Info'   { 0 }
-  }
-}
-
-function Get-SeverityColor {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)] [ValidateSet('Info','Low','Medium','High')] [string]$Severity)
-
-  switch ($Severity) {
-    'High'   { 'Red' }
-    'Medium' { 'Yellow' }
-    'Low'    { 'Cyan' }
-    'Info'   { 'Gray' }
-  }
-}
-
-
 function Write-ConsoleSummary {
   [CmdletBinding()]
   param(
@@ -293,7 +287,7 @@ if (-not [string]::IsNullOrWhiteSpace($ConfigPath) -and (Test-Path -LiteralPath 
 $findings = New-FindingsList
 
 $lsaPath = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'
-$val     = Get-RegDword -Path $lsaPath -Name 'LmCompatibilityLevel'
+$val     = Get-RegDwordOrNull -Path $lsaPath -Name 'LmCompatibilityLevel'
 $valText = Convert-LmCompatibilityLevelToText -Value $val
 
 if ($null -eq $val) {
@@ -361,3 +355,7 @@ Write-ConsoleSummary -Summary $summary -Findings $findings -Config $config
 #$summary
 #$findings
 #endregion Pipeline output
+
+
+
+

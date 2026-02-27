@@ -13,8 +13,7 @@ that are used across multiple scripts. Each wrapper:
 - Supports -ErrorAction and -WarningAction
 
 .NOTES
-Addresses bugs #7, #21, #30, #31, #32 from BUGS_AND_FIXES.md related to
-external command exit code validation.
+Provides centralized external command exit code validation for runtime scripts.
 #>
 
 function Test-CommandExists {
@@ -25,6 +24,31 @@ function Test-CommandExists {
   )
 
   return ($null -ne (Get-Command -Name $Name -CommandType Application -ErrorAction SilentlyContinue))
+}
+
+function Ensure-Cmdlet {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)]
+    [string]$Name,
+    [string]$Message
+  )
+  if ($null -ne (Get-Command -Name $Name -ErrorAction SilentlyContinue)) { return $true }
+  $msg = if ($Message) { $Message } else { "Required cmdlet or function not found: $Name" }
+  throw $msg
+}
+
+function Ensure-Exe {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)]
+    [string]$Name,
+    [string]$Message
+  )
+  $exe = Get-Command -Name $Name -CommandType Application -ErrorAction SilentlyContinue
+  if ($exe) { return $true }
+  $msg = if ($Message) { $Message } else { "Required executable not found: $Name" }
+  throw $msg
 }
 
 function Invoke-NativeCommand {
@@ -42,6 +66,12 @@ function Invoke-NativeCommand {
     
     [switch]$Quiet
   )
+
+  # Restrict -Command to a single executable name or path (no spaces) to avoid command injection
+  $trimmed = $Command.Trim()
+  if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed -match '\s') {
+    throw "Invoke-NativeCommand: -Command must be a single executable name or path (no spaces)."
+  }
 
   # Validate command exists
   if (-not (Test-CommandExists -Name $Command)) {
@@ -289,12 +319,12 @@ function Export-EventLog {
     [string]$Query
   )
 
-  $args = @('epl', $LogName, $OutputPath, '/ow:true')
+  $wevtArgs = @('epl', $LogName, $OutputPath, '/ow:true')
   if ($Query) {
-    $args += "/q:`"$Query`""
+    $wevtArgs += "/q:`"$Query`""
   }
 
-  $result = Invoke-Wevtutil -Arguments $args -ThrowOnError
+  $result = Invoke-Wevtutil -Arguments $wevtArgs -ThrowOnError
   return ($result -eq $true)
 }
 
@@ -316,11 +346,11 @@ function New-ScheduledTask {
     [switch]$Force
   )
 
-  $args = @('/Create', '/TN', $TaskName, '/SC', $Schedule, '/TR', $TaskRun, '/RL', $RunLevel)
-  if ($Force) { $args += '/F' }
-  if ($StartTime) { $args += '/ST', $StartTime }
+  $taskArgs = @('/Create', '/TN', $TaskName, '/SC', $Schedule, '/TR', $TaskRun, '/RL', $RunLevel)
+  if ($Force) { $taskArgs += '/F' }
+  if ($StartTime) { $taskArgs += '/ST', $StartTime }
 
-  $result = Invoke-Schtasks -Arguments $args -ThrowOnError
+  $result = Invoke-Schtasks -Arguments $taskArgs -ThrowOnError
   return ($result -eq $true)
 }
 
@@ -351,6 +381,8 @@ function Export-RegistryKey {
 
 Export-ModuleMember -Function `
   Test-CommandExists, `
+  Ensure-Cmdlet, `
+  Ensure-Exe, `
   Invoke-NativeCommand, `
   Invoke-Schtasks, `
   Invoke-Auditpol, `

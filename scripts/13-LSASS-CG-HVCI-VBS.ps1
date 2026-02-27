@@ -112,10 +112,15 @@
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [switch]$Remediate,
   [bool]$Strict = $true,
   [bool]$RequireBlockList = $true,
-  [string]$ConfigPath
+  [string]$ConfigPath,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -125,25 +130,31 @@ Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+$Remediate = ($Mode -eq 'Remediate')
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
+
 
 # -----------------------------
 # Helper functions (PS 5.1 compatible)
 # -----------------------------
-
-
-function Get-RegDword {
-  param(
-    [string]$Path,
-    [string]$Name
-  )
-  try {
-    if (-not (Test-Path -LiteralPath $Path)) { return $null }
-    $v = (Get-ItemProperty -LiteralPath $Path -Name $Name -ErrorAction Stop).$Name
-    if ($null -eq $v) { return $null }
-    return [int]$v
-  } catch { return $null }
-}
-
 
 function Get-DeviceGuardInfo {
   try {
@@ -641,6 +652,9 @@ try {
 }
 
 # Pipeline output: one structured object
-#$result
+$result
 
 exit $result.ExitCode
+
+
+

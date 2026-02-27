@@ -11,7 +11,7 @@ Optionally reads a JSON config. If JSON is missing/unreadable/invalid, safe defa
 Computer Configuration policies (HKLM) take precedence over User Configuration (HKCU). [page:1]
 
 .PARAMETER Mode
-AuditOnly | Remediate
+Audit | Remediate
 
 .PARAMETER ConfigJsonPath
 Optional JSON path, e.g. "PATH/TO/JSON/powershell-logging.json".
@@ -65,8 +65,8 @@ ConvertFrom-Json in Windows PowerShell 5.1 fails on JSON comments. [web:55]
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [ValidateSet('AuditOnly', 'Remediate')]
-  [string]$Mode = 'AuditOnly',
+  [ValidateSet('Audit', 'Remediate')]
+  [string]$Mode = 'Audit',
 
   [string]$ConfigJsonPath,
 
@@ -85,6 +85,15 @@ param(
   [string]$ExportPath,
 
   [switch]$QuietConsole
+
+,
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -96,6 +105,30 @@ Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # ---------------------------
@@ -137,7 +170,11 @@ function Remove-AllModuleNames {
   $obj = Get-ItemProperty -Path $ModuleNamesKeyPath
   $props = $obj | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
   foreach ($p in $props) {
-    Remove-ItemProperty -Path $ModuleNamesKeyPath -Name $p -ErrorAction SilentlyContinue
+    try {
+      Remove-ItemProperty -Path $ModuleNamesKeyPath -Name $p -ErrorAction Stop
+    } catch {
+      Write-Warning "Could not remove module name property '$p': $($_.Exception.Message)"
+    }
   }
 }
 
@@ -440,7 +477,7 @@ if ($targetEnableModuleLogging -and $effectiveBefore.Module_EnableModuleLogging 
   Add-Finding -Code 'PSLOG-ModuleLoggingOff' -Severity 'Low' -Message 'Module Logging is not enabled (effective policy).'
 }
 
-if ($targetEnableScriptBlockLogging -and $Mode -eq 'AuditOnly') {
+if ($targetEnableScriptBlockLogging -and $Mode -eq 'Audit') {
   Add-Finding -Code 'PSLOG-Recommend-ProtectedEventLogging' -Severity 'Info' -Message 'Consider enabling Protected Event Logging when using Script Block Logging beyond diagnostics.'
 }
 
@@ -521,12 +558,16 @@ if (-not $QuietConsole) {
 }
 
 # Pipeline output: exactly one object, no "pretty" strings.
-#[pscustomobject]@{
-#  Summary  = $summary
-#  Findings = @($Findings)
-#  Current  = [pscustomobject]@{
-#    HKLM      = [pscustomobject]@{ Before = $currentHKLM; After = $afterHKLM }
-#    HKCU      = if ($IncludeHKCU) { [pscustomobject]@{ Before = $currentHKCU; After = $afterHKCU } } else { $null }
-#    Effective = [pscustomobject]@{ Before = $effectiveBefore; After = $effectiveAfter }
-#  }
-#}
+[pscustomobject]@{
+  Summary  = $summary
+  Findings = @($Findings)
+  Current  = [pscustomobject]@{
+    HKLM      = [pscustomobject]@{ Before = $currentHKLM; After = $afterHKLM }
+    HKCU      = if ($IncludeHKCU) { [pscustomobject]@{ Before = $currentHKCU; After = $afterHKCU } } else { $null }
+    Effective = [pscustomobject]@{ Before = $effectiveBefore; After = $effectiveAfter }
+  }
+}
+
+
+
+

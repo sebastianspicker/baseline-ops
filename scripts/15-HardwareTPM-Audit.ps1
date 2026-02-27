@@ -123,20 +123,53 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
   [switch]$Strict,
   [string]$ConfigPath
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 
 # Anonymized defaults
 $EventLogName   = 'Application'
@@ -269,19 +302,6 @@ function Get-CimPropValue {
   if ($Object.PSObject.Properties.Name -contains $Name) { return $Object.$Name }
   return $null
 }
-
-function Get-ConsoleColor {
-  param([Parameter(Mandatory=$true)][ValidateSet('OK','WARN','ERR','INFO','DIM')]$Kind)
-  switch ($Kind) {
-    'OK'   { return 'Green' }
-    'WARN' { return 'Yellow' }
-    'ERR'  { return 'Red' }
-    'INFO' { return 'Cyan' }
-    'DIM'  { return 'DarkGray' }
-  }
-}
-
-
 
 function Write-ConsoleSummary {
   param(
@@ -541,7 +561,7 @@ try {
   Write-ConsoleSummary -OverallOk $ok -Drifts $drifts -Notes $notes -OutFile $outFile -Results $proof.Results
 
   # Pipeline output: one structured object only
-  #[pscustomobject]$proof
+  [pscustomobject]$proof
 }
 catch {
   $errMsg = "Hardware/TPM-Audit failed: " + $_.Exception.Message
@@ -549,3 +569,7 @@ catch {
   Write-PrettyHeader -Title "Hardware/TPM Audit Summary"
   Write-PrettyLine -Text $errMsg -Kind 'ERR'
 }
+
+
+
+

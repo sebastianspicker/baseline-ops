@@ -219,6 +219,21 @@ function Get-RegDword {
   }
 }
 
+function Get-RegDwordOrNull {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$Path,
+    [Parameter(Mandatory)][string]$Name
+  )
+  $value = Get-RegValue -Path $Path -Name $Name
+  if ($null -eq $value) { return $null }
+  try {
+    return [int]$value
+  } catch {
+    return $null
+  }
+}
+
 function Get-RegString {
   [CmdletBinding()]
   param(
@@ -269,5 +284,6 @@ Export-ModuleMember -Function `
   Get-RegKeyExists, `
   Get-RegValueExists, `
   Get-RegDword, `
+  Get-RegDwordOrNull, `
   Get-RegString, `
   Remove-RegistryKeyIfExists

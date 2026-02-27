@@ -11,7 +11,7 @@ Best-practice output model (PowerShell 5.1):
 - Console: pretty output only via Write-UiLine (host output) so the pipeline stays clean. [web:86]
 
 .PARAMETER Mode
-AuditOnly | Remediate
+Audit | Remediate
 
 .PARAMETER ConfigPath
 Optional JSON config path, e.g. "PATH/TO/JSON/config.json".
@@ -51,8 +51,8 @@ PSCustomObject with Summary, Current, After, Findings, Config.
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [ValidateSet('AuditOnly', 'Remediate')]
-  [string]$Mode = 'AuditOnly',
+  [ValidateSet('Audit', 'Remediate')]
+  [string]$Mode = 'Audit',
 
   [string]$ConfigPath,
 
@@ -67,6 +67,14 @@ param(
   [string]$ExportCsvBasePath,
 
   [bool]$ShowSummary = $true
+
+,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -75,9 +83,34 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # -----------------------------
@@ -155,15 +188,7 @@ function Write-PrettySummary {
     Write-UiLine $Value -ForegroundColor $Color
   }
 
-  function Get-SeverityColor {
-    param([string]$Severity)
-    switch ($Severity) {
-      'High'   { return $cBad }
-      'Medium' { return $cWarn }
-      'Low'    { return $cInfo }
-      default  { return 'Gray' }
-    }
-  }
+  # Get-SeverityColor from lib/Console.psm1
 
   # Precompute colors/strings (avoid inline if-expressions in argument position in PS 5.1).
   $compliant = [bool]$Result.Summary.Compliant
@@ -406,4 +431,8 @@ if ($effective.ShowSummary) {
   Write-PrettySummary -Result $result
 }
 
-# $result
+$result
+
+
+
+

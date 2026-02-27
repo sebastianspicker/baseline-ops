@@ -11,6 +11,7 @@ if ! command -v "$pwsh_bin" >/dev/null 2>&1; then
 fi
 
 skip_analyzer="${CI_SKIP_ANALYZER:-}"
+skip_tests="${CI_SKIP_TESTS:-}"
 
 if [[ -z "$skip_analyzer" ]]; then
   "$pwsh_bin" -NoProfile -Command "if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { \$_.Version -eq '$psa_version' })) { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted; Install-Module -Name PSScriptAnalyzer -RequiredVersion '$psa_version' -Scope CurrentUser -Force }"
@@ -22,4 +23,8 @@ if [[ -n "$skip_analyzer" ]]; then
   "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" -RootPath "$root_dir" -SkipAnalyzer
 else
   "$pwsh_bin" -NoProfile -File "$root_dir/tools/verify.ps1" -RootPath "$root_dir"
+fi
+
+if [[ -z "$skip_tests" ]]; then
+  "$pwsh_bin" -NoProfile -Command "Invoke-Pester -Path '$root_dir/tests' -Output Detailed"
 fi

@@ -43,7 +43,7 @@ Otherwise: no pipeline output (console summary only).
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [Parameter(Mandatory = $false)]
   [ValidateNotNullOrEmpty()]
@@ -73,15 +73,49 @@ param(
 
   [Parameter(Mandatory = $false)]
   [switch]$PassThru
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 
@@ -193,48 +227,21 @@ function Get-ScanAgeLabel {
   return [string]$Age
 }
 
-function Get-SeverityRank {
-  param([string]$Severity)
-
-  switch ($Severity) {
-    'High'   { 1 }
-    'Medium' { 2 }
-    'Low'    { 3 }
-    'Info'   { 4 }
-    default  { 9 }
-  }
-}
-
 function Get-HighestSeverity {
   param([System.Collections.Generic.List[object]]$Findings)
 
   if ($null -eq $Findings -or $Findings.Count -eq 0) { return 'None' }
 
-  $ranks = $Findings | ForEach-Object { Get-SeverityRank $_.Severity }
-  $min = ($ranks | Measure-Object -Minimum).Minimum
+  $ranks = $Findings | ForEach-Object { Get-SeverityRank -Severity $_.Severity }
+  $max = ($ranks | Measure-Object -Maximum).Maximum
 
-  switch ($min) {
-    1 { 'High' }
-    2 { 'Medium' }
-    3 { 'Low' }
-    4 { 'Info' }
-    default { 'Unknown' }
-  }
+  if ($max -ge 4) { return 'Critical' }
+  if ($max -ge 3) { return 'High' }
+  if ($max -ge 2) { return 'Medium' }
+  if ($max -ge 1) { return 'Low' }
+  if ($max -ge 0) { return 'Info' }
+  return 'Unknown'
 }
-
-function Get-ColorForSeverity {
-  param([string]$Severity)
-
-  switch ($Severity) {
-    'High'   { 'Red' }
-    'Medium' { 'Yellow' }
-    'Low'    { 'Cyan' }
-    'Info'   { 'Gray' }
-    'None'   { 'Green' }
-    default  { 'White' }
-  }
-}
-
 
 function Write-ConsoleSummary {
   param(
@@ -250,7 +257,7 @@ function Write-ConsoleSummary {
   $cfg = $Result.EffectiveConfig
 
   $highest = Get-HighestSeverity -Findings $f
-  $highestColor = Get-ColorForSeverity $highest
+  $highestColor = Get-SeverityColor -Severity $highest
 
   Write-UiLine ''
   Write-UiLine ('=' * 60) -ForegroundColor DarkGray
@@ -325,8 +332,8 @@ function Write-ConsoleSummary {
     Write-UiLine 'Findings' -ForegroundColor White
     Write-UiLine ('-' * 60) -ForegroundColor DarkGray
 
-    foreach ($item in ($f | Sort-Object @{ Expression = { Get-SeverityRank $_.Severity } }, Code)) {
-      $c = Get-ColorForSeverity $item.Severity
+    foreach ($item in ($f | Sort-Object @{ Expression = { Get-SeverityRank -Severity $_.Severity }; Descending = $true }, Code)) {
+      $c = Get-SeverityColor -Severity $item.Severity
       Write-UiLine ('[{0}] {1} - {2}' -f $item.Severity.ToUpper(), $item.Code, $item.Message) -ForegroundColor $c
     }
   }
@@ -450,3 +457,7 @@ if (-not $NoConsoleSummary) {
 if ($PassThru) {
   $result
 }
+
+
+
+

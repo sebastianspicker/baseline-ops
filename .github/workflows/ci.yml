@@ -53,3 +53,31 @@ jobs:
         shell: powershell
         run: |
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -RootPath $env:GITHUB_WORKSPACE
+
+  test-windows:
+    name: Pester (Windows)
+    runs-on: windows-latest
+    needs: verify
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Pester
+        shell: pwsh
+        run: |
+          Invoke-Pester -Path .\tests -Output Detailed
+
+  test-smoke-linux:
+    name: Smoke (Linux)
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse checks
+        shell: pwsh
+        run: |
+          ./tools/verify.ps1 -RootPath $PWD -SkipAnalyzer

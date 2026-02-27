@@ -48,7 +48,9 @@ function Read-ConfigWithDefaults {
         $meta.UsedDefaultsBecause = $meta.Error
         if ($OnWarning) { & $OnWarning ($meta.Error + ' Using defaults.') }
     }
-    
+    if ($ReturnNullWhenMissing) {
+      return [pscustomobject]@{ Config = $null; Meta = $meta }
+    }
     $resultConfig = if ($AsHashtable) { $config } else { [pscustomobject]$config }
     return [pscustomobject]@{ Config = $resultConfig; Meta = $meta }
   }
@@ -92,7 +94,11 @@ function Read-ConfigWithDefaults {
   } catch {
     $meta.Error = $_.Exception.Message
     $meta.UsedDefaultsBecause = 'Config parse failed.'
-    if ($OnWarning) { & $OnWarning ("Config parse failed, using defaults: $Path") }
+    if ($OnWarning) {
+      $msg = 'Config parse failed, using defaults.'
+      if (-not [string]::IsNullOrWhiteSpace($Path)) { $msg += ' File: ' + (Split-Path -Leaf $Path) }
+      & $OnWarning $msg
+    }
     if ($ReturnNullOnError) {
       return [pscustomobject]@{ Config = $null; Meta = $meta }
     }

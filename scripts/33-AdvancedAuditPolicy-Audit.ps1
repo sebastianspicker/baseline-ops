@@ -13,7 +13,7 @@ optionally compares against a desired-state JSON and can remediate.
 - PowerShell 5.1 safe: avoids Generic.List binder edge-cases.
 
 .PARAMETER Mode
-AuditOnly | Remediate
+Audit | Remediate
 
 .PARAMETER DesiredPolicyJson
 Path to JSON with desired subcategory settings (example: PATH/TO/JSON/auditpolicy.json).
@@ -28,21 +28,56 @@ Optional base path for CSV export. Creates: *_summary.csv, *_findings.csv, *_pol
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [ValidateSet('AuditOnly','Remediate')]
-  [string]$Mode = 'AuditOnly',
+  [ValidateSet('Audit','Remediate')]
+  [string]$Mode = 'Audit',
 
   [string]$DesiredPolicyJson,
 
   [string]$ExportPath
+
+,
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # Findings are kept in ArrayList to avoid PS 5.1 DLR binder edge-cases with Generic.List.
@@ -50,12 +85,6 @@ $script:Findings = New-Object System.Collections.ArrayList
 
 # -------------------- Helpers --------------------
 
-
-function Ensure-Exe {
-  param([Parameter(Mandatory=$true)][string]$Name)
-  $cmd = Get-Command -Name $Name -ErrorAction SilentlyContinue
-  if (-not $cmd) { throw "Executable not found: $Name" }
-}
 
 function Get-FindingStats {
   param([Parameter(Mandatory=$true)][System.Collections.ArrayList]$Findings)
@@ -70,8 +99,9 @@ function Get-FindingStats {
 }
 
 function Get-AuditPolText {
-  $raw = & auditpol.exe /get /category:* 2>&1
-  ($raw | Out-String)
+  $r = Invoke-Auditpol -Arguments @('/get', '/category:*') -CaptureOutput
+  if ($r -and $r.Output) { return ($r.Output | Out-String) }
+  return ''
 }
 
 function Parse-AuditPolText {
@@ -188,19 +218,7 @@ function Try-ReadDesiredPolicyJson {
   }
 }
 
-# -------------------- Console UI --------------------
-
-function Get-SeverityColor {
-  param([Parameter(Mandatory=$true)][ValidateSet('Info','Low','Medium','High')][string]$Severity)
-
-  switch ($Severity) {
-    'High'   { 'Red' }
-    'Medium' { 'Yellow' }
-    'Low'    { 'Cyan' }
-    default  { 'Gray' }
-  }
-}
-
+# -------------------- Console UI (Get-SeverityColor from lib/Console.psm1) --------------------
 
 function Write-ConsoleSummary {
   param(
@@ -345,7 +363,10 @@ if ($Mode -eq 'Remediate') {
       $operation = ('auditpol.exe /set /subcategory:"{0}" {1} {2}' -f $subName, $successArg, $failureArg)
       if ($PSCmdlet.ShouldProcess($subName, $operation)) {
         $auditArgs = @('/set', "/subcategory:$subName", $successArg, $failureArg)
-        & auditpol.exe @auditArgs | Out-Null
+        $res = Invoke-Auditpol -Arguments $auditArgs
+        if ($res -ne $true) {
+          Add-Finding -Code 'AuditPol-SetFailed' -Severity 'High' -Message ("auditpol /set failed for subcategory: {0}" -f $subName)
+        }
       }
     }
   }
@@ -385,8 +406,12 @@ Write-ConsoleSummary -Summary $summary -Findings $script:Findings -DesiredPolicy
 Write-FindingsConsole -Findings $script:Findings
 
 # Pipeline output (structured only).
-#[pscustomobject]@{
-#  Summary        = $summary
-#  Findings       = @($script:Findings)
-#  ParsedPolicies = $policies
-#}
+[pscustomobject]@{
+  Summary        = $summary
+  Findings       = @($script:Findings)
+  ParsedPolicies = $policies
+}
+
+
+
+

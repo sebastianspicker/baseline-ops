@@ -125,19 +125,47 @@
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
   [string]$CatalogPath,
-  [switch]$Remediate,
   [switch]$Strict,
   [string]$ConfigPath,
   [string]$ProofPath
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+$Remediate = ($Mode -eq 'Remediate')
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 
 # ----------------------------
 # Constants / defaults
@@ -208,27 +236,10 @@ function Normalize-Array {
   return @("$Value".Trim()) | Where-Object { $_ }
 }
 
-function Get-RegDword {
-  param([string]$Path,[string]$Name)
-  try { return (Get-ItemProperty -Path $Path -Name $Name -ErrorAction Stop).$Name }
-  catch { return $null }
-}
-
-
 function ConvertFrom-JsonSafe {
   param([string]$JsonText)
   try { return ($JsonText | ConvertFrom-Json -ErrorAction Stop) }
   catch { return $null }
-}
-
-function Read-JsonFileSafe {
-  param([string]$Path)
-  try {
-    if (-not $Path) { return $null }
-    if (-not (Test-Path -LiteralPath $Path)) { return $null }
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
-    return (ConvertFrom-JsonSafe -JsonText $raw)
-  } catch { return $null }
 }
 
 function Get-DefaultCatalog {
@@ -773,7 +784,7 @@ try {
   Write-Information -MessageData ("Guardrails done. EventId={0}, Proof={1}" -f $resultObject.EventId, $ProofPath) -InformationAction Continue
 
   # Pipeline output (single object)
-  #$resultObject
+  $resultObject
 }
 catch {
   $err = $_.Exception.Message
@@ -786,8 +797,10 @@ catch {
       TimestampUtc = (Get-Date).ToUniversalTime().ToString('o')
       ComputerName = $env:COMPUTERNAME
       Error        = $err
-    } | ConvertTo-Json -Depth 4 | Set-Content -Path $ProofPath -Encoding UTF8 -ErrorAction SilentlyContinue
-  } catch { }
+    } | ConvertTo-Json -Depth 4 | Set-Content -Path $ProofPath -Encoding UTF8 -ErrorAction Stop
+  } catch {
+    Write-Warning "Could not write proof file: $($_.Exception.Message)"
+  }
 
   Write-UiLine ""
   Write-UiSeparator -Title "Secure Remote Access Guardrails"
@@ -814,3 +827,7 @@ catch {
     HasDrift     = $false
   }
 }
+
+
+
+

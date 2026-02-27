@@ -29,19 +29,53 @@ A single PSCustomObject:
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$ExportPath,
   [string]$ConfigPath,
   [switch]$NoConsoleSummary
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version 3.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # -------------------------
@@ -119,38 +153,9 @@ function Get-ConfigValue {
 $Config = Get-AuditConfig -Path $ConfigPath -Defaults $DefaultConfig
 
 # -------------------------
-# Console helpers (host stream only)
-# -------------------------
-
-
-function Get-SeverityColor {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Severity)
-  switch ($Severity) {
-    'High'   { [ConsoleColor]::Red }
-    'Medium' { [ConsoleColor]::Yellow }
-    'Low'    { [ConsoleColor]::Cyan }
-    default  { [ConsoleColor]::Gray }
-  }
-}
-
-# -------------------------
-# Findings helpers
+# Findings helpers (Get-SeverityColor, Get-SeverityRank from lib/Console.psm1)
 # -------------------------
 $Findings = New-FindingsList
-
-function Get-SeverityRank {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Severity)
-
-  switch ($Severity) {
-    'High'   { return 0 }
-    'Medium' { return 1 }
-    'Low'    { return 2 }
-    'Info'   { return 3 }
-    default  { return 999 }
-  }
-}
 
 # -------------------------
 # WinRM: service + listeners (best-effort)
@@ -342,7 +347,7 @@ if (-not $NoConsoleSummary) {
     Write-UiSection ("Top findings (max {0})" -f $maxTop)
 
     $top = $result.Findings |
-      Sort-Object @{ Expression = { [int](Get-SeverityRank -Severity ([string]$_.Severity)) } }, Code |
+      Sort-Object @{ Expression = { [int](Get-SeverityRank -Severity ([string]$_.Severity)) }; Descending = $true }, Code |
       Select-Object -First $maxTop
 
     foreach ($f in $top) {
@@ -355,4 +360,8 @@ if (-not $NoConsoleSummary) {
 # -------------------------
 # Pipeline output
 # -------------------------
-#$result
+$result
+
+
+
+

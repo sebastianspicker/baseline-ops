@@ -29,19 +29,53 @@ PSCustomObject with:
 
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$ExpectedDomain,
   [string]$ExportPath,
   [string]$ConfigPath,
   [switch]$NoConsoleSummary
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # region Helpers
@@ -92,16 +126,6 @@ function Import-JsonConfig {
 }
 
 
-
-function Get-SeverityRank {
-  param([string]$Severity)
-  switch ($Severity) {
-    'High'   { 0 }
-    'Medium' { 1 }
-    'Low'    { 2 }
-    default  { 9 }
-  }
-}
 
 # endregion Helpers
 
@@ -312,7 +336,7 @@ if (-not $NoConsoleSummary) {
   if ($Findings.Count -gt 0) {
     Write-ColorLine '' 'Gray'
     Write-ColorLine 'Findings:' 'Yellow'
-    foreach ($f in ($Findings | Sort-Object @{Expression={ Get-SeverityRank $_.Severity }}, Code)) {
+    foreach ($f in ($Findings | Sort-Object @{Expression={ Get-SeverityRank -Severity $_.Severity }; Descending = $true }, Code)) {
       $c = switch ($f.Severity) { 'High' { 'Red' } 'Medium' { 'Yellow' } default { 'Gray' } }
       Write-ColorLine ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) $c
     }
@@ -324,4 +348,8 @@ if (-not $NoConsoleSummary) {
 # endregion Pretty console output
 
 # Pipeline output: exactly one structured object
-#$result
+$result
+
+
+
+

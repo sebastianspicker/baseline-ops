@@ -32,21 +32,56 @@ One object: Summary, Findings, Raw, ConfigUsed, ConfigMeta.
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$ExportPath,
   [switch]$AutoStartService,
   [string]$ConfigJsonPath,
   [switch]$NoConsoleSummary
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # ----------------------------
@@ -171,16 +206,6 @@ function Load-Config {
   return $result
 }
 
-function Get-SeverityRank {
-  param([string]$Severity)
-  switch ($Severity) {
-    'High'   { 3 }
-    'Medium' { 2 }
-    'Low'    { 1 }
-    default  { 0 }
-  }
-}
-
 function Get-CountSafe {
   param($Value)
   @($Value).Count
@@ -255,7 +280,7 @@ function Write-ConsoleSummary {
 
     $top = @(
       $f |
-        Sort-Object @{ Expression = { Get-SeverityRank $_.Severity }; Descending = $true }, Code |
+        Sort-Object @{ Expression = { Get-SeverityRank -Severity $_.Severity }; Descending = $true }, Code |
         Select-Object -First 10 Code, Severity, Message
     )
 
@@ -419,4 +444,8 @@ if (-not $NoConsoleSummary) {
   Write-ConsoleSummary -Result $result -UseWriteInformation:([bool]$ConfigUsed.Console.UseWriteInformation)
 }
 
-# $result
+$result
+
+
+
+

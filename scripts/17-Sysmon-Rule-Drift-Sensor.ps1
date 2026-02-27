@@ -84,7 +84,7 @@ Remediation is only attempted if the remediation script passes policy checks (ex
 
 .PARAMETER RemediationScriptPath
 Path to the remediation script that is called when remediation is triggered.
-The script is started in a new PowerShell process with an additional parameter: -Remediate.
+The script is started in a new PowerShell process with additional parameters: -Mode Remediate.
 
 .PARAMETER RequireSignedRemediationScript
 If set, remediation will only be executed if RemediationScriptPath has a valid Authenticode signature.
@@ -169,7 +169,7 @@ Behavioral details and gotchas:
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [ValidateRange(1,168)]
   [int]$WindowHours = 24,
@@ -206,6 +206,15 @@ param(
   [switch]$AttemptEnableChannel,
 
   [switch]$PassThru
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -216,6 +225,30 @@ Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
 Set-StrictMode -Version Latest
 
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 # -----------------------------
 # Constants (ASCII only)
 # -----------------------------
@@ -504,12 +537,13 @@ function Invoke-RemediationScript {
   }
 
   try {
-    $bypass = ''
-    if ($AllowExecutionPolicyBypass) { $bypass = ' -ExecutionPolicy Bypass' }
+    $argList = @('-NoProfile')
+    if ($AllowExecutionPolicyBypass) {
+      $argList += @('-ExecutionPolicy', 'Bypass')
+    }
+    $argList += @('-File', $ScriptPath, '-Mode', 'Remediate')
 
-    $arg = "-NoProfile{0} -File `"{1}`" -Remediate" -f $bypass, $ScriptPath
-
-    $p = Start-Process -FilePath "powershell.exe" -ArgumentList $arg -WindowStyle Hidden -PassThru -Wait -ErrorAction Stop
+    $p = Start-Process -FilePath "powershell.exe" -ArgumentList $argList -WindowStyle Hidden -PassThru -Wait -ErrorAction Stop
     $result.ExitCode = $p.ExitCode
     $result.Success = ($p.ExitCode -eq 0)
   } catch {
@@ -827,3 +861,6 @@ try {
 
   if ($final.Status -ne 'OK') { exit 1 }
 }
+
+
+

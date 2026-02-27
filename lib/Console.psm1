@@ -116,7 +116,7 @@ function Get-SeverityRank {
     '^(High|Error|Err|Fail|Failed|Failure)$' { 'High' }
     '^(Medium|Warn|Warning|Drift|Changed)$' { 'Medium' }
     '^(Low)$' { 'Low' }
-    '^(OK|Pass|Passed|Good|Success)$ { 'OK' }
+    '^(OK|Pass|Passed|Good|Success)$' { 'OK' }
     '^(Skip|Skipped)$' { 'Skip' }
     default { 'Info' }
   }
@@ -316,12 +316,17 @@ function Write-PrettySummary {
 function Get-FindingStats {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory)]
-    [System.Collections.ArrayList]$Findings
+    [AllowNull()]
+    [System.Collections.IEnumerable]$Findings = @()
   )
 
+  $findingsList = @()
+  if ($null -ne $Findings) {
+    $findingsList = @($Findings)
+  }
+
   $stats = @{
-    Total   = $Findings.Count
+    Total   = $findingsList.Count
     High    = 0
     Medium  = 0
     Low     = 0
@@ -330,7 +335,7 @@ function Get-FindingStats {
     Error   = 0
   }
 
-  foreach ($finding in $Findings) {
+  foreach ($finding in $findingsList) {
     $sev = if ($finding.PSObject.Properties['Severity']) { $finding.Severity } else { 'Info' }
     switch -Regex ($sev) {
       '^(Critical|High)$' { $stats.High++; break }

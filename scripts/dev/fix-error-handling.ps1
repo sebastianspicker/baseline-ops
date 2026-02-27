@@ -50,8 +50,8 @@ foreach ($file in $files) {
   $fileIssues = @()
   
   foreach ($p in $patterns) {
-    $matches = [regex]::Matches($content, $p.Pattern)
-    foreach ($match in $matches) {
+    $matchList = [regex]::Matches($content, $p.Pattern)
+    foreach ($match in $matchList) {
       $fileIssues += @{
         Type = $p.Type
         Severity = $p.Severity
@@ -81,6 +81,9 @@ foreach ($entry in $issuesByFile.GetEnumerator()) {
 
 if ($DryRun) {
   Write-Host "`nDry run complete. No changes made." -ForegroundColor Cyan
+}
+if ($Apply) {
+  Write-Host "`nApply not implemented; use -DryRun to review. Fixes require manual edit." -ForegroundColor Yellow
 }
 
 # Note: Automatic fixing is complex because context matters.

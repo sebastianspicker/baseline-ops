@@ -110,7 +110,7 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
   [switch]$Force,
@@ -118,6 +118,14 @@ param(
   [switch]$HashAllProcesses,
   [switch]$Strict,
   [string]$ConfigPath
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -125,9 +133,34 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # Make Write-Information visible for humans; it is controlled by InformationPreference. 
@@ -200,10 +233,6 @@ function Safe-ToBool {
   } catch { return $Default }
 }
 
-function Get-FileSha256([string]$File) {
-  try { (Get-FileHash -Algorithm SHA256 -Path $File -ErrorAction Stop).Hash } catch { $null }
-}
-
 function Get-FileSignatureInfo([string]$File) {
   $o = [pscustomobject]@{
     Path            = $File
@@ -219,48 +248,6 @@ function Get-FileSignatureInfo([string]$File) {
     if ($sig.SignerCertificate) { $o.Publisher = $sig.SignerCertificate.Subject }
   } catch { }
   return $o
-}
-
-function Copy-ToEvidence {
-  param(
-    [string]$Src,
-    [string]$BaseDir,
-    [int]$MaxFileSizeMB,
-    [int]$MaxTotalMB,
-    [ref]$runningTotalBytes
-  )
-  try {
-    if (-not (Test-Path -LiteralPath $Src)) { return $false, "missing" }
-    $fi = Get-Item -LiteralPath $Src -ErrorAction Stop
-    if ($fi.PSIsContainer) { return $false, "is-directory" }
-
-    $sizeBytes    = [int64]$fi.Length
-    $maxFileBytes = [int64]$MaxFileSizeMB * 1MB
-    $maxTotBytes  = [int64]$MaxTotalMB * 1MB
-
-    if ($sizeBytes -gt $maxFileBytes) { return $false, "too-large-file" }
-    if ($runningTotalBytes.Value + $sizeBytes -gt $maxTotBytes) { return $false, "total-limit" }
-
-    # Robust sanitization for evidence path
-    $safeName = [System.IO.Path]::GetFileName($Src)
-    $safeRel  = $Src.Replace(':','_').Replace('..','__') -replace '[*?"<>|]','_'
-    $dst = Join-Path $BaseDir $safeRel
-    
-    # Final check: is destination still inside BaseDir?
-    $fullBase = [System.IO.Path]::GetFullPath($BaseDir).TrimEnd('\','/')
-    $fullDst  = [System.IO.Path]::GetFullPath($dst)
-    if (-not $fullDst.StartsWith($fullBase, [System.StringComparison]::OrdinalIgnoreCase)) {
-        return $false, "traversal-detected"
-    }
-
-    Ensure-Dir (Split-Path -Parent $fullDst)
-
-    Copy-Item -LiteralPath $Src -Destination $fullDst -Force -ErrorAction Stop
-    $runningTotalBytes.Value += $sizeBytes
-    return $true, $fullDst
-  } catch {
-    return $false, $_.Exception.Message
-  }
 }
 
 function Get-PSObjectPropertyValue {
@@ -454,7 +441,7 @@ function Collect-Processes {
       $sha=$null
       $sig=[pscustomobject]@{ Signed=$false; Publisher=$null; SignatureStatus=$null }
       if ($path) {
-        if ($doHash) { $sha = Get-FileSha256 $path }
+        if ($doHash) { $sha = Get-FileSha256 -Path $path }
         $sig = Get-FileSignatureInfo $path
       }
 
@@ -1031,10 +1018,10 @@ try {
           if ($row.Signed -eq 'True') { continue }
         }
 
-        $okc, $dstOrWhy = Copy-ToEvidence -Src $path -BaseDir $sDir -MaxFileSizeMB $maxFileMB -MaxTotalMB $maxTotalMB -runningTotalBytes $totalBytes
+        $okc, $dstOrWhy = Copy-ToEvidence -SourcePath $path -EvidenceBaseDir $sDir -MaxFileSizeMB $maxFileMB -MaxTotalMB $maxTotalMB -RunningTotalBytes $totalBytes
         $sha = $null
         if ($okc) { 
-            $sha = Get-FileSha256 $dstOrWhy
+            $sha = Get-FileSha256 -Path $dstOrWhy
             Add-Finding -Code 'Grabber-SampleCollected' -Severity 'Low' -Message "Suspicious sample collected: $path" -Extra @{ Path = $path; Sha256 = $sha; Evidence = $dstOrWhy }
         }
 
@@ -1092,3 +1079,7 @@ try {
     Write-UiStatus -Label 'IR Grabber' -State 'FAIL' -Text "No summary object created."
   }
 } # end script try
+
+
+
+

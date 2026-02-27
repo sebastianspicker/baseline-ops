@@ -16,6 +16,8 @@ Unit tests for the Registry module functions including:
 [CmdletBinding()]
 param()
 
+$script:SkipRegistryTests = (-not $IsWindows) -or (-not (Get-PSDrive -Name HKCU -ErrorAction SilentlyContinue))
+
 BeforeAll {
   # Import the module
   $modulePath = Join-Path $PSScriptRoot '../../lib/Registry.psm1'
@@ -33,7 +35,7 @@ AfterAll {
   }
 }
 
-Describe "Ensure-RegistryKey" {
+Describe "Ensure-RegistryKey" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     # Ensure clean state
     if (Test-Path -LiteralPath $script:TestKeyPath) {
@@ -57,7 +59,7 @@ Describe "Ensure-RegistryKey" {
   }
 }
 
-Describe "Get-RegValue" {
+Describe "Get-RegValue" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     # Setup test key with values
     if (Test-Path -LiteralPath $script:TestKeyPath) {
@@ -89,7 +91,7 @@ Describe "Get-RegValue" {
   }
 }
 
-Describe "Set-RegDword" {
+Describe "Set-RegDword" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     if (Test-Path -LiteralPath $script:TestKeyPath) {
       Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -118,7 +120,7 @@ Describe "Set-RegDword" {
   }
 }
 
-Describe "Set-RegString" {
+Describe "Set-RegString" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     if (Test-Path -LiteralPath $script:TestKeyPath) {
       Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -134,7 +136,7 @@ Describe "Set-RegString" {
   }
 }
 
-Describe "Get-RegKeyExists" {
+Describe "Get-RegKeyExists" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     if (Test-Path -LiteralPath $script:TestKeyPath) {
       Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -151,7 +153,7 @@ Describe "Get-RegKeyExists" {
   }
 }
 
-Describe "Get-RegValueExists" {
+Describe "Get-RegValueExists" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     if (Test-Path -LiteralPath $script:TestKeyPath) {
       Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -173,7 +175,7 @@ Describe "Get-RegValueExists" {
   }
 }
 
-Describe "Remove-RegValueIfExists" {
+Describe "Remove-RegValueIfExists" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     if (Test-Path -LiteralPath $script:TestKeyPath) {
       Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -199,7 +201,7 @@ Describe "Remove-RegValueIfExists" {
   }
 }
 
-Describe "Get-RegDword" {
+Describe "Get-RegDword" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     if (Test-Path -LiteralPath $script:TestKeyPath) {
       Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -224,7 +226,7 @@ Describe "Get-RegDword" {
   }
 }
 
-Describe "Get-RegString" {
+Describe "Get-RegString" -Skip:$script:SkipRegistryTests {
   BeforeEach {
     if (Test-Path -LiteralPath $script:TestKeyPath) {
       Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue

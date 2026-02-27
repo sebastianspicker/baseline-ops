@@ -97,21 +97,54 @@
 #>
 
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
   [string]$StatePath  = "PATH\TO\PROOF\sw-inventory.json",
   [switch]$Strict,
   [string]$ConfigPath = "PATH\TO\JSON\config.json"
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 
 # -------------------- Settings --------------------
 $Script:EventLogName     = 'Application'
@@ -409,25 +442,11 @@ function New-SummaryLines {
 }
 
 # -------------------- Console output (host only) --------------------
-function Get-ColorForLevel {
-  [CmdletBinding()]
-  param([Parameter(Mandatory=$true)][string]$Level)
-
-  switch ($Level) {
-    'Error'   { 'Red' }
-    'Warning' { 'Yellow' }
-    default   { 'Green' }
-  }
-}
-
-
-
-
 function Write-ConsoleSummary {
   [CmdletBinding()]
   param([Parameter(Mandatory=$true)][pscustomobject]$ResultObject)
 
-  $statusColor = Get-ColorForLevel -Level $ResultObject.Status.Level
+  $statusColor = Get-StatusColor -Status $ResultObject.Status.Level
 
   Write-ConsoleBanner -Title "Software Audit" -Color 'Cyan'
   Write-ConsoleKeyValue -Key 'Timestamp' -Value ([string]$ResultObject.Time)
@@ -510,7 +529,7 @@ try {
   Write-ConsoleSummary -ResultObject $result
 
   # Pipeline output (structured object only)
-  #$result
+  $result
 
   if     ($status.EventId -eq 4902) { exit 2 }
   elseif ($status.EventId -eq 4901) { exit 1 }
@@ -532,3 +551,7 @@ try {
   Write-UiLine ""
   exit 2
 }
+
+
+
+

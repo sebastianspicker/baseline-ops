@@ -1,38 +1,52 @@
 # Contributing
 
-Thanks for helping improve this repository. Please keep changes minimal, well‑scoped, and safe for production environments.
+Keep changes small, reviewable, and safe for endpoint operations.
 
-## Ground rules
-- Do not include secrets, tokens, or private keys in code, tests, logs, or examples.
-- Avoid behavior changes without a clear rationale and documentation.
-- Prefer small, focused pull requests.
-- Test in a lab environment before running in production.
+## Baseline rules
 
-## Development workflow
-1) Create a branch.
-2) Make focused changes.
-3) Run the verification steps (below).
-4) Open a PR with a clear summary and testing notes.
+- Never commit secrets, tokens, credentials, or private keys.
+- Prefer behavior-preserving refactors unless the PR explicitly documents a breaking change.
+- For remediation scripts, verify `ShouldProcess` semantics (`-WhatIf`/`-Confirm`) before merge.
+- Use shared `lib/` modules instead of adding new inline helper duplicates.
 
-## Verification
-- Fast loop (syntax only):
+## Development flow
+
+1. Create a branch.
+2. Implement focused changes.
+3. Run local checks.
+4. Open PR with scope, risks, and validation evidence.
+
+## Required local checks
+
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1
+pwsh -NoProfile -Command "Invoke-Pester -Path .\tests -Output Detailed"
 ```
 
-- Full loop (syntax + PSScriptAnalyzer):
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
+Or run:
+
+```bash
+./scripts/ci-local.sh
 ```
 
-- Secret scan (basic local scan):
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1
-```
+## Documentation policy
 
-## Documentation
-- Update `README.md` if behavior, parameters, or usage changes.
-- Keep examples accurate and safe (use `PATH/TO/...` placeholders).
+Root docs are intentionally minimal:
+
+- `README.md`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `CHANGELOG.md`
+
+Move implementation plans and experiments to `plans/` or PR descriptions.
+
+## Dev-only maintenance scripts
+
+One-off migration helpers are under `scripts/dev/`.
+They are not CI-required and should not be used as runtime dependencies.
 
 ## Security reporting
-See `SECURITY.md` for vulnerability disclosure guidance.
+
+See [SECURITY.md](SECURITY.md).

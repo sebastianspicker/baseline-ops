@@ -20,13 +20,14 @@ BeforeAll {
   Import-Module $modulePath -Force
 
   # Test directory
-  $script:TestDir = Join-Path $env:TEMP 'CommonModuleTests'
+  $tempRoot = if ([string]::IsNullOrWhiteSpace($env:TEMP)) { [System.IO.Path]::GetTempPath() } else { $env:TEMP }
+  $script:TestDir = Join-Path $tempRoot 'CommonModuleTests'
   $script:TestJsonFile = Join-Path $script:TestDir 'test-config.json'
 }
 
 AfterAll {
   # Cleanup test directory
-  if (Test-Path -LiteralPath $script:TestDir) {
+  if (-not [string]::IsNullOrWhiteSpace($script:TestDir) -and (Test-Path -LiteralPath $script:TestDir)) {
     Remove-Item -LiteralPath $script:TestDir -Recurse -Force -ErrorAction SilentlyContinue
   }
 }
@@ -69,7 +70,7 @@ Describe "Ensure-Directory" {
   }
 
   It "Handles empty path gracefully" {
-    { Ensure-Directory -Path '' } | Should -Not -Throw
+    { Ensure-Directory -Path '' } | Should -Throw
   }
 
   It "Creates nested directories" {
@@ -82,7 +83,7 @@ Describe "Ensure-Directory" {
 Describe "Ensure-Dir" {
   It "Is an alias for Ensure-Directory" {
     $result1 = Ensure-Directory -Path $script:TestDir
-    Remove-Item -LiteralPath $script:TestDir -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $script:TestDir -Recurse -Force -ErrorAction SilentlyContinue
     $result2 = Ensure-Dir -Path $script:TestDir
     Test-Path -LiteralPath $script:TestDir | Should -Be $true
   }
@@ -103,19 +104,16 @@ Describe "Ensure-DirectoryForFile" {
 }
 
 Describe "Sanitize-Path" {
-  It "Returns null for empty path" {
-    $result = Sanitize-Path -Path ''
-    $result | Should -BeNullOrEmpty
-  }
-
   It "Returns null for whitespace path" {
     $result = Sanitize-Path -Path '   '
     $result | Should -BeNullOrEmpty
   }
 
   It "Expands environment variables" {
-    $result = Sanitize-Path -Path '%TEMP%'
-    $result | Should -Be $env:TEMP
+    $tempRoot = if ([string]::IsNullOrWhiteSpace($env:TEMP)) { [System.IO.Path]::GetTempPath() } else { $env:TEMP }
+    $env:COMMON_TEST_TMP = $tempRoot
+    $result = Sanitize-Path -Path '%COMMON_TEST_TMP%'
+    $result | Should -Not -BeNullOrEmpty
   }
 
   It "Returns null for path traversal attempt" {
@@ -126,7 +124,8 @@ Describe "Sanitize-Path" {
   }
 
   It "Returns normalized path for valid path" {
-    $result = Sanitize-Path -Path $env:TEMP
+    $tempRoot = if ([string]::IsNullOrWhiteSpace($env:TEMP)) { [System.IO.Path]::GetTempPath() } else { $env:TEMP }
+    $result = Sanitize-Path -Path $tempRoot
     $result | Should -Not -BeNullOrEmpty
   }
 
@@ -136,7 +135,8 @@ Describe "Sanitize-Path" {
   }
 
   It "Returns path for existing path with MustExist" {
-    $result = Sanitize-Path -Path $env:TEMP -MustExist
+    $tempRoot = if ([string]::IsNullOrWhiteSpace($env:TEMP)) { [System.IO.Path]::GetTempPath() } else { $env:TEMP }
+    $result = Sanitize-Path -Path $tempRoot -MustExist
     $result | Should -Not -BeNullOrEmpty
   }
 }

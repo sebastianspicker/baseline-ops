@@ -34,7 +34,7 @@
   Path to a JSON file that will receive an audit record of the run.
   If the directory does not exist, it is created.
 
-.PARAMETER Passthru
+.PARAMETER PassThru
   If specified, outputs exactly one structured object to the pipeline containing:
   - Metadata about the run (time, computer, mode, JSON source)
   - Per-category diffs (current/desired/add/remove/rejected)
@@ -56,7 +56,7 @@
 .OUTPUTS
   None by default.
 
-  When -Passthru is used:
+  When -PassThru is used:
   - A single PSCustomObject with properties such as:
     Timestamp, ComputerName, Remediate, SourceJson, AuditPath,
     JsonLoaded, JsonError, BaselineUsed, Notes,
@@ -84,11 +84,11 @@
 
 .EXAMPLE
   # Emit structured output for reporting
-  .\Defender-Allowlist-Sync.ps1 -ExceptionsPath "PATH/TO/JSON" -Passthru | ConvertTo-Json -Depth 6
+  .\Defender-Allowlist-Sync.ps1 -ExceptionsPath "PATH/TO/JSON" -PassThru | ConvertTo-Json -Depth 6
 
 .EXAMPLE
   # Emit structured output and export a compact report
-  .\Defender-Allowlist-Sync.ps1 -ExceptionsPath "PATH/TO/JSON" -Passthru |
+  .\Defender-Allowlist-Sync.ps1 -ExceptionsPath "PATH/TO/JSON" -PassThru |
     Select-Object Timestamp,ComputerName,Result,TotalAdd,TotalRemove,TotalRejected,TotalErrors,SourceJson |
     Export-Csv -NoTypeInformation -Path "PATH/TO/REPORT.csv"
 
@@ -107,18 +107,25 @@
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [switch]$Remediate,
 
   # Optional config paths - use $null to skip, or provide actual paths
   [string]$ConfigPath,
   [string]$ExceptionsPath,
   [string]$AuditPath,
 
-  [switch]$Passthru,
+  [switch]$PassThru,
   [switch]$StrictJson,
 
   [ValidateSet('Current','Minimum')]
   [string]$BaselineMode = 'Minimum'
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -126,9 +133,30 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+$Remediate = ($Mode -eq 'Remediate')
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # ----------------------------- Helpers --------------------------------------------
@@ -429,7 +457,7 @@ function Write-ConsoleSummary {
   Write-UiLine "Defender / ASR / CFA Allowlist Sync" -ForegroundColor White
   Write-UiLine "============================================================" -ForegroundColor DarkGray
 
-  Write-Kv "Mode"       ($(if ($Result.Remediate) { "Remediate" } else { "AuditOnly" })) DarkGray $modeColor
+  Write-Kv "Mode"       ($(if ($Result.Remediate) { "Remediate" } else { "Audit" })) DarkGray $modeColor
   Write-Kv "Baseline"   $Result.BaselineUsed DarkGray ($(if ($Result.BaselineUsed -eq 'None') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
   Write-Kv "Computer"   $Result.ComputerName
   Write-Kv "Timestamp"  $Result.Timestamp
@@ -620,7 +648,7 @@ try {
   Write-AuditJson -Path $AuditPath -Object $final
   Write-ConsoleSummary -Result $final
 
-  if ($Passthru) { $final }
+  if ($PassThru) { $final }
 }
 catch {
   $msg = "Defender/ASR allowlist failed: $($_.Exception.Message)"
@@ -652,5 +680,7 @@ catch {
   Write-AuditJson -Path $AuditPath -Object $final
   Write-ConsoleSummary -Result $final
 
-  if ($Passthru) { $final }
+  if ($PassThru) { $final }
 }
+
+

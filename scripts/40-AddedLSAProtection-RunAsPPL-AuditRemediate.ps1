@@ -21,7 +21,7 @@ Optional JSON config:
 
 Example JSON:
 {
-  "Mode": "AuditOnly",
+  "Mode": "Audit",
   "TargetRunAsPPL": 1,
   "ManageRunAsPPLBoot": false,
   "DisableMethod": "SetZero",
@@ -36,10 +36,10 @@ Example JSON:
 .USAGE (positional args)
   .\40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1
   .\40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1 Remediate 2 Boot Verify 168 CI 168 SetZero Export PATH/TO/JSON
-  .\40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1 AuditOnly 1 x x 24 x 24 SetZero x x Config PATH/TO/JSON Quiet
+  .\40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1 Audit 1 x x 24 x 24 SetZero x x Config PATH/TO/JSON Quiet
 
 ARGS (positional)
-  0: Mode                 AuditOnly | Remediate
+  0: Mode                 Audit | Remediate
   1: TargetRunAsPPL       0 | 1 | 2
   2: Boot                 literal "Boot" to also set RunAsPPLBoot
   3: Verify               literal "Verify"
@@ -57,6 +57,22 @@ ARGS (positional)
 
 #>
 
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+param(
+  [ValidateSet('Audit','Remediate')]
+  [string]$Mode = 'Audit',
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')]
+  [string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor,
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$LegacyArgs
+)
+
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
@@ -65,6 +81,30 @@ Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 
 
 Set-StrictMode -Version 3.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # ----------------------------
@@ -219,7 +259,7 @@ function Get-CodeIntegrityLsaEvents {
 # ----------------------------
 function New-DefaultConfig {
   return @{
-    Mode                 = 'AuditOnly'
+    Mode                 = 'Audit'
     TargetRunAsPPL       = 1
     ManageRunAsPPLBoot   = $false
     DisableMethod        = 'SetZero'
@@ -306,7 +346,8 @@ function Normalize-ConfigTypes {
 function Validate-Config {
   param([Parameter(Mandatory)][hashtable]$Config)
 
-  if ($Config['Mode'] -notin @('AuditOnly','Remediate')) { throw "Mode must be AuditOnly or Remediate. Got: $($Config['Mode'])" }
+  if ($Config['Mode'] -eq 'AuditOnly') { $Config['Mode'] = 'Audit' }
+  if ($Config['Mode'] -notin @('Audit','Remediate')) { throw "Mode must be Audit or Remediate. Got: $($Config['Mode'])" }
   if ($Config['TargetRunAsPPL'] -notin @(0,1,2)) { throw "TargetRunAsPPL must be 0, 1, or 2. Got: $($Config['TargetRunAsPPL'])" }
   if ($Config['VerifyLookbackHours'] -lt 1 -or $Config['VerifyLookbackHours'] -gt 168) { throw "VerifyLookbackHours must be 1..168. Got: $($Config['VerifyLookbackHours'])" }
   if ($Config['CILookbackHours'] -lt 1 -or $Config['CILookbackHours'] -gt 168) { throw "CILookbackHours must be 1..168. Got: $($Config['CILookbackHours'])" }
@@ -408,10 +449,13 @@ function Write-PrettySummary {
 # ----------------------------
 Require-Admin
 
-$configPath = Get-TokenValue -ArgsList $args -Token 'Config'
+$configPath = if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) { $ConfigPath } else { Get-TokenValue -ArgsList $LegacyArgs -Token 'Config' }
 $cfgResult = Read-ConfigWithDefaults -Path $configPath -Defaults (New-DefaultConfig) -AsHashtable -OnWarning { param($m) Write-WarnLine $m }
 $config = $cfgResult.Config
-$config = Apply-ArgsOverlay -Config $config -ArgsList $args
+$config = Apply-ArgsOverlay -Config $config -ArgsList $LegacyArgs
+$config['Mode'] = if ($Mode -eq 'Remediate') { 'Remediate' } else { 'Audit' }
+if ($PSBoundParameters.ContainsKey('Quiet')) { $config['Quiet'] = [bool]$Quiet }
+if (-not [string]::IsNullOrWhiteSpace($OutputPath)) { $config['ExportPath'] = $OutputPath }
 $config = Normalize-ConfigTypes -Config $config
 Validate-Config -Config $config
 
@@ -525,7 +569,14 @@ $result = [pscustomobject]@{
   CodeIntegrity = $codeIntegrity
 }
 
-if ($ExportPath) { Export-ResultJson -Result $result -Path $ExportPath }
-if (-not $Quiet) { Write-PrettySummary -Result $result }
+if ($OutputFormat -eq 'Json' -and $OutputPath) {
+  Export-ResultJson -Result $result -Path $OutputPath
+} elseif ($ExportPath) {
+  Export-ResultJson -Result $result -Path $ExportPath
+}
+if ($OutputFormat -eq 'Csv' -and $OutputPath) {
+  @($result.Findings) | Export-Csv -LiteralPath $OutputPath -NoTypeInformation -Encoding UTF8
+}
 
-# $result
+if ($OutputFormat -eq 'Console' -and -not $Quiet) { Write-PrettySummary -Result $result }
+if ($PassThru -or $OutputFormat -eq 'Console') { $result }

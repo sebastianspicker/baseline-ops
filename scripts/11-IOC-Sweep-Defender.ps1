@@ -138,13 +138,17 @@
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [string]$CatalogPath,
-  [switch]$Remediate,
   [switch]$CollectEvidence,
   [ValidateSet('Quick','Full','None')] [string]$ScanType = 'Full',
   [string[]]$CustomScanPaths,
   [switch]$Strict,
   [string]$ConfigPath,
-  [switch]$PassThru
+  [switch]$PassThru,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -152,6 +156,29 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+$Remediate = ($Mode -eq 'Remediate')
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 
 
 $ErrorActionPreference = 'Stop'
@@ -269,7 +296,7 @@ function Load-Catalog {
 function Get-ProcessImageSha256([int]$ProcessId){
   try {
     $p = Get-Process -Id $ProcessId -ErrorAction Stop
-    if ($p.Path) { return Get-FileSha256 $p.Path }
+    if ($p.Path) { return Get-FileSha256 -Path $p.Path }
   } catch { }
   return $null
 }
@@ -281,25 +308,6 @@ function Get-FilePublisher([string]$File){
     return $sig.SignerCertificate.Subject, ($sig.Status -eq 'Valid')
   } catch {
     return $null, $false
-  }
-}
-
-function Get-FileSha256([string]$File){
-  try { return (Get-FileHash -Path $File -Algorithm SHA256 -ErrorAction Stop).Hash } catch { return $null }
-}
-
-function Copy-ToEvidence([string]$Src,[string]$BaseDir){
-  try {
-    if (-not (Test-Path -LiteralPath $Src)) { return $false, "missing" }
-    if (-not $BaseDir) { return $false, "no evidence dir" }
-
-    $rel = $Src.Replace(':','').TrimStart('\') -replace '[\\/:*?"<>|]','_'
-    $dst = Join-Path $BaseDir $rel
-    Ensure-Dir (Split-Path -Parent $dst)
-    Copy-Item -LiteralPath $Src -Destination $dst -Force -ErrorAction Stop
-    return $true, $dst
-  } catch {
-    return $false, $_.Exception.Message
   }
 }
 
@@ -319,8 +327,9 @@ function Convert-RegProviderToRegExePath([string]$KeyPath){
 function Export-Reg([string]$RegPath,[string]$OutFile){
   try {
     Ensure-Dir (Split-Path -Parent $OutFile)
-    & reg.exe export $RegPath $OutFile /y | Out-Null
-    return $true, $OutFile
+    $res = Invoke-RegExe -Arguments @('export', $RegPath, $OutFile, '/y')
+    if ($res -eq $true) { return $true, $OutFile }
+    return $false, 'reg-export-failed'
   } catch {
     return $false, $_.Exception.Message
   }
@@ -443,7 +452,7 @@ try {
     if (-not $p) { continue }
     if (-not (Test-Path -LiteralPath $p)) { continue }
 
-    $sha = Get-FileSha256 $p
+    $sha = Get-FileSha256 -Path $p
     $pub,$valid = Get-FilePublisher $p
 
     $fSha    = [string](Get-ObjPropValue $f 'Sha256')
@@ -461,7 +470,7 @@ try {
       $foundAny = $true
       $evPath = $null
       if ($CollectEvidence) {
-        $okc,$ev = Copy-ToEvidence -Src $p -BaseDir $evDir
+        $okc,$ev = Copy-ToEvidence -SourcePath $p -EvidenceBaseDir $evDir
         if ($okc) { $evPath = $ev } else { $Proof.Errors += "Evidence copy failed ($p): $ev"; $ok = $false }
       }
 
@@ -491,7 +500,7 @@ try {
 
     $hits = Get-ChildItem -LiteralPath $dir -Filter $pat -File -ErrorAction SilentlyContinue
     foreach ($h in $hits) {
-      $sha = Get-FileSha256 $h.FullName
+      $sha = Get-FileSha256 -Path $h.FullName
       $pub,$valid = Get-FilePublisher $h.FullName
 
       $gSha    = [string](Get-ObjPropValue $g 'Sha256')
@@ -504,7 +513,7 @@ try {
       $foundAny = $true
       $evPath = $null
       if ($CollectEvidence) {
-        $okc,$ev = Copy-ToEvidence -Src $h.FullName -BaseDir $evDir
+        $okc,$ev = Copy-ToEvidence -SourcePath $h.FullName -EvidenceBaseDir $evDir
         if ($okc) { $evPath = $ev } else { $Proof.Errors += "Evidence copy failed ($($h.FullName)): $ev"; $ok = $false }
       }
 
@@ -883,3 +892,6 @@ if ($errCount -gt 0) {
 if ($PassThru) { $Proof }
 
 exit $exitCode
+
+
+

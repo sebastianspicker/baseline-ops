@@ -11,7 +11,7 @@ Audit/drift sensor for selected "Security Options"-adjacent settings via registr
 - Console output: pretty, human-readable, colorized summary via Write-UiLine / Write-Information only.
 
 .PARAMETER Mode
-AuditOnly | Remediate
+Audit | Remediate
 
 .PARAMETER DesiredJson
 Either:
@@ -37,8 +37,8 @@ PSCustomObject with Summary, Findings, CurrentValues, Drift, DesiredLoaded.
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [ValidateSet('AuditOnly','Remediate')]
-  [string]$Mode = 'AuditOnly',
+  [ValidateSet('Audit','Remediate')]
+  [string]$Mode = 'Audit',
 
   [string]$DesiredJson,
 
@@ -47,15 +47,47 @@ param(
   [switch]$Quiet,
 
   [switch]$NoColor
+
+,
+  [string]$ConfigPath,
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+if ($PSBoundParameters.ContainsKey('Mode')) {
+  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
+    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
+  }
+}
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 $ErrorActionPreference = 'Stop'
 
 # -------------------------
@@ -69,23 +101,8 @@ $script:CurrentValues = New-Object System.Collections.Generic.List[object]
 $script:Drift         = New-Object System.Collections.Generic.List[object]
 
 # -------------------------
-# Console helpers (no pipeline pollution)
+# Console helpers (Get-SeverityColor from lib/Console.psm1; custom Write-ConsoleSummary for Drift/CurrentValues)
 # -------------------------
-
-
-
-
-function Get-SeverityColor {
-  param([Parameter(Mandatory)][string]$Severity)
-
-  switch ($Severity) {
-    'High'   { return [ConsoleColor]::Red }
-    'Medium' { return [ConsoleColor]::Yellow }
-    'Low'    { return [ConsoleColor]::Cyan }
-    'Info'   { return [ConsoleColor]::Gray }
-    default  { return [ConsoleColor]::Gray }
-  }
-}
 
 function Format-Value {
   param([object]$Value)
@@ -515,3 +532,7 @@ Write-ConsoleSummary -Summary $summary -Findings $script:Findings -CurrentValues
   Drift         = [object[]]$script:Drift
   DesiredLoaded = $desiredLoaded
 }
+
+
+
+

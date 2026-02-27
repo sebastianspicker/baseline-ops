@@ -108,9 +108,17 @@
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [switch]$Remediate,
   [int]$MinDaysBeforeRotate = 0,
   [string]$ConfigPath
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet,
+  [switch]$NoColor
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
@@ -121,6 +129,26 @@ Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+$Remediate = ($Mode -eq 'Remediate')
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 
 # --------------------------- Defaults / Config -------------------------------------
 
@@ -481,7 +509,7 @@ function Try-CollectLapsDiagnostics {
     $cmd = Get-Command Get-LapsDiagnostics -ErrorAction SilentlyContinue
     if (-not $cmd) { return $false, "Get-LapsDiagnostics not available" }
 
-    $null = New-Item -ItemType Directory -Path $OutputFolder -Force -ErrorAction SilentlyContinue
+    $null = New-Item -ItemType Directory -Path $OutputFolder -Force -ErrorAction Stop
     $out = Get-LapsDiagnostics -OutputFolder $OutputFolder -ErrorAction Stop
     return $true, (($out | Out-String).Trim())
   } catch {
@@ -783,7 +811,11 @@ if ($result.DiagnosticsCollected) {
 }
 
 # Pipeline output: ONE object only
-#$result
+$result
 
 # Exit code for CI/MDM
 if ($result.OkOverall) { exit 0 } else { exit 1 }
+
+
+
+

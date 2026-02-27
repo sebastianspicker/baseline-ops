@@ -19,13 +19,13 @@
     - A hash of the current runtime config dump (Sysmon "-c" without a file) vs. the previously recorded runtime dump hash.
 
   Remediation behavior:
-  - If -Remediate is set and Sysmon is not installed, the script installs Sysmon using the selected XML.
-  - If -Remediate is set and drift is detected, the script updates Sysmon to use the selected XML.
-  - If -Remediate is NOT set, the script runs in audit mode and returns a non-OK status when drift/non-compliance is detected.
+  - If -Mode Remediate is set and Sysmon is not installed, the script installs Sysmon using the selected XML.
+  - If -Mode Remediate is set and drift is detected, the script updates Sysmon to use the selected XML.
+  - If -Mode Audit is used, the script runs in audit mode and returns a non-OK status when drift/non-compliance is detected.
 
   Optional logging channel management:
   - If -EnsureChannel is set, the script checks whether the Sysmon Operational channel is enabled and whether its maximum size meets the requested value.
-  - If -EnsureChannel is set together with -Remediate, the script attempts to enable/resize the channel to become compliant.
+  - If -EnsureChannel is set together with -Mode Remediate, the script attempts to enable/resize the channel to become compliant.
 
   State and output:
   - Writes a state JSON that records what was applied/observed (host, time, sysmon engine details, desired config SHA256, source, runtime dump hash).
@@ -49,13 +49,14 @@
   Optional explicit path to sysmon.exe/sysmon64.exe.
   If not provided, the script attempts to discover the Sysmon executable from the installed service configuration or known default locations.
 
-.PARAMETER Remediate
-  If set, the script performs changes to reach the desired state (install/update Sysmon config; optionally enable/resize channel when -EnsureChannel is used).
-  If not set, the script runs in audit-only mode and reports drift/non-compliance without changing the system.
+.PARAMETER Mode
+  Execution mode:
+  - Audit: report drift/non-compliance without changing the system.
+  - Remediate: perform changes to reach the desired state (install/update Sysmon config; optionally enable/resize channel when -EnsureChannel is used).
 
 .PARAMETER EnsureChannel
   If set, validates the Sysmon Operational channel status (enabled + minimum size).
-  Use together with -Remediate to enforce the desired channel settings.
+  Use together with -Mode Remediate to enforce the desired channel settings.
 
 .PARAMETER ChannelSizeMiB
   Desired minimum maximum size of the Sysmon Operational channel in MiB.
@@ -104,7 +105,7 @@
 
 .EXAMPLE
   # Remediate: apply the config if drift is detected (or install if missing)
-  .\16-Sysmon-Config-Updater.ps1 -ConfigPath "PATH/TO/sysmon.xml" -Remediate
+  .\16-Sysmon-Config-Updater.ps1 -ConfigPath "PATH/TO/sysmon.xml" -Mode Remediate
 
 .EXAMPLE
   # Select config from a directory using a name hint, audit-only
@@ -112,11 +113,11 @@
 
 .EXAMPLE
   # Use a manifest and a directory (manifest may specify Config.File, AllowedHashes, MinEngine)
-  .\16-Sysmon-Config-Updater.ps1 -ManifestPath "PATH/TO/manifest.json" -SourceDir "PATH/TO/payload" -Remediate
+  .\16-Sysmon-Config-Updater.ps1 -ManifestPath "PATH/TO/manifest.json" -SourceDir "PATH/TO/payload" -Mode Remediate
 
 .EXAMPLE
   # Enforce Sysmon Operational channel settings during remediation
-  .\16-Sysmon-Config-Updater.ps1 -ConfigPath "PATH/TO/sysmon.xml" -EnsureChannel -ChannelSizeMiB 256 -Remediate
+  .\16-Sysmon-Config-Updater.ps1 -ConfigPath "PATH/TO/sysmon.xml" -EnsureChannel -ChannelSizeMiB 256 -Mode Remediate
 
 .EXAMPLE
   # Export the structured result (pipeline-safe)
@@ -128,12 +129,12 @@
   - State: if missing/invalid, the script continues with empty defaults (drift detection may rely on runtime dump hash and current desired hash).
 
   Idempotency and drift:
-  - In audit mode (-Remediate not set), the script reports non-OK when it detects drift or required settings are not compliant.
+  - In audit mode (-Mode Audit), the script reports non-OK when it detects drift or required settings are not compliant.
   - In remediate mode, the script only applies changes when drift/non-compliance is detected.
 
   Security considerations:
   - When using AllowedHashes, ensure the allowlist is maintained securely.
-  - Running with -Remediate requires administrative privileges to install/update Sysmon and to change event log channel settings.
+  - Running with -Mode Remediate requires administrative privileges to install/update Sysmon and to change event log channel settings.
 #>
 
 
@@ -143,7 +144,6 @@ param(
   [string]$SourceDir,
   [string]$ManifestPath,
   [string]$SysmonExePath,
-  [switch]$Remediate,
   [switch]$EnsureChannel,
   [ValidateRange(1, 4096)]
   [int]$ChannelSizeMiB = 256,
@@ -163,25 +163,49 @@ param(
 
   # Console rendering preferences
   [switch]$NoColor
+
+,
+  [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
+  [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',
+  [string]$OutputPath,
+  [switch]$PassThru,
+  [switch]$Strict,
+  [switch]$Quiet
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
 
 
 Set-StrictMode -Version Latest
 
+# v2-init
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$script:__V2Context = @{
+  Mode = $Mode
+  ConfigPath = $ConfigPath
+  OutputFormat = $OutputFormat
+  OutputPath = $OutputPath
+  PassThru = [bool]$PassThru
+  Strict = [bool]$Strict
+  Quiet = [bool]$Quiet
+  NoColor = [bool]$NoColor
+}
+$Remediate = ($Mode -eq 'Remediate')
+if ($Quiet) {
+  $InformationPreference = 'SilentlyContinue'
+  $VerbosePreference = 'SilentlyContinue'
+}
+if ($NoColor) {
+  $script:NoColor = $true
+}
 # -----------------------------
 # Helper functions (EN comments for GitHub)
 # -----------------------------
 
-
-function Get-FileSha256([string]$p){
-  if (-not $p -or -not (Test-Path -LiteralPath $p)) { return $null }
-  try { return (Get-FileHash -LiteralPath $p -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant() } catch { return $null }
-}
 
 function Parse-Version([string]$s){
   if ([string]::IsNullOrWhiteSpace($s)) { return $null }
@@ -561,8 +585,9 @@ try {
   $cfgPath = $cfgFile.FullName
   $summary.ConfigFile = $cfgFile.Name
 
-  $cfgHash = Get-FileSha256 $cfgPath
+  $cfgHash = (Get-FileSha256 -Path $cfgPath)
   if (-not $cfgHash) { throw "Could not compute SHA256 for config file." }
+  $cfgHash = $cfgHash.ToLowerInvariant()
   $summary.DesiredSha256 = $cfgHash
 
   $tmp = Validate-ConfigXml $cfgPath
@@ -651,7 +676,7 @@ try {
 
       try {
         # Install with config (-i) and accept EULA.
-        $p = Start-Process -FilePath $exe -ArgumentList ("-accepteula -i `"" + $cfgPath + "`"") -Wait -PassThru -WindowStyle Hidden
+        $p = Start-Process -FilePath $exe -ArgumentList @('-accepteula', '-i', $cfgPath) -Wait -PassThru -WindowStyle Hidden
         if ($p.ExitCode -eq 0) {
           $installed = $true
           $actions += "Installed Sysmon"
@@ -668,7 +693,7 @@ try {
     elseif ($needUpdate) {
       try {
         # Update config (-c) and accept EULA.
-        $p = Start-Process -FilePath $exe -ArgumentList ("-accepteula -c `"" + $cfgPath + "`"") -Wait -PassThru -WindowStyle Hidden
+        $p = Start-Process -FilePath $exe -ArgumentList @('-accepteula', '-c', $cfgPath) -Wait -PassThru -WindowStyle Hidden
         if ($p.ExitCode -eq 0) {
           $actions += "Applied config update"
           $needUpdate = $false
@@ -771,7 +796,7 @@ catch {
   Write-HealthEvent 4710 ("Sysmon Config Updater: error " + $_.Exception.Message) 'Error'
 
   # Structured pipeline output even on failure.
-  #[pscustomobject]$summary
+  [pscustomobject]$summary
 }
 finally {
   if (-not $NoConsoleSummary) {
@@ -795,3 +820,5 @@ finally {
     Write-PrettySummary -Summary $pretty -ChannelSizeMiB $ChannelSizeMiB -Sanitize:$false -NoColor:$NoColor
   }
 }
+
+
