@@ -19,3 +19,4 @@ normalize-python-setup-a: publication
 parallelize-matrix-execu: publication
 add-stricter-warning-han: publication
 github-actions: maintenance
+name: maintenance
