@@ -2,12 +2,14 @@
 
 
 ## Context
-This page tracks maintenance decisions for string cleanup during maintenance burst work.
+This page keeps the current string cleanup guidance concise after earlier rough notes.
 
 ## Usage
-- Made the string assumptions easier to check later.
+- Merged scattered string guidance into the docs.
 
-## Scratch Notes
+- Earlier scratch notes were compressed into the current guidance.
+
+## Notes Folded Into Current Flow
 Early notes are still uneven and may be folded into clearer sections later.
 
 ## Reliability
