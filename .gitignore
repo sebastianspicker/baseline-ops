@@ -40,9 +40,17 @@ defender/
 defender-support/
 _extracted/
 
-# Environment files
+# Environment files and credentials
 .env
 .env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+id_rsa
+id_ed25519
+*.keystore
 
 # Local docs (findings/logs/decisions)
 DECISIONS.md
