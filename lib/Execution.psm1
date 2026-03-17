@@ -130,17 +130,23 @@ function Invoke-NativeProcess {
     throw "Failed to start process: $FilePath"
   }
 
+  # Begin async reads before WaitForExit to prevent pipe-buffer deadlock.
+  # If reads started after WaitForExit the child could block trying to write
+  # to a full pipe while we block waiting for the child to exit.
+  $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+  $stderrTask = $proc.StandardError.ReadToEndAsync()
+
   if ($TimeoutSeconds -gt 0) {
     if (-not $proc.WaitForExit($TimeoutSeconds * 1000)) {
-      try { $proc.Kill() } catch {}
+      try { $proc.Kill() } catch { <# best-effort #> }
       throw "Process timeout after $TimeoutSeconds seconds: $FilePath"
     }
   } else {
     $proc.WaitForExit()
   }
 
-  $stdout = $proc.StandardOutput.ReadToEnd()
-  $stderr = $proc.StandardError.ReadToEnd()
+  $stdout = $stdoutTask.Result
+  $stderr = $stderrTask.Result
 
   $result = [pscustomobject]@{
     FilePath  = $FilePath
@@ -169,11 +175,7 @@ function Invoke-ScriptWithTiming {
   $sw = [System.Diagnostics.Stopwatch]::StartNew()
   $err = $null
   try {
-    if ($Arguments -and $Arguments.Count -gt 0) {
-      & $ScriptPath @Arguments
-    } else {
-      & $ScriptPath
-    }
+    & $ScriptPath @Arguments
     $exitCode = 0
   } catch {
     $exitCode = 1

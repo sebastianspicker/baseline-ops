@@ -469,7 +469,7 @@ function Enable-SysmonChannelIfRequested {
   if (-not $ChannelStatus.Exists) { return $ChannelStatus }
   if ($ChannelStatus.Enabled) { return $ChannelStatus }
 
-  if (-not (Test-IsAdministrator)) { return $ChannelStatus }
+  if (-not (Test-IsAdmin)) { return $ChannelStatus }
 
   try {
     & wevtutil sl $script:SysmonLogName /e:true 2>$null | Out-Null

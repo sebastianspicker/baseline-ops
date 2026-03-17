@@ -265,8 +265,8 @@ function Write-ConsoleSummary {
   Write-UiLine ('=' * 60) -ForegroundColor DarkGray
   Write-UiLine ''
 
-  Write-PrettyLine -Label 'ComputerName' -Value ([string]$s.ComputerName) -ValueColor White
-  Write-PrettyLine -Label 'Timestamp' -Value ([string]$s.Timestamp) -ValueColor Gray
+  Write-KeyValue -Key 'ComputerName' -Value ([string]$s.ComputerName) -ValueColor White
+  Write-KeyValue -Key 'Timestamp' -Value ([string]$s.Timestamp) -ValueColor Gray
 
   Write-UiLine ''
   Write-UiLine 'Core status' -ForegroundColor White
@@ -274,20 +274,20 @@ function Write-ConsoleSummary {
 
   $boolColor = { param($b) if ($b -eq $true) { 'Green' } else { 'Red' } }
 
-  Write-PrettyLine -Label 'AMRunningMode' -Value ([string]$s.AMRunningMode) -ValueColor Gray
-  Write-PrettyLine -Label 'AMServiceEnabled' -Value ([string]$s.AMServiceEnabled) -ValueColor (& $boolColor $s.AMServiceEnabled)
-  Write-PrettyLine -Label 'AntivirusEnabled' -Value ([string]$s.AntivirusEnabled) -ValueColor (& $boolColor $s.AntivirusEnabled)
-  Write-PrettyLine -Label 'RealTimeProtection' -Value ([string]$s.RealTimeProtectionEnabled) -ValueColor (& $boolColor $s.RealTimeProtectionEnabled)
+  Write-KeyValue -Key 'AMRunningMode' -Value ([string]$s.AMRunningMode) -ValueColor Gray
+  Write-KeyValue -Key 'AMServiceEnabled' -Value ([string]$s.AMServiceEnabled) -ValueColor (& $boolColor $s.AMServiceEnabled)
+  Write-KeyValue -Key 'AntivirusEnabled' -Value ([string]$s.AntivirusEnabled) -ValueColor (& $boolColor $s.AntivirusEnabled)
+  Write-KeyValue -Key 'RealTimeProtection' -Value ([string]$s.RealTimeProtectionEnabled) -ValueColor (& $boolColor $s.RealTimeProtectionEnabled)
 
   $sigColor = if ($s.DefenderSignaturesOutOfDate -eq $true) { 'Red' } else { 'Green' }
-  Write-PrettyLine -Label 'SignaturesOutOfDate' -Value ([string]$s.DefenderSignaturesOutOfDate) -ValueColor $sigColor
+  Write-KeyValue -Key 'SignaturesOutOfDate' -Value ([string]$s.DefenderSignaturesOutOfDate) -ValueColor $sigColor
 
   Write-UiLine ''
   Write-UiLine 'Ages (days)' -ForegroundColor White
   Write-UiLine ('-' * 60) -ForegroundColor DarkGray
 
   $sigAgeColor = if (($null -ne $s.AntivirusSignatureAge) -and ($s.AntivirusSignatureAge -ge $cfg.WarnSignatureAgeDays)) { 'Yellow' } else { 'Green' }
-  Write-PrettyLine -Label 'AntivirusSignatureAge' -Value ([string]$s.AntivirusSignatureAge) -ValueColor $sigAgeColor
+  Write-KeyValue -Key 'AntivirusSignatureAge' -Value ([string]$s.AntivirusSignatureAge) -ValueColor $sigAgeColor
 
   $qa = Get-ScanAgeLabel (Normalize-UInt32Age $s.QuickScanAge)
   $fa = Get-ScanAgeLabel (Normalize-UInt32Age $s.FullScanAge)
@@ -295,15 +295,15 @@ function Write-ConsoleSummary {
   $quickAgeColor = if ($qa -eq 'never') { 'Yellow' } elseif (($qa -as [int]) -ge $cfg.WarnQuickScanAgeDays) { 'Cyan' } else { 'Green' }
   $fullAgeColor  = if ($fa -eq 'never') { 'Yellow' } elseif (($fa -as [int]) -ge $cfg.WarnFullScanAgeDays) { 'Cyan' } else { 'Green' }
 
-  Write-PrettyLine -Label 'QuickScanAge' -Value ("{0} (warn >= {1})" -f $qa, $cfg.WarnQuickScanAgeDays) -ValueColor $quickAgeColor
-  Write-PrettyLine -Label 'FullScanAge'  -Value ("{0} (warn >= {1})" -f $fa, $cfg.WarnFullScanAgeDays) -ValueColor $fullAgeColor
+  Write-KeyValue -Key 'QuickScanAge' -Value ("{0} (warn >= {1})" -f $qa, $cfg.WarnQuickScanAgeDays) -ValueColor $quickAgeColor
+  Write-KeyValue -Key 'FullScanAge'  -Value ("{0} (warn >= {1})" -f $fa, $cfg.WarnFullScanAgeDays) -ValueColor $fullAgeColor
 
   if ($s.PSObject.Properties.Name -contains 'IsTamperProtected') {
     $tpColor = if ($s.IsTamperProtected -eq $true) { 'Green' } else { 'Yellow' }
     Write-UiLine ''
     Write-UiLine 'Tamper protection' -ForegroundColor White
     Write-UiLine ('-' * 60) -ForegroundColor DarkGray
-    Write-PrettyLine -Label 'IsTamperProtected' -Value ([string]$s.IsTamperProtected) -ValueColor $tpColor
+    Write-KeyValue -Key 'IsTamperProtected' -Value ([string]$s.IsTamperProtected) -ValueColor $tpColor
   }
 
   Write-UiLine ''
@@ -311,21 +311,21 @@ function Write-ConsoleSummary {
   Write-UiLine ('-' * 60) -ForegroundColor DarkGray
 
   if ($cfg.LoadedFromJson) {
-    Write-PrettyLine -Label 'ConfigSource' -Value ('JSON: ' + $cfg.SettingsJsonPath) -ValueColor Gray
+    Write-KeyValue -Key 'ConfigSource' -Value ('JSON: ' + $cfg.SettingsJsonPath) -ValueColor Gray
   } elseif ($cfg.JsonLoadError) {
-    Write-PrettyLine -Label 'ConfigSource' -Value ('Defaults (JSON error: ' + $cfg.JsonLoadError + ')') -ValueColor Yellow
+    Write-KeyValue -Key 'ConfigSource' -Value ('Defaults (JSON error: ' + $cfg.JsonLoadError + ')') -ValueColor Yellow
   } elseif ($cfg.JsonPathExists) {
-    Write-PrettyLine -Label 'ConfigSource' -Value ('Defaults (JSON empty)') -ValueColor Yellow
+    Write-KeyValue -Key 'ConfigSource' -Value ('Defaults (JSON empty)') -ValueColor Yellow
   } else {
-    Write-PrettyLine -Label 'ConfigSource' -Value ('Defaults (no JSON found: ' + $cfg.SettingsJsonPath + ')') -ValueColor Gray
+    Write-KeyValue -Key 'ConfigSource' -Value ('Defaults (no JSON found: ' + $cfg.SettingsJsonPath + ')') -ValueColor Gray
   }
 
   if ($cfg.ExportPath) {
-    Write-PrettyLine -Label 'CsvExport' -Value $cfg.ExportPath -ValueColor Gray
+    Write-KeyValue -Key 'CsvExport' -Value $cfg.ExportPath -ValueColor Gray
   }
 
-  Write-PrettyLine -Label 'FindingsCount' -Value ([string]$s.FindingsCount) -ValueColor $highestColor
-  Write-PrettyLine -Label 'HighestSeverity' -Value $highest -ValueColor $highestColor
+  Write-KeyValue -Key 'FindingsCount' -Value ([string]$s.FindingsCount) -ValueColor $highestColor
+  Write-KeyValue -Key 'HighestSeverity' -Value $highest -ValueColor $highestColor
 
   Write-UiLine ''
   if ($f.Count -gt 0) {

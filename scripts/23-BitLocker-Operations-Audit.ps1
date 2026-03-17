@@ -296,55 +296,55 @@ function Write-SummaryToConsole {
   Write-UiLine "BitLocker audit summary" -ForegroundColor $titleColor
   Write-UiLine ("=" * 60) -ForegroundColor $lineColor
 
-  Write-Kv -Key 'ComputerName'         -Value $Result.ComputerName -ValueColor ([ConsoleColor]::Gray)
-  Write-Kv -Key 'MountPoint'           -Value $Result.MountPoint -ValueColor ([ConsoleColor]::Gray)
+  Write-KeyValue -Key 'ComputerName'         -Value $Result.ComputerName -ValueColor ([ConsoleColor]::Gray)
+  Write-KeyValue -Key 'MountPoint'           -Value $Result.MountPoint -ValueColor ([ConsoleColor]::Gray)
 
-  Write-Kv -Key 'VolumeType'           -Value $Result.VolumeType -ValueColor ([ConsoleColor]::Cyan)
-  Write-Kv -Key 'VolumeStatus'         -Value $Result.VolumeStatus -ValueColor (Get-StatusColor -Value $Result.VolumeStatus)
-  Write-Kv -Key 'ProtectionStatus'     -Value $Result.ProtectionStatus -ValueColor (Get-StatusColor -Value $Result.ProtectionStatus)
-  Write-Kv -Key 'EncryptionPercentage' -Value $Result.EncryptionPercentage -ValueColor ([ConsoleColor]::Cyan)
-  Write-Kv -Key 'EncryptionMethod'     -Value $Result.EncryptionMethod -ValueColor ([ConsoleColor]::Cyan)
-  Write-Kv -Key 'LockStatus'           -Value $Result.LockStatus -ValueColor ([ConsoleColor]::Cyan)
-  Write-Kv -Key 'AutoUnlockEnabled'    -Value $Result.AutoUnlockEnabled -ValueColor ([ConsoleColor]::Cyan)
+  Write-KeyValue -Key 'VolumeType'           -Value $Result.VolumeType -ValueColor ([ConsoleColor]::Cyan)
+  Write-KeyValue -Key 'VolumeStatus'         -Value $Result.VolumeStatus -ValueColor (Get-StatusColor -Value $Result.VolumeStatus)
+  Write-KeyValue -Key 'ProtectionStatus'     -Value $Result.ProtectionStatus -ValueColor (Get-StatusColor -Value $Result.ProtectionStatus)
+  Write-KeyValue -Key 'EncryptionPercentage' -Value $Result.EncryptionPercentage -ValueColor ([ConsoleColor]::Cyan)
+  Write-KeyValue -Key 'EncryptionMethod'     -Value $Result.EncryptionMethod -ValueColor ([ConsoleColor]::Cyan)
+  Write-KeyValue -Key 'LockStatus'           -Value $Result.LockStatus -ValueColor ([ConsoleColor]::Cyan)
+  Write-KeyValue -Key 'AutoUnlockEnabled'    -Value $Result.AutoUnlockEnabled -ValueColor ([ConsoleColor]::Cyan)
 
-  Write-Kv -Key 'KeyProtectorTypes'    -Value $Result.KeyProtectorTypes -ValueColor ([ConsoleColor]::Cyan)
+  Write-KeyValue -Key 'KeyProtectorTypes'    -Value $Result.KeyProtectorTypes -ValueColor ([ConsoleColor]::Cyan)
   if ($null -ne $Result.KeyProtectorCount) {
     $countColor = if ($Result.KeyProtectorCount -gt 0) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
-    Write-Kv -Key 'KeyProtectorCount'  -Value $Result.KeyProtectorCount -ValueColor $countColor
+    Write-KeyValue -Key 'KeyProtectorCount'  -Value $Result.KeyProtectorCount -ValueColor $countColor
   }
 
   if (-not [string]::IsNullOrWhiteSpace($Result.Findings)) {
     Write-UiLine ("-" * 60) -ForegroundColor $lineColor
-    Write-Kv -Key 'Finding(s)' -Value $Result.Findings -ValueColor ([ConsoleColor]::Yellow) -KeyWidth 28
+    Write-KeyValue -Key 'Finding(s)' -Value $Result.Findings -ValueColor ([ConsoleColor]::Yellow) -KeyWidth 28
   }
 
   Write-UiLine ("-" * 60) -ForegroundColor $lineColor
 
   $gbvState = if ([string]::IsNullOrWhiteSpace($Result.GetBitLockerVolumeError)) { 'OK' } else { 'ERROR' }
   $gbvColor = if ($gbvState -eq 'OK') { [ConsoleColor]::Green } else { [ConsoleColor]::Red }
-  Write-Kv -Key 'Get-BitLockerVolume' -Value $gbvState -ValueColor $gbvColor
+  Write-KeyValue -Key 'Get-BitLockerVolume' -Value $gbvState -ValueColor $gbvColor
   if (-not [string]::IsNullOrWhiteSpace($Result.GetBitLockerVolumeError)) {
-    Write-Kv -Key 'GBV error' -Value $Result.GetBitLockerVolumeError -ValueColor ([ConsoleColor]::Red)
+    Write-KeyValue -Key 'GBV error' -Value $Result.GetBitLockerVolumeError -ValueColor ([ConsoleColor]::Red)
   }
 
   $mbState = if ([string]::IsNullOrWhiteSpace($Result.ManageBdeError)) { 'OK' } else { 'ERROR' }
   $mbColor = if ($mbState -eq 'OK') { [ConsoleColor]::Green } else { [ConsoleColor]::Red }
-  Write-Kv -Key 'manage-bde' -Value $mbState -ValueColor $mbColor
+  Write-KeyValue -Key 'manage-bde' -Value $mbState -ValueColor $mbColor
   if (-not [string]::IsNullOrWhiteSpace($Result.ManageBdeError)) {
-    Write-Kv -Key 'manage-bde error' -Value $Result.ManageBdeError -ValueColor ([ConsoleColor]::Red)
+    Write-KeyValue -Key 'manage-bde error' -Value $Result.ManageBdeError -ValueColor ([ConsoleColor]::Red)
   }
 
   if ($null -ne $Result.ManageBdeProtectionExitCode) {
     $exitColor = if ($Result.ManageBdeProtectionExitCode -in 0,1) { [ConsoleColor]::Cyan } else { [ConsoleColor]::Yellow }
-    Write-Kv -Key 'mb protect exit' -Value $Result.ManageBdeProtectionExitCode -ValueColor $exitColor
-    Write-Kv -Key 'mb protected'    -Value $Result.ManageBdeIsProtected -ValueColor ([ConsoleColor]::Cyan)
+    Write-KeyValue -Key 'mb protect exit' -Value $Result.ManageBdeProtectionExitCode -ValueColor $exitColor
+    Write-KeyValue -Key 'mb protected'    -Value $Result.ManageBdeIsProtected -ValueColor ([ConsoleColor]::Cyan)
   }
 
   if (-not [string]::IsNullOrWhiteSpace($EffectiveExportPath)) {
-    Write-Kv -Key 'CSV export' -Value $EffectiveExportPath -ValueColor ([ConsoleColor]::Gray)
+    Write-KeyValue -Key 'CSV export' -Value $EffectiveExportPath -ValueColor ([ConsoleColor]::Gray)
   }
 
-  Write-Kv -Key 'Timestamp' -Value $Result.Timestamp -ValueColor ([ConsoleColor]::Gray)
+  Write-KeyValue -Key 'Timestamp' -Value $Result.Timestamp -ValueColor ([ConsoleColor]::Gray)
 
   Write-UiLine ("=" * 60) -ForegroundColor $lineColor
   Write-UiLine ""

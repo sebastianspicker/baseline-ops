@@ -333,7 +333,7 @@ function Coalesce-Bool {
 
 # -------------------- File/JSON helpers --------------------
 
-function Ensure-Folder {
+function Ensure-Directory {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
@@ -424,11 +424,11 @@ function Ensure-ExtractedWorkDir {
   )
 
   if (-not (Test-Path -LiteralPath $ZipPath -PathType Leaf)) { return $null }
-  [void](Ensure-Folder -Path $ExtractRoot)
+  [void](Ensure-Directory -Path $ExtractRoot)
 
   $zipItem = Get-Item -LiteralPath $ZipPath -ErrorAction Stop
   $dest = Join-Path -Path $ExtractRoot -ChildPath $zipItem.BaseName
-  [void](Ensure-Folder -Path $dest)
+  [void](Ensure-Directory -Path $dest)
 
   $needsExtract = $Force.IsPresent
   if (-not $needsExtract) {
@@ -733,8 +733,8 @@ function New-Findings {
 $script:ConsoleMode = $ConsoleMode
 $script:NoColor     = [bool]$NoColor
 
-[void](Ensure-Folder -Path $SupportDir)
-[void](Ensure-Folder -Path $ExtractRoot)
+[void](Ensure-Directory -Path $SupportDir)
+[void](Ensure-Directory -Path $ExtractRoot)
 
 $runNotes = New-Object System.Collections.Generic.List[string]
 
@@ -870,25 +870,25 @@ if ($result.KbStatus -and $result.KbStatus.Present) {
 
 Write-ConsoleHeader -Title "SupportBundle summary"
 
-Write-ConsoleKV -Key "Hostname" -Value $result.Hostname -ValueRole Value
-Write-ConsoleKV -Key "Time"     -Value $result.Time     -ValueRole Value
-if ($result.Reason) { Write-ConsoleKV -Key "Reason" -Value $result.Reason -ValueRole Value }
-Write-ConsoleKV -Key "User"     -Value $result.User     -ValueRole Value
-Write-ConsoleKV -Key "Admin"    -Value ($result.Admin.ToString()) -ValueRole $adminRole
+Write-KeyValue -Key "Hostname" -Value $result.Hostname -ValueRole Value
+Write-KeyValue -Key "Time"     -Value $result.Time     -ValueRole Value
+if ($result.Reason) { Write-KeyValue -Key "Reason" -Value $result.Reason -ValueRole Value }
+Write-KeyValue -Key "User"     -Value $result.User     -ValueRole Value
+Write-KeyValue -Key "Admin"    -Value ($result.Admin.ToString()) -ValueRole $adminRole
 
 Write-ConsoleLine -Text "" -Role Muted
-Write-ConsoleKV -Key "ZIP"      -Value $result.BundleZipName -ValueRole Value
-Write-ConsoleKV -Key "ZIPpath"  -Value (ConvertTo-SafeDisplayPath $result.BundleZipPath) -ValueRole Muted
-Write-ConsoleKV -Key "WorkDir"  -Value (ConvertTo-SafeDisplayPath $result.WorkDir) -ValueRole Value
-Write-ConsoleKV -Key "Summary"  -Value (ConvertTo-SafeDisplayPath $result.SummaryPath) -ValueRole Muted
+Write-KeyValue -Key "ZIP"      -Value $result.BundleZipName -ValueRole Value
+Write-KeyValue -Key "ZIPpath"  -Value (ConvertTo-SafeDisplayPath $result.BundleZipPath) -ValueRole Muted
+Write-KeyValue -Key "WorkDir"  -Value (ConvertTo-SafeDisplayPath $result.WorkDir) -ValueRole Value
+Write-KeyValue -Key "Summary"  -Value (ConvertTo-SafeDisplayPath $result.SummaryPath) -ValueRole Muted
 
 Write-ConsoleLine -Text "" -Role Muted
-Write-ConsoleKV -Key "Errors"    -Value $errorsCount  -ValueRole $errorsRole
-Write-ConsoleKV -Key "Notes"     -Value $notesCount   -ValueRole $notesRole
-Write-ConsoleKV -Key "Outputs"   -Value $outputsCount -ValueRole $outputsRole
-Write-ConsoleKV -Key "Proofs"    -Value ("{0}/{1} present" -f $presentProofsCount, @($result.Proofs).Count) -ValueRole $proofRole
-Write-ConsoleKV -Key "EventLogs" -Value ("{0} (dir: {1})" -f $eventLogsCount, $result.EventLogDirExists) -ValueRole $eventRole
-Write-ConsoleKV -Key "KBStatus"  -Value $kbText -ValueRole $kbRole
+Write-KeyValue -Key "Errors"    -Value $errorsCount  -ValueRole $errorsRole
+Write-KeyValue -Key "Notes"     -Value $notesCount   -ValueRole $notesRole
+Write-KeyValue -Key "Outputs"   -Value $outputsCount -ValueRole $outputsRole
+Write-KeyValue -Key "Proofs"    -Value ("{0}/{1} present" -f $presentProofsCount, @($result.Proofs).Count) -ValueRole $proofRole
+Write-KeyValue -Key "EventLogs" -Value ("{0} (dir: {1})" -f $eventLogsCount, $result.EventLogDirExists) -ValueRole $eventRole
+Write-KeyValue -Key "KBStatus"  -Value $kbText -ValueRole $kbRole
 
 Write-ConsoleLine -Text "" -Role Muted
 if ($findingsCount -gt 0) {

@@ -232,33 +232,33 @@ function Write-ConsoleReport {
 
   $headerLine = ("=" * 54)
 
-  Write-ColoredLine -Text "" -Color $cInfo
-  Write-ColoredLine -Text $headerLine -Color $cDim
-  Write-ColoredLine -Text "Defender Audit/Remediation" -Color $cTitle
-  Write-ColoredLine -Text $headerLine -Color $cDim
+  Write-ColorLine -Text "" -Color $cInfo
+  Write-ColorLine -Text $headerLine -Color $cDim
+  Write-ColorLine -Text "Defender Audit/Remediation" -Color $cTitle
+  Write-ColorLine -Text $headerLine -Color $cDim
 
-  Write-ColoredLine -Text ("Computer : {0}" -f $Summary.ComputerName) -Color $cInfo
-  Write-ColoredLine -Text ("OS       : {0}" -f $Summary.OS) -Color $cInfo
-  Write-ColoredLine -Text ("Mode     : {0}" -f $Summary.Mode) -Color $cInfo
-  Write-ColoredLine -Text ("Time     : {0}" -f $Summary.Timestamp) -Color $cInfo
+  Write-ColorLine -Text ("Computer : {0}" -f $Summary.ComputerName) -Color $cInfo
+  Write-ColorLine -Text ("OS       : {0}" -f $Summary.OS) -Color $cInfo
+  Write-ColorLine -Text ("Mode     : {0}" -f $Summary.Mode) -Color $cInfo
+  Write-ColorLine -Text ("Time     : {0}" -f $Summary.Timestamp) -Color $cInfo
 
   $findColor = if ($Summary.FindingsCount -eq 0) { $cOk } elseif ($Summary.FindingsCount -lt 3) { $cWarn } else { $cBad }
-  Write-ColoredLine -Text ("Findings : {0}" -f $Summary.FindingsCount) -Color $findColor
+  Write-ColorLine -Text ("Findings : {0}" -f $Summary.FindingsCount) -Color $findColor
 
-  Write-ColoredLine -Text "" -Color $cInfo
-  Write-ColoredLine -Text "Desired configuration:" -Color $cTitle
-  Write-ColoredLine -Text ("  CFA            : {0}" -f $Summary.DesiredCFA) -Color $cInfo
-  Write-ColoredLine -Text ("  NP             : {0}" -f $Summary.DesiredNP) -Color $cInfo
-  Write-ColoredLine -Text ("  NP prereqs     : {0}" -f $Summary.ApplyNPPrereqs) -Color $cInfo
-  Write-ColoredLine -Text ("  Disable UDP srv: {0}" -f $(if ($Summary.IsServer) { $Summary.DisableDatagram } else { "n/a" })) -Color $cInfo
+  Write-ColorLine -Text "" -Color $cInfo
+  Write-ColorLine -Text "Desired configuration:" -Color $cTitle
+  Write-ColorLine -Text ("  CFA            : {0}" -f $Summary.DesiredCFA) -Color $cInfo
+  Write-ColorLine -Text ("  NP             : {0}" -f $Summary.DesiredNP) -Color $cInfo
+  Write-ColorLine -Text ("  NP prereqs     : {0}" -f $Summary.ApplyNPPrereqs) -Color $cInfo
+  Write-ColorLine -Text ("  Disable UDP srv: {0}" -f $(if ($Summary.IsServer) { $Summary.DisableDatagram } else { "n/a" })) -Color $cInfo
 
-  Write-ColoredLine -Text "" -Color $cInfo
-  Write-ColoredLine -Text "Before -> After:" -Color $cTitle
+  Write-ColorLine -Text "" -Color $cInfo
+  Write-ColorLine -Text "Before -> After:" -Color $cTitle
 
   function Write-StateDelta {
     param([string]$Name, [string]$From, [string]$To)
     $color = if ($From -eq $To) { $cOk } else { $cWarn }
-    Write-ColoredLine -Text ("  {0,-14}: {1} -> {2}" -f $Name, $From, $To) -Color $color
+    Write-ColorLine -Text ("  {0,-14}: {1} -> {2}" -f $Name, $From, $To) -Color $color
   }
 
   Write-StateDelta -Name 'CFA' -From $Before.ControlledFolderAccess -To $After.ControlledFolderAccess
@@ -271,8 +271,8 @@ function Write-ConsoleReport {
   }
 
   if ($findings.Count -gt 0) {
-    Write-ColoredLine -Text "" -Color $cInfo
-    Write-ColoredLine -Text "Findings (top 20):" -Color $cTitle
+    Write-ColorLine -Text "" -Color $cInfo
+    Write-ColorLine -Text "Findings (top 20):" -Color $cTitle
 
     foreach ($f in ($findings | Select-Object -First 20)) {
       $sevColor = switch ($f.Severity) {
@@ -280,20 +280,20 @@ function Write-ConsoleReport {
         'Medium' { $cWarn }
         default  { $cInfo }
       }
-      Write-ColoredLine -Text ("  [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -Color $sevColor
+      Write-ColorLine -Text ("  [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -Color $sevColor
     }
 
     if ($findings.Count -gt 20) {
-      Write-ColoredLine -Text ("  (Only first 20 shown; total findings: {0})" -f $findings.Count) -Color $cDim
+      Write-ColorLine -Text ("  (Only first 20 shown; total findings: {0})" -f $findings.Count) -Color $cDim
     }
   }
 
   if ($Summary.ExportPath) {
-    Write-ColoredLine -Text "" -Color $cInfo
-    Write-ColoredLine -Text ("CSV export : {0}" -f $Summary.ExportPath) -Color $cDim
+    Write-ColorLine -Text "" -Color $cInfo
+    Write-ColorLine -Text ("CSV export : {0}" -f $Summary.ExportPath) -Color $cDim
   }
 
-  Write-ColoredLine -Text "" -Color $cInfo
+  Write-ColorLine -Text "" -Color $cInfo
 }
 
 # -----------------------------

@@ -181,18 +181,6 @@ function Write-ConsoleHeader {
   Write-UiLine -Message $line -Style 'Dim' -UseWriteInformation:$useInfo
 }
 
-function Write-ConsoleKV {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowEmptyString()][string]$Value,
-    [Alias('ValueRole')][object]$ValueColor,
-    [int]$KeyWidth = $script:UiDefaults.KeyWidth
-  )
-
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor -KeyWidth $KeyWidth
-}
-
 function Write-Section {
   [CmdletBinding()]
   param(
@@ -373,86 +361,6 @@ function Write-KeyValue {
   Write-ConsoleLine -Message $valueText -Style $ValueStyle
 }
 
-function Write-UiKV {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-function Write-UiKv {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-function Write-UiKeyValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-function Write-Kv {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-function Write-KV {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-function Write-KvLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-function Write-ConsoleKeyValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-function Write-PrettyKeyValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [Alias('Level')][object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
 function Write-UiStatus {
   [CmdletBinding()]
   param(
@@ -520,57 +428,6 @@ function Write-ColorLine {
   Write-UiLine -Message $Text -Style $Color -NoNewLine:$NoNewLine
 }
 
-function Write-PrettyLine {
-  [CmdletBinding()]
-  param(
-    [AllowEmptyString()][string]$Text,
-    [string]$Label,
-    [AllowEmptyString()][string]$Value,
-    [object]$Color = 'Info',
-    [Alias('ValueColor')][object]$ValueStyle,
-    [string]$Kind,
-    [switch]$NoNewLine
-  )
-  if ($Label) {
-    $style = if ($ValueStyle) { $ValueStyle } else { $Color }
-    Write-KeyValue -Key $Label -Value $Value -ValueStyle $style
-    return
-  }
-
-  $style = $Color
-  if ($Kind) {
-    switch ($Kind.ToUpperInvariant()) {
-      'OK' { $style = 'Success' }
-      'WARN' { $style = 'Warn' }
-      'ERR' { $style = 'Error' }
-      'ERROR' { $style = 'Error' }
-      'DIM' { $style = 'Muted' }
-      'INFO' { $style = 'Info' }
-      default { $style = $Kind }
-    }
-  }
-  Write-UiLine -Message $Text -Style $style -NoNewLine:$NoNewLine
-}
-
-function Write-ColoredLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
-    [object]$Color = 'Info',
-    [switch]$NoNewLine
-  )
-  Write-UiLine -Message $Text -Style $Color -NoNewLine:$NoNewLine
-}
-
-function Write-PrettyHeader {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Title,
-    [int]$Width = $script:UiDefaults.SectionWidth
-  )
-  Write-UiHeader -Title $Title -Width $Width
-}
-
 function Write-ConsoleBanner {
   [CmdletBinding()]
   param(
@@ -583,16 +440,6 @@ function Write-ConsoleBanner {
   Write-UiLine -Message $line -Style 'Dim'
   Write-UiLine -Message $Title -Style $Color
   Write-UiLine -Message $line -Style 'Dim'
-}
-
-function Write-Console {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][AllowEmptyString()][string]$Message,
-    [object]$ForegroundColor = 'Info',
-    [switch]$NoNewLine
-  )
-  Write-UiLine -Message $Message -Style $ForegroundColor -NoNewLine:$NoNewLine
 }
 
 function Write-ConsoleInfo {
@@ -657,16 +504,6 @@ function Write-InfoLine {
   Write-Info -Message $Message
 }
 
-function Write-HostLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][AllowEmptyString()][string]$Message,
-    [object]$ForegroundColor,
-    [switch]$NoNewLine
-  )
-  Write-UiLine -Message $Message -Style $ForegroundColor -NoNewLine:$NoNewLine
-}
-
 function Write-Title {
   [CmdletBinding()]
   param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
@@ -691,24 +528,36 @@ function Write-WarnLine {
   Write-Warn -Message $Message
 }
 
-function Write-Ui {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][AllowEmptyString()][string]$Message,
-    [object]$Color = 'Info',
-    [switch]$NoNewLine
-  )
-  Write-UiLine -Message $Message -Style $Color -NoNewLine:$NoNewLine
-}
-
-function Write-ColorValue {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Key,
-    [AllowNull()][AllowEmptyString()][string]$Value,
-    [object]$ValueColor = 'Info'
-  )
-  Write-KeyValue -Key $Key -Value $Value -ValueStyle $ValueColor
-}
-
-Export-ModuleMember -Function Write-UiLine,Write-ConsoleLine,Write-ConsoleHeader,Write-ConsoleKV,Write-Section,Write-BlankLine,Write-Info,Write-Warn,Write-ErrorLine,Write-Success,Write-StatusLine,Write-UiRule,Write-UiHeader,Write-UiSection,Write-UiSeparator,Write-KeyValue,Write-UiKV,Write-UiKv,Write-UiKeyValue,Write-Kv,Write-KV,Write-KvLine,Write-ConsoleKeyValue,Write-PrettyKeyValue,Write-UiStatus,Write-UiBullet,Write-UiList,Write-UiBlankLine,Write-UiBool,Write-ColorLine,Write-PrettyLine,Write-ColoredLine,Write-PrettyHeader,Write-ConsoleBanner,Write-Console,Write-ConsoleInfo,Write-ConsoleList,Write-Rule,Write-ConsoleRule,Write-ConsoleSeparator,Write-InfoLine,Write-HostLine,Write-Title,Write-Good,Write-Bad,Write-WarnLine,Write-Ui,Write-ColorValue
+Export-ModuleMember -Function `
+  Write-UiLine, `
+  Write-ConsoleLine, `
+  Write-ConsoleHeader, `
+  Write-Section, `
+  Write-BlankLine, `
+  Write-Info, `
+  Write-InfoLine, `
+  Write-Warn, `
+  Write-WarnLine, `
+  Write-ErrorLine, `
+  Write-Success, `
+  Write-StatusLine, `
+  Write-UiRule, `
+  Write-UiHeader, `
+  Write-UiSection, `
+  Write-UiSeparator, `
+  Write-KeyValue, `
+  Write-UiStatus, `
+  Write-UiBullet, `
+  Write-UiList, `
+  Write-UiBlankLine, `
+  Write-UiBool, `
+  Write-ColorLine, `
+  Write-ConsoleBanner, `
+  Write-ConsoleInfo, `
+  Write-ConsoleList, `
+  Write-Rule, `
+  Write-ConsoleRule, `
+  Write-ConsoleSeparator, `
+  Write-Title, `
+  Write-Good, `
+  Write-Bad

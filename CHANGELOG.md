@@ -2,6 +2,63 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.1] - 2026-03-17
+
+### Fixed
+
+- **Invoke-NativeProcess deadlock** (`lib/Execution.psm1`): stdout/stderr
+  `ReadToEnd()` was called after `WaitForExit()`, causing a classic pipe-buffer
+  deadlock for child processes that emit more than ~64 KB. Fixed with async reads
+  started before `WaitForExit()`.
+- **WQL injection** (`scripts/02-LAPS-Hygiene.ps1`, `scripts/11-IOC-Sweep-Defender.ps1`):
+  account name and service name values from registry/JSON config were interpolated
+  directly into CIM filter strings without escaping single quotes. Fixed with
+  `$value -replace "'", "''"` before filter construction.
+- **PowerShell code injection via scheduled task** (`scripts/21-EmergencyKillSwitch.ps1`):
+  `$TaskName` and `$RuleNames` from config JSON were embedded in a PowerShell
+  heredoc that is base64-encoded and run elevated. Added input validation in
+  `Schedule-AutoRollback` (TaskName must match `[a-zA-Z0-9\-_\\]+`; RuleNames
+  must not contain single quotes) before heredoc construction.
+- **schtasks invocation hardened** (`scripts/21-EmergencyKillSwitch.ps1`):
+  converted bare-token schtasks call to array-based invocation.
+- **Runtime bugs in Output aliases** (`lib/Output.psm1`, scripts): `Write-Ui -BlankLine`
+  and `Write-Ui -Text` callers used parameters the wrapper did not expose; fixed
+  to canonical `Write-BlankLine` and `Write-UiLine -Text`.
+- **CI: Pester exit code** (`.github/workflows/ci.yml`): `Invoke-Pester` was
+  called without `-CI`, so Pester 5 returned exit code 0 even when tests failed —
+  test failures silently passed CI. Added `-CI` flag.
+- **CI: Scorecard permissions** (`.github/workflows/scorecard.yml`): replaced
+  overly broad `permissions: read-all` with minimal `permissions: { contents: read }`;
+  job-level write scopes already set correctly.
+
+### Changed
+
+- **Alias cleanup — Output.psm1**: removed 16 alias wrapper functions
+  (`Write-ConsoleKV`, `Write-UiKV`, `Write-UiKv`, `Write-UiKeyValue`,
+  `Write-KV`, `Write-KvLine`, `Write-ConsoleKeyValue`, `Write-PrettyKeyValue`,
+  `Write-ColorValue`, `Write-PrettyLine`, `Write-ColoredLine`, `Write-PrettyHeader`,
+  `Write-Console`, `Write-HostLine`, `Write-Ui`, and one kept as `Write-Kv`).
+  ~330 call-sites across 8 scripts updated to canonical names.
+- **Alias cleanup — Common.psm1**: removed 5 alias functions (`Is-Admin`,
+  `Test-IsAdministrator`, `Ensure-Dir`, `Ensure-Folder`, `Ensure-FolderForFile`).
+  All call-sites updated to canonical names.
+- **Dead parameter removal — EventLog.psm1**: removed `$EventLogReady` /
+  `$CanEventLog` compatibility parameters from `Write-HealthEvent`; removed
+  redundant `[Parameter(Mandatory = $false)]` annotations from `Ensure-EventSource`.
+- **Null-splat guard removed** (`lib/Execution.psm1`): simplified `Invoke-ScriptWithTiming`
+  to `& $ScriptPath @Arguments` (empty array splat is a no-op).
+- **Export-ModuleMember formatted** (`lib/Output.psm1`): reformatted from a
+  single 714-char line to a multi-line backtick-continued list.
+- **lib/README.md**: removed stale alias reference for `Is-Admin`/`Ensure-Folder`.
+- **CI: Pester version pinned** (`.github/workflows/ci.yml`): added
+  `PESTER_VERSION: '5.7.1'` env, module cache step, and explicit install step
+  to `test-windows` job (mirrors `verify` job's PSScriptAnalyzer pattern).
+- **Alias cleanup — Registry.psm1**: removed `Get-RegValueSafe` forwarding
+  wrapper; updated 3 call-sites in `scripts/34-TimeSync-Health.ps1` to
+  `Get-RegValue`.
+- **Test coverage**: added tests for `Assert-NoPathTraversal`, `Test-SafeUrl`,
+  and `Test-PathUnderRoot` in `tests/lib/Validation.Tests.ps1`.
+
 ## [2.0.0] - 2026-02-27
 
 ### Added

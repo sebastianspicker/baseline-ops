@@ -366,7 +366,7 @@ function Write-PrettySettingChange {
   )
 
   if (-not $Supported) {
-    Write-PrettyKeyValue -Key $Label -Value 'n/a (not supported on this OS/build)' -ValueColor ([ConsoleColor]::DarkYellow)
+    Write-KeyValue -Key $Label -Value 'n/a (not supported on this OS/build)' -ValueColor ([ConsoleColor]::DarkYellow)
     return
   }
 
@@ -376,8 +376,8 @@ function Write-PrettySettingChange {
   $changed = ($b -ne $a)
   $color = if ($changed) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Gray }
 
-  Write-PrettyLine -Text ('{0,-32}: ' -f $Label) -Color ([ConsoleColor]::DarkGray) -NoNewline
-  Write-PrettyLine -Text ('{0} -> {1}' -f $b, $a) -Color $color
+  Write-ColorLine -Text ('{0,-32}: ' -f $Label) -Color ([ConsoleColor]::DarkGray) -NoNewline
+  Write-ColorLine -Text ('{0} -> {1}' -f $b, $a) -Color $color
 }
 
 function Write-ConsoleSummary {
@@ -390,19 +390,19 @@ function Write-ConsoleSummary {
   $statusColor = if ($Result.Changes.Status -eq 'OK') { [ConsoleColor]::Green } else { [ConsoleColor]::Red }
 
   Write-UiLine ''
-  Write-PrettyLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
-  Write-PrettyLine -Text 'SMB Encryption Enforcer (Summary)' -Color ([ConsoleColor]::Cyan)
-  Write-PrettyLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
+  Write-ColorLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
+  Write-ColorLine -Text 'SMB Encryption Enforcer (Summary)' -Color ([ConsoleColor]::Cyan)
+  Write-ColorLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
 
-  Write-PrettyKeyValue -Key 'Computer' -Value $Result.ComputerName -ValueColor ([ConsoleColor]::White)
-  Write-PrettyKeyValue -Key 'Mode' -Value $Result.Mode -ValueColor ([ConsoleColor]::White)
-  Write-PrettyKeyValue -Key 'WhatIf' -Value (Format-Bool $Result.WhatIf) -ValueColor ([ConsoleColor]::White)
-  Write-PrettyKeyValue -Key 'Force' -Value (Format-Bool $Result.Force) -ValueColor ([ConsoleColor]::White)
-  Write-PrettyKeyValue -Key 'JsonPath' -Value $Result.JsonPath -ValueColor ([ConsoleColor]::DarkGray)
+  Write-KeyValue -Key 'Computer' -Value $Result.ComputerName -ValueColor ([ConsoleColor]::White)
+  Write-KeyValue -Key 'Mode' -Value $Result.Mode -ValueColor ([ConsoleColor]::White)
+  Write-KeyValue -Key 'WhatIf' -Value (Format-Bool $Result.WhatIf) -ValueColor ([ConsoleColor]::White)
+  Write-KeyValue -Key 'Force' -Value (Format-Bool $Result.Force) -ValueColor ([ConsoleColor]::White)
+  Write-KeyValue -Key 'JsonPath' -Value $Result.JsonPath -ValueColor ([ConsoleColor]::DarkGray)
 
   Write-UiLine ''
-  Write-PrettyLine -Text 'Server / Client' -Color ([ConsoleColor]::Cyan)
-  Write-PrettyLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
+  Write-ColorLine -Text 'Server / Client' -Color ([ConsoleColor]::Cyan)
+  Write-ColorLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
 
   Write-PrettySettingChange -Label 'Server EncryptData' `
     -Before $Result.ServerEncryptData_Before -After $Result.ServerEncryptData_After -Supported:$true
@@ -414,29 +414,29 @@ function Write-ConsoleSummary {
     -Before $Result.ClientRequireEncryption_Before -After $Result.ClientRequireEncryption_After -Supported:$HasClientRequireEncryption
 
   Write-UiLine ''
-  Write-PrettyLine -Text 'Shares' -Color ([ConsoleColor]::Cyan)
-  Write-PrettyLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
+  Write-ColorLine -Text 'Shares' -Color ([ConsoleColor]::Cyan)
+  Write-ColorLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
 
-  Write-PrettyKeyValue -Key 'Shares targeted' -Value ([string]$Result.Changes.ShareCountTargeted) -ValueColor ([ConsoleColor]::White)
+  Write-KeyValue -Key 'Shares targeted' -Value ([string]$Result.Changes.ShareCountTargeted) -ValueColor ([ConsoleColor]::White)
 
   if (@($Result.Changes.SharesChanged).Count -gt 0) {
-    Write-PrettyKeyValue -Key 'Shares changed' -Value (@($Result.Changes.SharesChanged) -join ', ') -ValueColor ([ConsoleColor]::Yellow)
+    Write-KeyValue -Key 'Shares changed' -Value (@($Result.Changes.SharesChanged) -join ', ') -ValueColor ([ConsoleColor]::Yellow)
   } else {
-    Write-PrettyKeyValue -Key 'Shares changed' -Value 'none' -ValueColor ([ConsoleColor]::Gray)
+    Write-KeyValue -Key 'Shares changed' -Value 'none' -ValueColor ([ConsoleColor]::Gray)
   }
 
   Write-UiLine ''
-  Write-PrettyLine -Text 'Result' -Color ([ConsoleColor]::Cyan)
-  Write-PrettyLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
+  Write-ColorLine -Text 'Result' -Color ([ConsoleColor]::Cyan)
+  Write-ColorLine -Text ('-' * 46) -Color ([ConsoleColor]::DarkGray)
 
-  Write-PrettyLine -Text ('Status: {0}' -f $Result.Changes.Status) -Color $statusColor
-  Write-PrettyKeyValue -Key 'Started' -Value ($Result.Started.ToString('yyyy-MM-dd HH:mm:ss')) -ValueColor ([ConsoleColor]::DarkGray)
-  Write-PrettyKeyValue -Key 'Finished' -Value ($Result.Finished.ToString('yyyy-MM-dd HH:mm:ss')) -ValueColor ([ConsoleColor]::DarkGray)
+  Write-ColorLine -Text ('Status: {0}' -f $Result.Changes.Status) -Color $statusColor
+  Write-KeyValue -Key 'Started' -Value ($Result.Started.ToString('yyyy-MM-dd HH:mm:ss')) -ValueColor ([ConsoleColor]::DarkGray)
+  Write-KeyValue -Key 'Finished' -Value ($Result.Finished.ToString('yyyy-MM-dd HH:mm:ss')) -ValueColor ([ConsoleColor]::DarkGray)
 
   $duration = New-TimeSpan -Start $Result.Started -End $Result.Finished
-  Write-PrettyKeyValue -Key 'Duration' -Value $duration.ToString() -ValueColor ([ConsoleColor]::DarkGray)
+  Write-KeyValue -Key 'Duration' -Value $duration.ToString() -ValueColor ([ConsoleColor]::DarkGray)
 
-  Write-PrettyLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
+  Write-ColorLine -Text ('=' * 46) -Color ([ConsoleColor]::DarkGray)
 }
 
 # -------------------------

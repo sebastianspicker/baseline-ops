@@ -213,7 +213,7 @@ $DefaultCatalogJson = @"
 # -----------------------------
 
 
-function Is-Admin {
+function Test-IsAdmin {
   [CmdletBinding()]
   param()
   try {
@@ -288,7 +288,7 @@ function Save-Json {
   )
 
   $dir = Split-Path -Parent $Path
-  Ensure-Dir -Path $dir
+  Ensure-Directory -Path $dir
 
   $json = $Obj | ConvertTo-Json -Depth 20
   $utf8NoBOM = New-Object System.Text.UTF8Encoding($false)  # UTF-8 without BOM
@@ -848,7 +848,7 @@ function Ensure-Firefox {
       $changed = $false
       $msg     = $null
       try {
-        Ensure-Dir -Path $dist
+        Ensure-Directory -Path $dist
         $utf8NoBOM = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText($polPath, $newJson, $utf8NoBOM)
         $changed = $true
@@ -962,7 +962,7 @@ function Write-ConsoleSummary {
 
 Ensure-EventSource -Source $EventSource -Log $EventLog
 
-$isAdmin     = Is-Admin
+$isAdmin     = Test-IsAdmin
 $globalNotes = New-Object System.Collections.Generic.List[string]
 $proofPath   = $DefaultProofPath
 $overallOk   = $true

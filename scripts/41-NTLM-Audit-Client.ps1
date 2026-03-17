@@ -218,23 +218,23 @@ function Write-ConsoleSummary {
   Write-UiLine 'NTLM Audit (LmCompatibilityLevel)' -ForegroundColor $bannerColor
   Write-UiLine ('=' * 34) -ForegroundColor DarkGray
 
-  Write-KvLine -Key 'ComputerName' -Value $Summary.ComputerName -ValueColor White
-  Write-KvLine -Key 'Timestamp' -Value ($Summary.Timestamp.ToString('s')) -ValueColor Gray
+  Write-KeyValue -Key 'ComputerName' -Value $Summary.ComputerName -ValueColor White
+  Write-KeyValue -Key 'Timestamp' -Value ($Summary.Timestamp.ToString('s')) -ValueColor Gray
 
   $lvlValue = if ($null -eq $Summary.LmCompatibilityLevel) { '<not set>' } else { [string]$Summary.LmCompatibilityLevel }
   $lvlColor = if ($null -eq $Summary.LmCompatibilityLevel) { 'Yellow' } elseif ($Summary.LmCompatibilityLevel -lt $Summary.MinimumLevel) { 'Red' } else { 'Green' }
 
-  Write-KvLine -Key 'LmCompatibilityLevel' -Value $lvlValue -ValueColor $lvlColor
-  Write-KvLine -Key 'LmCompatibilityText' -Value $Summary.LmCompatibilityText -ValueColor Gray
-  Write-KvLine -Key 'MinimumLevel' -Value ([string]$Summary.MinimumLevel) -ValueColor Gray
-  Write-KvLine -Key 'FindingsCount' -Value ([string]$Summary.FindingsCount) -ValueColor $(if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' })
-  Write-KvLine -Key 'ConfigLoaded' -Value ([string]$Summary.ConfigLoaded) -ValueColor $(if ($Summary.ConfigLoaded) { 'Green' } else { 'DarkGray' })
+  Write-KeyValue -Key 'LmCompatibilityLevel' -Value $lvlValue -ValueColor $lvlColor
+  Write-KeyValue -Key 'LmCompatibilityText' -Value $Summary.LmCompatibilityText -ValueColor Gray
+  Write-KeyValue -Key 'MinimumLevel' -Value ([string]$Summary.MinimumLevel) -ValueColor Gray
+  Write-KeyValue -Key 'FindingsCount' -Value ([string]$Summary.FindingsCount) -ValueColor $(if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' })
+  Write-KeyValue -Key 'ConfigLoaded' -Value ([string]$Summary.ConfigLoaded) -ValueColor $(if ($Summary.ConfigLoaded) { 'Green' } else { 'DarkGray' })
 
   if ($null -ne $top) {
     $c = Get-SeverityColor -Severity $top.Severity
-    Write-KvLine -Key 'TopFinding' -Value ("{0} ({1})" -f $top.Severity, $top.Code) -ValueColor $c
+    Write-KeyValue -Key 'TopFinding' -Value ("{0} ({1})" -f $top.Severity, $top.Code) -ValueColor $c
   } else {
-    Write-KvLine -Key 'TopFinding' -Value 'None' -ValueColor Green
+    Write-KeyValue -Key 'TopFinding' -Value 'None' -ValueColor Green
   }
 
   $counts = @{ High = 0; Medium = 0; Low = 0; Info = 0 }

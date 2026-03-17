@@ -418,7 +418,7 @@ if (-not $config.Enabled) {
   $emptyIndicators = [pscustomobject]@{
     CodeIntegrityLogName = 'Microsoft-Windows-CodeIntegrity/Operational'
     LookbackHours        = $HoursBack
-    RunningAsAdmin       = Test-IsAdministrator
+    RunningAsAdmin       = Test-IsAdmin
     CILogEnabled         = $null
     RecentCIEventsCount  = 0
     PolicyFilesCount     = 0
@@ -445,7 +445,7 @@ if (-not $config.Enabled) {
   exit 2
 }
 
-$runningAsAdmin = Test-IsAdministrator
+$runningAsAdmin = Test-IsAdmin
 if (-not $runningAsAdmin) {
   Add-Finding -Code 'AC-NotElevated' -Severity 'Info' -Message 'Not running elevated; log/file access may be incomplete.'
 }

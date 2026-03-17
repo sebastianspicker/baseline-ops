@@ -449,10 +449,10 @@ function Write-ConsoleSummary {
   $statusColor = Get-StatusColor -Status $ResultObject.Status.Level
 
   Write-ConsoleBanner -Title "Software Audit" -Color 'Cyan'
-  Write-ConsoleKeyValue -Key 'Timestamp' -Value ([string]$ResultObject.Time)
-  Write-ConsoleKeyValue -Key 'Host' -Value ([string]$ResultObject.Host)
-  Write-ConsoleKeyValue -Key 'Catalog' -Value ([string]$ResultObject.Catalog.Meta.Source)
-  Write-ConsoleKeyValue -Key 'EventSource' -Value ("{0} (ready={1})" -f $ResultObject.EventSource.Name, $ResultObject.EventSource.Ready)
+  Write-KeyValue -Key 'Timestamp' -Value ([string]$ResultObject.Time)
+  Write-KeyValue -Key 'Host' -Value ([string]$ResultObject.Host)
+  Write-KeyValue -Key 'Catalog' -Value ([string]$ResultObject.Catalog.Meta.Source)
+  Write-KeyValue -Key 'EventSource' -Value ("{0} (ready={1})" -f $ResultObject.EventSource.Name, $ResultObject.EventSource.Ready)
 
   Write-UiLine ""
   Write-UiLine ("Status          : {0} ({1})" -f $ResultObject.Status.EventId, $ResultObject.Status.Level) -ForegroundColor $statusColor

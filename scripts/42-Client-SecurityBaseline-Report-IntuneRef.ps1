@@ -95,7 +95,7 @@ function Test-RegKey {
   try { Test-Path -Path $Path } catch { $false }
 }
 
-function Ensure-Folder {
+function Ensure-Directory {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Path)
 
@@ -335,32 +335,32 @@ function Write-ConsoleSummary {
   $cgRunLevel = 'Dim'
   if ($cgRunTxt -eq 'Running') { $cgRunLevel = 'Warn' } else { $cgRunLevel = 'Good' }
 
-  Write-PrettyHeader -Title 'Security Baseline Report'
-  Write-PrettyKeyValue -Key 'ComputerName'   -Value $Summary.ComputerName -Level 'Info'
-  Write-PrettyKeyValue -Key 'Timestamp'      -Value (ConvertTo-DisplayString $Summary.Timestamp) -Level 'Info'
-  Write-PrettyKeyValue -Key 'Rows'           -Value (ConvertTo-DisplayString $Summary.Rows) -Level 'Info'
-  Write-PrettyKeyValue -Key 'Reference JSON' -Value $refText -Level $refLevel
+  Write-UiHeader -Title 'Security Baseline Report'
+  Write-KeyValue -Key 'ComputerName'   -Value $Summary.ComputerName -Level 'Info'
+  Write-KeyValue -Key 'Timestamp'      -Value (ConvertTo-DisplayString $Summary.Timestamp) -Level 'Info'
+  Write-KeyValue -Key 'Rows'           -Value (ConvertTo-DisplayString $Summary.Rows) -Level 'Info'
+  Write-KeyValue -Key 'Reference JSON' -Value $refText -Level $refLevel
 
-  Write-PrettyHeader -Title 'VBS / Credential Guard'
-  Write-PrettyKeyValue -Key 'VBS intent (registry)' -Value $vbsRegText -Level (Get-LevelForMatch $vbsMatch)
-  Write-PrettyKeyValue -Key 'CG intent (registry)'  -Value $cgRegText  -Level (Get-LevelForMatch $cgMatch)
-  Write-PrettyKeyValue -Key 'VBS status (CIM)'      -Value ("{0} ({1})" -f (ConvertTo-DisplayString $vbsCimVal), $vbsCimTxt) -Level 'Info'
-  Write-PrettyKeyValue -Key 'CG running (CIM)'      -Value $cgRunTxt -Level $cgRunLevel
+  Write-UiHeader -Title 'VBS / Credential Guard'
+  Write-KeyValue -Key 'VBS intent (registry)' -Value $vbsRegText -Level (Get-LevelForMatch $vbsMatch)
+  Write-KeyValue -Key 'CG intent (registry)'  -Value $cgRegText  -Level (Get-LevelForMatch $cgMatch)
+  Write-KeyValue -Key 'VBS status (CIM)'      -Value ("{0} ({1})" -f (ConvertTo-DisplayString $vbsCimVal), $vbsCimTxt) -Level 'Info'
+  Write-KeyValue -Key 'CG running (CIM)'      -Value $cgRunTxt -Level $cgRunLevel
 
-  Write-PrettyHeader -Title 'LSA Protection'
-  Write-PrettyKeyValue -Key 'RunAsPPL' -Value $runAsPplText -Level (Get-LevelForMatch $pplMatch)
+  Write-UiHeader -Title 'LSA Protection'
+  Write-KeyValue -Key 'RunAsPPL' -Value $runAsPplText -Level (Get-LevelForMatch $pplMatch)
 
-  Write-PrettyHeader -Title 'Firewall (first 3 profiles)'
+  Write-UiHeader -Title 'Firewall (first 3 profiles)'
   $fw = $Rows | Where-Object { $_.Section -eq 'FirewallProfile' -and $_.Name } | Select-Object -First 3
   if ($fw) {
     foreach ($p in $fw) {
       $profileText = "{0}: Enabled={1}, LogAllowed={2}, LogBlocked={3}" -f $p.Name, $p.Enabled, $p.LogAllowed, $p.LogBlocked
       $profileLevel = 'Info'
       if ($p.Enabled -ne $true) { $profileLevel = 'Bad' }
-      Write-PrettyKeyValue -Key 'Profile' -Value $profileText -Level $profileLevel
+      Write-KeyValue -Key 'Profile' -Value $profileText -Level $profileLevel
     }
   } else {
-    Write-PrettyKeyValue -Key 'Profiles' -Value 'No data' -Level 'Dim'
+    Write-KeyValue -Key 'Profiles' -Value 'No data' -Level 'Dim'
   }
 
   Write-UiLine ''
@@ -534,7 +534,7 @@ $summary.PSObject.TypeNames.Insert(0, 'BaselineReport.Summary')
 if ($ExportPath) {
   $folder = Split-Path -Path $ExportPath -Parent
   if (-not $folder) { $folder = (Get-Location).Path }
-  Ensure-Folder -Path $folder
+  Ensure-Directory -Path $folder
 
   $summary | Export-Csv -Path $ExportPath -NoTypeInformation -Encoding UTF8
   $base = [IO.Path]::GetFileNameWithoutExtension($ExportPath)

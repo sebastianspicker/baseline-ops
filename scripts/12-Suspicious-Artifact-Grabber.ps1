@@ -192,7 +192,7 @@ function Expand-Env([string]$p) {
 }
 
 function Save-Json([object]$Obj,[string]$Path) {
-  Ensure-Dir (Split-Path -Parent $Path)
+  Ensure-Directory (Split-Path -Parent $Path)
   ($Obj | ConvertTo-Json -Depth 30) | Out-File -FilePath $Path -Encoding UTF8
 }
 
@@ -421,7 +421,7 @@ function Collect-Processes {
   $csv = Join-Path $outDir 'processes.csv'
 
   try {
-    Ensure-Dir $outDir
+    Ensure-Directory $outDir
 
     $rxList=@(); try { $rxList=@($cat.Process.UserPathsRegex) } catch { }
     $hashUserlandOnly = Safe-ToBool $cat.Process.HashUserlandOnly $true
@@ -577,7 +577,7 @@ function Collect-Network {
 
   $res = New-ResultObject 'Network'
   try {
-    Ensure-Dir $outDir
+    Ensure-Directory $outDir
 
     $counts = [ref](@{ Tcp=0; Listeners=0; Udp=0 })
     $note = [ref]$null
@@ -644,7 +644,7 @@ function Export-SuspiciousTaskXml {
     [int]$MaxXml
   )
 
-  Ensure-Dir $outDir
+  Ensure-Directory $outDir
   $exported = 0
 
   foreach ($t in ($taskRows | Where-Object { $_.Suspicious -eq $true })) {
@@ -669,7 +669,7 @@ function Collect-Tasks {
   $maxXml    = Safe-ToInt  $cat.Tasks.MaxXml 50
 
   try {
-    Ensure-Dir $outDir
+    Ensure-Directory $outDir
 
     $tasks = Get-ScheduledTask
     $flat = foreach ($t in $tasks) {
@@ -722,7 +722,7 @@ function Collect-WmiPersistence {
 
   $res = New-ResultObject 'WMI'
   try {
-    Ensure-Dir $outDir
+    Ensure-Directory $outDir
 
     $filters  = Get-CimInstance -Namespace root\subscription -ClassName __EventFilter -ErrorAction SilentlyContinue
     $bindings = Get-CimInstance -Namespace root\subscription -ClassName __FilterToConsumerBinding -ErrorAction SilentlyContinue
@@ -760,7 +760,7 @@ function Export-Autoruns {
 
   $res = New-ResultObject 'Autoruns'
   try {
-    Ensure-Dir $outDir
+    Ensure-Directory $outDir
 
     $targets=@(
       'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run',
@@ -816,8 +816,8 @@ function Print-ConsoleSummary {
     Write-UiStatus -Label 'Config' -State 'INFO' -Text $CatalogLoadNote
   }
 
-  Write-UiKeyValue -Key 'WorkDir' -Value ([string]$Summary.Output.WorkDir)
-  Write-UiKeyValue -Key 'Zip'     -Value ([string]$Summary.Output.Zip)
+  Write-KeyValue -Key 'WorkDir' -Value ([string]$Summary.Output.WorkDir)
+  Write-KeyValue -Key 'Zip'     -Value ([string]$Summary.Output.Zip)
 
   Write-UiLine
   Write-UiLine "Counts:" -ForegroundColor Gray
@@ -940,7 +940,7 @@ try {
   $work = Join-Path $base $ts
   $zip  = Join-Path $base ("Grabber-{0}-{1}.zip" -f $env:COMPUTERNAME,$ts)
 
-  Ensure-Dir $work
+  Ensure-Directory $work
 
   $summary = [ordered]@{
     Host    = $env:COMPUTERNAME
@@ -996,7 +996,7 @@ try {
   # Samples (optional)
   if ($tr.Samples -or (Safe-ToBool $cat.Samples.Enable $false)) {
     $sDir = Join-Path $work 'samples'
-    Ensure-Dir $sDir
+    Ensure-Directory $sDir
 
     $maxFileMB  = Safe-ToInt $tr.MaxFileMB (Safe-ToInt $cat.Samples.MaxFileSizeMB 20)
     $maxTotalMB = Safe-ToInt $tr.MaxTotalMB (Safe-ToInt $cat.Samples.MaxTotalMB 100)

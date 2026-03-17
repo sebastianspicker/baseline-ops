@@ -3,14 +3,9 @@ Set-StrictMode -Version Latest
 function Ensure-EventSource {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory = $false)]
     [string]$Source,
-    [Parameter(Mandatory = $false)]
-    [Alias('SourceName')]
-    [string]$SourceName,
-    [Parameter(Mandatory = $false)]
-    [Alias('Log')]
-    [string]$LogName,
+    [Alias('SourceName')][string]$SourceName,
+    [Alias('Log')][string]$LogName,
     [scriptblock]$OnError
   )
   if (-not $Source -and $SourceName) { $Source = $SourceName }
@@ -47,13 +42,8 @@ function Write-HealthEvent {
     [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
     [string]$Source,
     [Alias('Log')][string]$LogName,
-    [switch]$EventLogReady,
-    [switch]$CanEventLog,
     [scriptblock]$OnError
   )
-
-  # Compatibility only: callers may pass -EventLogReady / -CanEventLog; reference so PSScriptAnalyzer does not flag as unused.
-  $null = $EventLogReady, $CanEventLog
 
   if (-not $Source) {
     $Source = Get-CallerValue -Name 'EventSource'

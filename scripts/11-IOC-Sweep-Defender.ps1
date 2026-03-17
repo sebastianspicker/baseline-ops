@@ -205,7 +205,7 @@ $DefaultEvidenceDir  = $null
 
 
 function Save-Json([object]$Obj,[string]$Path){
-  Ensure-Dir (Split-Path -Parent $Path)
+  Ensure-Directory (Split-Path -Parent $Path)
   ($Obj | ConvertTo-Json -Depth 50) | Out-File -FilePath $Path -Encoding UTF8
 }
 
@@ -326,7 +326,7 @@ function Convert-RegProviderToRegExePath([string]$KeyPath){
 
 function Export-Reg([string]$RegPath,[string]$OutFile){
   try {
-    Ensure-Dir (Split-Path -Parent $OutFile)
+    Ensure-Directory (Split-Path -Parent $OutFile)
     $res = Invoke-RegExe -Arguments @('export', $RegPath, $OutFile, '/y')
     if ($res -eq $true) { return $true, $OutFile }
     return $false, 'reg-export-failed'
@@ -401,8 +401,8 @@ try {
   $evDir = Get-OrDefault (Get-ObjPropValue $cat 'EvidenceDir') $DefaultEvidenceDir
   $evDir = [string]$evDir
 
-  if ($CollectEvidence) { Ensure-Dir $evDir }
-  Ensure-Dir (Split-Path -Parent $outFile)
+  if ($CollectEvidence) { Ensure-Directory $evDir }
+  Ensure-Directory (Split-Path -Parent $outFile)
 
   # Defender scan
   try {
@@ -594,7 +594,8 @@ try {
     if (-not $name) { continue }
 
     try {
-      $svc = Get-CimInstance -ClassName Win32_Service -Filter ("Name='{0}'" -f $name) -ErrorAction Stop
+      $escapedSvcName = $name -replace "'", "''"
+      $svc = Get-CimInstance -ClassName Win32_Service -Filter ("Name='{0}'" -f $escapedSvcName) -ErrorAction Stop
       $img = $svc.PathName
 
       $match = $true
@@ -822,17 +823,17 @@ $Proof.Summary = @{
 
 # Pretty output
 Write-UiHeader "IOC Sweep (Defender) - Result"
-Write-UiKV "Time"     $Proof.Time     Gray
-Write-UiKV "Host"     $Proof.Hostname Gray
-Write-UiKV "User"     $Proof.User     Gray
+Write-KeyValue "Time"     $Proof.Time     Gray
+Write-KeyValue "Host"     $Proof.Hostname Gray
+Write-KeyValue "User"     $Proof.User     Gray
 
 $adminColor = [ConsoleColor]::Yellow
 if ($Proof.IsAdmin) { $adminColor = [ConsoleColor]::Green }
-Write-UiKV "Admin" ([string]$Proof.IsAdmin) $adminColor
+Write-KeyValue "Admin" ([string]$Proof.IsAdmin) $adminColor
 
 $catColor = [ConsoleColor]::Green
 if ($Proof.Catalog.Source -eq 'Default') { $catColor = [ConsoleColor]::Yellow }
-Write-UiKV "Catalog" $Proof.Catalog.Source $catColor
+Write-KeyValue "Catalog" $Proof.Catalog.Source $catColor
 
 if (@($Proof.Catalog.Errors).Count -gt 0) {
   Write-UiStatus -Label "Catalog warnings" -State "WARN" -Detail ("{0} issue(s)" -f @($Proof.Catalog.Errors).Count)
@@ -843,9 +844,9 @@ if (@($Proof.Catalog.Errors).Count -gt 0) {
 
 $scanReq = Get-OrDefault $Proof.Scan.Requested "n/a"
 $scanRes = Get-OrDefault $Proof.Scan.Result "n/a"
-Write-UiKV "Scan" ("{0} -> {1}" -f $scanReq, $scanRes) Cyan
-Write-UiKV "Proof" $outFile Gray
-Write-UiKV "Evidence" $evDir Gray
+Write-KeyValue "Scan" ("{0} -> {1}" -f $scanReq, $scanRes) Cyan
+Write-KeyValue "Proof" $outFile Gray
+Write-KeyValue "Evidence" $evDir Gray
 
 Write-UiLine ""
 if ($exitCode -eq 0) {
@@ -878,9 +879,9 @@ $actColor = [ConsoleColor]::Green; if ($actCount -gt 0) { $actColor = [ConsoleCo
 $errColor = [ConsoleColor]::Green; if ($errCount -gt 0) { $errColor = [ConsoleColor]::Red }
 $exitColor = [ConsoleColor]::Green; if ($exitCode -ne 0) { $exitColor = [ConsoleColor]::Yellow }
 
-Write-UiKV "Actions"  ([string]$actCount) $actColor
-Write-UiKV "Errors"   ([string]$errCount) $errColor
-Write-UiKV "ExitCode" ([string]$exitCode) $exitColor
+Write-KeyValue "Actions"  ([string]$actCount) $actColor
+Write-KeyValue "Errors"   ([string]$errCount) $errColor
+Write-KeyValue "ExitCode" ([string]$exitCode) $exitColor
 
 if ($errCount -gt 0) {
   Write-UiLine ""

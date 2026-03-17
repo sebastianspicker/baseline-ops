@@ -171,38 +171,38 @@ function Write-ConsoleSummary {
   elseif ($result -eq 'WARNING') { $resColor = [ConsoleColor]::Yellow }
   elseif ($result -eq 'ERROR') { $resColor = [ConsoleColor]::Red }
 
-  Write-Console ""
+  Write-UiLine ""
   Write-Rule -Title "WUfB Proofing Summary" -Color ([ConsoleColor]::DarkCyan)
 
-  Write-KV -Key 'Result'    -Value $Summary.Result -ValueColor $resColor
-  Write-KV -Key 'Elevated'  -Value $Summary.Elevated
-  Write-KV -Key 'Remediate' -Value $Summary.Remediate
-  Write-KV -Key 'Strict'    -Value $Summary.Strict
-  Write-KV -Key 'Changes'   -Value $Summary.ChangesCount
-  Write-KV -Key 'Drift'     -Value $Summary.DriftCount
-  Write-KV -Key 'Notes'     -Value $Summary.NotesCount
-  Write-KV -Key 'EventLog'  -Value $Summary.EventLogStatus
-  Write-KV -Key 'Proof JSON'-Value $Summary.ProofPath
+  Write-KeyValue -Key 'Result'    -Value $Summary.Result -ValueColor $resColor
+  Write-KeyValue -Key 'Elevated'  -Value $Summary.Elevated
+  Write-KeyValue -Key 'Remediate' -Value $Summary.Remediate
+  Write-KeyValue -Key 'Strict'    -Value $Summary.Strict
+  Write-KeyValue -Key 'Changes'   -Value $Summary.ChangesCount
+  Write-KeyValue -Key 'Drift'     -Value $Summary.DriftCount
+  Write-KeyValue -Key 'Notes'     -Value $Summary.NotesCount
+  Write-KeyValue -Key 'EventLog'  -Value $Summary.EventLogStatus
+  Write-KeyValue -Key 'Proof JSON'-Value $Summary.ProofPath
 
   if ($Changes -and $Changes.Count -gt 0) {
-    Write-Console ""
-    Write-Console "Changes:" -ForegroundColor ([ConsoleColor]::Green)
-    foreach ($c in $Changes) { Write-Console ("- {0}" -f $c) -ForegroundColor ([ConsoleColor]::Gray) }
+    Write-UiLine ""
+    Write-UiLine "Changes:" -ForegroundColor ([ConsoleColor]::Green)
+    foreach ($c in $Changes) { Write-UiLine ("- {0}" -f $c) -ForegroundColor ([ConsoleColor]::Gray) }
   }
 
   if ($Drift -and $Drift.Count -gt 0) {
-    Write-Console ""
-    Write-Console "Drift:" -ForegroundColor ([ConsoleColor]::Yellow)
-    foreach ($d in $Drift) { Write-Console ("- {0}" -f $d) -ForegroundColor ([ConsoleColor]::Gray) }
+    Write-UiLine ""
+    Write-UiLine "Drift:" -ForegroundColor ([ConsoleColor]::Yellow)
+    foreach ($d in $Drift) { Write-UiLine ("- {0}" -f $d) -ForegroundColor ([ConsoleColor]::Gray) }
   }
 
   if ($Notes -and $Notes.Count -gt 0) {
-    Write-Console ""
-    Write-Console "Notes:" -ForegroundColor ([ConsoleColor]::Cyan)
-    foreach ($n in $Notes) { Write-Console ("- {0}" -f $n) -ForegroundColor ([ConsoleColor]::Gray) }
+    Write-UiLine ""
+    Write-UiLine "Notes:" -ForegroundColor ([ConsoleColor]::Cyan)
+    foreach ($n in $Notes) { Write-UiLine ("- {0}" -f $n) -ForegroundColor ([ConsoleColor]::Gray) }
   }
 
-  Write-Console ""
+  Write-UiLine ""
 }
 
 # -----------------------------
@@ -214,7 +214,7 @@ function Write-ConsoleSummary {
 # Security / registry / file helpers
 # -----------------------------
 
-function Is-Admin {
+function Test-IsAdmin {
   [CmdletBinding()]
   param()
   try {
@@ -342,7 +342,7 @@ function Save-JsonNoBom {
   $parent = Split-Path -Parent $fullPath
   if ([string]::IsNullOrWhiteSpace($parent)) { throw "Invalid proof path (no parent folder): $fullPath" }
 
-  Ensure-Dir -Path $parent
+  Ensure-Directory -Path $parent
 
   $json = $Obj | ConvertTo-Json -Depth 12
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -519,15 +519,15 @@ $modeText = 'Audit'
 if ($Remediate) { $modeText = 'Remediate' }
 
 Write-Rule -Title ("WUfB Proofing - {0}" -f $env:COMPUTERNAME) -Color ([ConsoleColor]::DarkCyan)
-Write-KV -Key 'Start' -Value (Get-Date).ToString()
-Write-KV -Key 'Mode'  -Value $modeText
-Write-Console ""
+Write-KeyValue -Key 'Start' -Value (Get-Date).ToString()
+Write-KeyValue -Key 'Mode'  -Value $modeText
+Write-UiLine ""
 
 try {
   $eventSourceReady = Ensure-EventSource
   if (-not $eventSourceReady) { $notes.Add("Event source not ensured. EventLog write may fail.") | Out-Null }
 
-  $isAdmin = Is-Admin
+  $isAdmin = Test-IsAdmin
   $Proof.Result.Elevated = $isAdmin
 
   if (-not $isAdmin) {

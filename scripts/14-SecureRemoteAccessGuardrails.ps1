@@ -218,7 +218,7 @@ function Test-IsElevated {
   } catch { return $false }
 }
 
-function Ensure-FolderForFile {
+function Ensure-DirectoryForFile {
   param([string]$FilePath)
   try {
     $dir = Split-Path -Parent $FilePath
@@ -705,7 +705,7 @@ try {
   foreach ($x in @($ra)) { if ($x -match '^(Failed|RemoteAssistance)') { $drifts += $x } else { $changes += $x } }
 
   # Result object (pipeline)
-  Ensure-FolderForFile -FilePath $ProofPath | Out-Null
+  Ensure-DirectoryForFile -FilePath $ProofPath | Out-Null
 
   $resultObject = [pscustomobject]@{
     TimestampUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -756,13 +756,13 @@ try {
   # Pretty console output (no pipeline pollution)
   Write-UiLine ""
   Write-UiSeparator -Title "Secure Remote Access Guardrails"
-  Write-UiKeyValue -Key "Computer"  -Value $env:COMPUTERNAME -Color Gray
-  Write-UiKeyValue -Key "Elevated"  -Value ($isElevated.ToString()) -Color $(if ($isElevated) { 'Green' } else { 'Yellow' })
-  Write-UiKeyValue -Key "Remediate" -Value ([bool]$Remediate) -Color $(if ($Remediate) { 'Yellow' } else { 'Gray' })
-  Write-UiKeyValue -Key "Strict"    -Value ([bool]$Strict) -Color $(if ($Strict) { 'Yellow' } else { 'Gray' })
-  Write-UiKeyValue -Key "EventId"   -Value $resultObject.EventId -Color $(if ($eventIsBad) { 'Yellow' } else { 'Green' })
-  Write-UiKeyValue -Key "Proof"     -Value $ProofPath -Color Cyan
-  Write-UiKeyValue -Key "Duration"  -Value ("{0:00}:{1:00}:{2:00}" -f $duration.Hours, $duration.Minutes, $duration.Seconds) -Color Gray
+  Write-KeyValue -Key "Computer"  -Value $env:COMPUTERNAME -Color Gray
+  Write-KeyValue -Key "Elevated"  -Value ($isElevated.ToString()) -Color $(if ($isElevated) { 'Green' } else { 'Yellow' })
+  Write-KeyValue -Key "Remediate" -Value ([bool]$Remediate) -Color $(if ($Remediate) { 'Yellow' } else { 'Gray' })
+  Write-KeyValue -Key "Strict"    -Value ([bool]$Strict) -Color $(if ($Strict) { 'Yellow' } else { 'Gray' })
+  Write-KeyValue -Key "EventId"   -Value $resultObject.EventId -Color $(if ($eventIsBad) { 'Yellow' } else { 'Green' })
+  Write-KeyValue -Key "Proof"     -Value $ProofPath -Color Cyan
+  Write-KeyValue -Key "Duration"  -Value ("{0:00}:{1:00}:{2:00}" -f $duration.Hours, $duration.Minutes, $duration.Seconds) -Color Gray
   Write-UiSeparator
 
   $statusColor = 'Green'
@@ -771,9 +771,9 @@ try {
   if ($hadError) { $statusColor = 'Red'; $statusText = 'ERROR' }
 
   Write-UiLine -Text ("Status: {0}" -f $statusText) -Color $statusColor
-  Write-UiKeyValue -Key "Changes" -Value (@($changes).Count) -Color $(if (@($changes).Count -gt 0) { 'Yellow' } else { 'Gray' })
-  Write-UiKeyValue -Key "Drifts"  -Value (@($drifts).Count) -Color $(if (@($drifts).Count -gt 0) { 'Yellow' } else { 'Green' })
-  Write-UiKeyValue -Key "Notes"   -Value (@($notes).Count) -Color $(if (@($notes).Count -gt 0) { 'Cyan' } else { 'Gray' })
+  Write-KeyValue -Key "Changes" -Value (@($changes).Count) -Color $(if (@($changes).Count -gt 0) { 'Yellow' } else { 'Gray' })
+  Write-KeyValue -Key "Drifts"  -Value (@($drifts).Count) -Color $(if (@($drifts).Count -gt 0) { 'Yellow' } else { 'Green' })
+  Write-KeyValue -Key "Notes"   -Value (@($notes).Count) -Color $(if (@($notes).Count -gt 0) { 'Cyan' } else { 'Gray' })
 
   Write-UiLine ""
   Write-UiList -Header "Changes" -Items @($changes) -Color Yellow
@@ -791,7 +791,7 @@ catch {
 
   Write-HealthEvent -Id 4850 -Message ("Guardrail error - " + $err) -Level 'Error' -Source $ScriptEventSource
 
-  Ensure-FolderForFile -FilePath $ProofPath | Out-Null
+  Ensure-DirectoryForFile -FilePath $ProofPath | Out-Null
   try {
     [pscustomobject]@{
       TimestampUtc = (Get-Date).ToUniversalTime().ToString('o')

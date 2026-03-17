@@ -6,7 +6,6 @@ Shared PowerShell modules used to remove script-level duplication and standardiz
 
 - `Common.psm1`
   - caller-scope lookup, admin checks, safe directory/path helpers
-  - includes aliases for legacy names (`Is-Admin`, `Ensure-Folder`)
 - `Output.psm1`
   - unified console output helpers
 - `Console.psm1`

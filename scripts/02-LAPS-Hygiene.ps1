@@ -429,7 +429,8 @@ function Get-LocalAdminInfo {
     }
   } catch {
     try {
-      $u2 = Get-CimInstance Win32_UserAccount -Filter "LocalAccount=True AND Name='$Name'" -ErrorAction Stop | Select-Object -First 1
+      $escapedName = $Name -replace "'", "''"
+      $u2 = Get-CimInstance Win32_UserAccount -Filter "LocalAccount=True AND Name='$escapedName'" -ErrorAction Stop | Select-Object -First 1
       if ($u2) {
         return [pscustomobject]@{
           Exists          = $true
@@ -755,34 +756,34 @@ Write-UiSeparator -Char '=' -Width $Config.Console.Width -Style 'Dim'
 Write-UiLine -Text "LAPS Hygiene (Windows PowerShell 5.1)" -Style 'Title'
 Write-UiSeparator -Char '=' -Width $Config.Console.Width -Style 'Dim'
 
-Write-UiKv -Key "Time (UTC)"     -Value ((Get-Date $result.TimestampUtc -Format s) + "Z") -ValueStyle 'Dim'
-if ($Config.Console.ShowConfigPath) { Write-UiKv -Key "ConfigPath" -Value $ConfigPath -ValueStyle 'Dim' }
+Write-KeyValue -Key "Time (UTC)"     -Value ((Get-Date $result.TimestampUtc -Format s) + "Z") -ValueStyle 'Dim'
+if ($Config.Console.ShowConfigPath) { Write-KeyValue -Key "ConfigPath" -Value $ConfigPath -ValueStyle 'Dim' }
 
-Write-UiKv -Key "Policy"         -Value ("{0} ({1})" -f $result.PolicyType, $result.PolicyMechanism) -ValueStyle 'Default'
-Write-UiKv -Key "Policy root"    -Value $result.PolicyRoot -ValueStyle 'Dim'
-
-Write-UiSeparator -Char '-' -Width $Config.Console.Width -Style 'Dim'
-
-Write-UiKv -Key "Managed account" -Value ([string]$result.ManagedAccount) -ValueStyle 'Default'
-Write-UiKv -Key "Account exists"  -Value ([string]$result.ManagedAccountExists) -ValueStyle (Get-StyleForBool $result.ManagedAccountExists)
-Write-UiKv -Key "Account enabled" -Value ([string]$result.ManagedAccountEnabled) -ValueStyle (Get-StyleForBool $result.ManagedAccountEnabled)
-
-Write-UiKv -Key "Pwd last set"    -Value ([string](To-Iso $result.PasswordLastSet)) -ValueStyle 'Dim'
-Write-UiKv -Key "Pwd age (days)"  -Value ([string]($(if ($null -ne $result.PasswordAgeDays) { $result.PasswordAgeDays } else { 'n/a' }))) -ValueStyle 'Default'
+Write-KeyValue -Key "Policy"         -Value ("{0} ({1})" -f $result.PolicyType, $result.PolicyMechanism) -ValueStyle 'Default'
+Write-KeyValue -Key "Policy root"    -Value $result.PolicyRoot -ValueStyle 'Dim'
 
 Write-UiSeparator -Char '-' -Width $Config.Console.Width -Style 'Dim'
 
-Write-UiKv -Key "Policy age (d)"  -Value ([string]$result.PolicyPasswordAgeDays) -ValueStyle 'Default'
-Write-UiKv -Key "Threshold (d)"   -Value ([string]($(if ($null -ne $result.ThresholdDays) { $result.ThresholdDays } else { 'n/a' }))) -ValueStyle 'Default'
+Write-KeyValue -Key "Managed account" -Value ([string]$result.ManagedAccount) -ValueStyle 'Default'
+Write-KeyValue -Key "Account exists"  -Value ([string]$result.ManagedAccountExists) -ValueStyle (Get-StyleForBool $result.ManagedAccountExists)
+Write-KeyValue -Key "Account enabled" -Value ([string]$result.ManagedAccountEnabled) -ValueStyle (Get-StyleForBool $result.ManagedAccountEnabled)
+
+Write-KeyValue -Key "Pwd last set"    -Value ([string](To-Iso $result.PasswordLastSet)) -ValueStyle 'Dim'
+Write-KeyValue -Key "Pwd age (days)"  -Value ([string]($(if ($null -ne $result.PasswordAgeDays) { $result.PasswordAgeDays } else { 'n/a' }))) -ValueStyle 'Default'
+
+Write-UiSeparator -Char '-' -Width $Config.Console.Width -Style 'Dim'
+
+Write-KeyValue -Key "Policy age (d)"  -Value ([string]$result.PolicyPasswordAgeDays) -ValueStyle 'Default'
+Write-KeyValue -Key "Threshold (d)"   -Value ([string]($(if ($null -ne $result.ThresholdDays) { $result.ThresholdDays } else { 'n/a' }))) -ValueStyle 'Default'
 
 $bdStyle = 'Dim'
 if ($result.PolicyType -eq 'WindowsLAPS') {
   if ($null -eq $result.BackupDirectoryRaw -or $result.BackupDirectoryRaw -eq 0) { $bdStyle = 'Bad' } else { $bdStyle = 'Good' }
 }
-Write-UiKv -Key "BackupDirectory" -Value $result.BackupDirectory -ValueStyle $bdStyle
+Write-KeyValue -Key "BackupDirectory" -Value $result.BackupDirectory -ValueStyle $bdStyle
 
-Write-UiKv -Key "AAD joined"      -Value ([string]$result.AADJoined) -ValueStyle (Get-StyleForBool $result.AADJoined)
-Write-UiKv -Key "AD joined"       -Value ([string]$result.ADJoined)  -ValueStyle (Get-StyleForBool $result.ADJoined)
+Write-KeyValue -Key "AAD joined"      -Value ([string]$result.AADJoined) -ValueStyle (Get-StyleForBool $result.AADJoined)
+Write-KeyValue -Key "AD joined"       -Value ([string]$result.ADJoined)  -ValueStyle (Get-StyleForBool $result.ADJoined)
 
 Write-UiSeparator -Char '-' -Width $Config.Console.Width -Style 'Dim'
 
@@ -791,12 +792,12 @@ if ($result.NeedsRotate -and -not $result.Rotated -and $result.Remediate) { $rot
 elseif ($result.NeedsRotate -and $result.Rotated) { $rotateStyle = 'Good' }
 elseif ($result.NeedsRotate -and -not $result.Remediate) { $rotateStyle = 'Warn' }
 
-Write-UiKv -Key "Needs rotate"    -Value ([string]$result.NeedsRotate) -ValueStyle $rotateStyle
-Write-UiKv -Key "Remediate"       -Value ([string]$result.Remediate) -ValueStyle (Get-StyleForBool $result.Remediate)
-Write-UiKv -Key "Rotated"         -Value ("{0} ({1})" -f $result.Rotated, $result.RotationMethod) -ValueStyle $rotateStyle
+Write-KeyValue -Key "Needs rotate"    -Value ([string]$result.NeedsRotate) -ValueStyle $rotateStyle
+Write-KeyValue -Key "Remediate"       -Value ([string]$result.Remediate) -ValueStyle (Get-StyleForBool $result.Remediate)
+Write-KeyValue -Key "Rotated"         -Value ("{0} ({1})" -f $result.Rotated, $result.RotationMethod) -ValueStyle $rotateStyle
 
 Write-UiSeparator -Char '=' -Width $Config.Console.Width -Style 'Dim'
-Write-UiKv -Key "Overall"         -Value ($(if ($result.OkOverall) { 'OK' } else { 'NOT OK' })) -ValueStyle (Get-StyleForOk $result.OkOverall)
+Write-KeyValue -Key "Overall"         -Value ($(if ($result.OkOverall) { 'OK' } else { 'NOT OK' })) -ValueStyle (Get-StyleForOk $result.OkOverall)
 
 if ($result.Reasons.Count -gt 0) {
   Write-UiLine -Text "" -Style 'Default'

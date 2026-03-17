@@ -13,11 +13,13 @@ Scripts that check configuration and report drift without making changes.
 | `02-LAPS-Hygiene.ps1` | LAPS password rotation hygiene | `-MinDaysBeforeRotate`, `-Mode Remediate` |
 | `05-WUFB-Proofing.ps1` | Windows Update for Business proofing | `-CatalogPath`, `-Mode Remediate` |
 | `06-UpdateHealth-SSU-Proof.ps1` | Update health and SSU verification | `-CatalogPath`, `-ConfigPath` |
+| `07-ScheduledTasks-Hygiene.ps1` | Scheduled task health and security hygiene | `-CatalogPath`, `-ConfigPath`, `-Mode Remediate` |
 | `09-SupportBundle.ps1` | Collect diagnostic support bundle | `-BundleName`, `-IncludeKbFeed` |
 | `10-SupportBundle-Parser.ps1` | Parse support bundle archives | `-SupportDir`, `-ConfigPath` |
 | `15-HardwareTPM-Audit.ps1` | Hardware and TPM compliance | `-CatalogPath`, `-ConfigPath` |
 | `19-Software-Audit.ps1` | Installed software inventory | `-CatalogPath`, `-StatePath` |
 | `23-BitLocker-Operations-Audit.ps1` | BitLocker configuration audit | `-ConfigPath` |
+| `24-Cert-AutoEnrollment-Health.ps1` | Certificate autoenrollment health, expiring cert report | `-WarnDays`, `-ConfigPath`, `-ExportPath` |
 | `26-Get-WinEvent-FastTriage.ps1` | Fast event log triage | `-ConfigPath`, `-MaxEvents` |
 | `27-Defender-Health-Audit.ps1` | Defender health status | `-SettingsJsonPath` |
 | `28-Join-Identity-Audit.ps1` | Domain join and identity audit | `-ConfigPath`, `-ExportPath` |
@@ -42,6 +44,7 @@ Scripts that can apply fixes when run with `-Mode Remediate`.
 | `03-LocalAdmins-Guardrail.ps1` | Local admins enforcement | Removes unauthorized admins |
 | `04-OfficeBrowser-Hardening-Proof.ps1` | Office/Browser hardening | Applies registry hardening settings |
 | `05-WUFB-Proofing.ps1` | WUfB configuration | Applies update policy settings |
+| `07-ScheduledTasks-Hygiene.ps1` | Scheduled task hygiene | Re-enables critical tasks; quarantines risky tasks |
 | `13-LSASS-CG-HVCI-VBS.ps1` | LSASS/Credential Guard | Enables VBS, HVCI, Credential Guard |
 | `14-SecureRemoteAccessGuardrails.ps1` | Remote access hardening | Configures RDP, VPN, firewall rules |
 | `16-Sysmon-Config-Updater.ps1` | Sysmon configuration | Updates Sysmon config, ensures channel |
@@ -87,6 +90,7 @@ Scripts for ongoing monitoring and drift detection.
 | `17-Sysmon-Rule-Drift-Sensor.ps1` | Sysmon config drift detection | Continuous |
 | `34-TimeSync-Health.ps1` | Time synchronization health | Periodic |
 | `38-SecurityOptions-Drift.ps1` | Security options drift | Periodic |
+| `41-NTLM-Audit-Client.ps1` | NTLM / LAN Manager authentication level audit | Periodic |
 | `32-Firewall-Logging-Audit.ps1` | Firewall logging status | Periodic |
 
 ## Common Parameters and Conventions

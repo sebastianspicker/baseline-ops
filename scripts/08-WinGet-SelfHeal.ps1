@@ -767,11 +767,11 @@ try {
   $statusColor = 'Red'
   if ($overallOk) { $statusText = 'OK'; $statusColor = 'Green' }
 
-  Write-ConsoleKV -Key 'Status' -Value $statusText -ValueColor $statusColor
-  Write-ConsoleKV -Key 'Remediate' -Value ($(if ($Remediate) { 'Yes' } else { 'No' })) -ValueColor ($(if ($Remediate) { 'Yellow' } else { 'Gray' }))
-  Write-ConsoleKV -Key 'RequirePrivateSource' -Value ([string]$RequirePrivateSource) -ValueColor ($(if ($RequirePrivateSource) { 'Yellow' } else { 'Gray' }))
-  Write-ConsoleKV -Key 'ConfigPath' -Value 'PATH/TO/JSON' -ValueColor 'Gray'
-  if ($wingetVersionRaw) { Write-ConsoleKV -Key 'WinGetVersion' -Value $wingetVersionRaw -ValueColor 'White' }
+  Write-KeyValue -Key 'Status' -Value $statusText -ValueColor $statusColor
+  Write-KeyValue -Key 'Remediate' -Value ($(if ($Remediate) { 'Yes' } else { 'No' })) -ValueColor ($(if ($Remediate) { 'Yellow' } else { 'Gray' }))
+  Write-KeyValue -Key 'RequirePrivateSource' -Value ([string]$RequirePrivateSource) -ValueColor ($(if ($RequirePrivateSource) { 'Yellow' } else { 'Gray' }))
+  Write-KeyValue -Key 'ConfigPath' -Value 'PATH/TO/JSON' -ValueColor 'Gray'
+  if ($wingetVersionRaw) { Write-KeyValue -Key 'WinGetVersion' -Value $wingetVersionRaw -ValueColor 'White' }
 
   if (-not $script:NoConsole) {
     Write-UiLine ""

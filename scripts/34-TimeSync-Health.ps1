@@ -333,9 +333,9 @@ if ($svc.Status -ne 'Running') {
 $regParams    = 'HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters'
 $regNtpClient = 'HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\NtpClient'
 
-$typeValue        = Get-RegValueSafe -Path $regParams -Name 'Type'
-$ntpServerValue   = Get-RegValueSafe -Path $regParams -Name 'NtpServer'
-$ntpClientEnabled = Get-RegValueSafe -Path $regNtpClient -Name 'Enabled'
+$typeValue        = Get-RegValue -Path $regParams -Name 'Type'
+$ntpServerValue   = Get-RegValue -Path $regParams -Name 'NtpServer'
+$ntpClientEnabled = Get-RegValue -Path $regNtpClient -Name 'Enabled'
 
 if ($typeValue -eq 'NoSync') {
   Add-Finding -FindingList $script:Findings -Code 'TIME-TypeNoSync' -Severity 'High' -Message 'Registry Type=NoSync: time service will not synchronize.'

@@ -312,44 +312,44 @@ function Write-ConsoleSummary {
     [Parameter(Mandatory=$true)]$Results
   )
 
-  Write-PrettyHeader -Title "Hardware/TPM Audit Summary"
+  Write-UiHeader -Title "Hardware/TPM Audit Summary"
 
   $statusText = if ($OverallOk) { "COMPLIANT" } else { "NON-COMPLIANT" }
   $statusKind = if ($OverallOk) { 'OK' } else { 'ERR' }
 
-  Write-PrettyLine -Text ("Status : {0}" -f $statusText) -Kind $statusKind
-  Write-PrettyLine -Text ("Proof  : {0}" -f $OutFile) -Kind 'DIM'
+  Write-ColorLine -Text ("Status : {0}" -f $statusText) -Color $statusKind
+  Write-ColorLine -Text ("Proof  : {0}" -f $OutFile) -Color 'DIM'
 
   # Key facts (compact, human-readable)
   $tpm = $Results.TPM
   if ($tpm) {
     $tpmPresent = [bool]$tpm.Present
     $tpmKind = if ($tpmPresent) { 'OK' } else { 'ERR' }
-    Write-PrettyLine -Text ("TPM    : {0}" -f $(if ($tpmPresent) { "Present" } else { "Missing/No Access" })) -Kind $tpmKind
+    Write-ColorLine -Text ("TPM    : {0}" -f $(if ($tpmPresent) { "Present" } else { "Missing/No Access" })) -Color $tpmKind
     if ($tpmPresent) {
-      Write-PrettyLine -Text ("         SpecVersion={0}, Owned={1}, Enabled={2}, Activated={3}, Ready={4}" -f $tpm.SpecVersion,$tpm.IsOwned,$tpm.Enabled,$tpm.Activated,$tpm.Ready) -Kind 'DIM'
+      Write-ColorLine -Text ("         SpecVersion={0}, Owned={1}, Enabled={2}, Activated={3}, Ready={4}" -f $tpm.SpecVersion,$tpm.IsOwned,$tpm.Enabled,$tpm.Activated,$tpm.Ready) -Color 'DIM'
     }
   }
 
-  Write-PrettyLine -Text ("Secure : {0}" -f $(if ($Results.SecureBoot) { "Secure Boot ON" } else { "Secure Boot OFF/Unknown" })) -Kind $(if ($Results.SecureBoot) { 'OK' } else { 'WARN' })
+  Write-ColorLine -Text ("Secure : {0}" -f $(if ($Results.SecureBoot) { "Secure Boot ON" } else { "Secure Boot OFF/Unknown" })) -Color $(if ($Results.SecureBoot) { 'OK' } else { 'WARN' })
 
   $blOk = $Results.BitLockerOsProtected
-  Write-PrettyLine -Text ("BL(OS) : {0}" -f $(if ($blOk) { "Protection ON" } else { "Protection OFF/Unknown" })) -Kind $(if ($blOk) { 'OK' } else { 'WARN' })
+  Write-ColorLine -Text ("BL(OS) : {0}" -f $(if ($blOk) { "Protection ON" } else { "Protection OFF/Unknown" })) -Color $(if ($blOk) { 'OK' } else { 'WARN' })
 
   Write-UiLine ""
   if ($Drifts.Count -gt 0) {
-    Write-PrettyLine -Text "Drifts :" -Kind 'ERR'
-    foreach ($d in $Drifts) { Write-PrettyLine -Text ("- {0}" -f $d) -Kind 'ERR' }
+    Write-ColorLine -Text "Drifts :" -Color 'ERR'
+    foreach ($d in $Drifts) { Write-ColorLine -Text ("- {0}" -f $d) -Color 'ERR' }
   } else {
-    Write-PrettyLine -Text "Drifts : (none)" -Kind 'OK'
+    Write-ColorLine -Text "Drifts : (none)" -Color 'OK'
   }
 
   if ($Notes.Count -gt 0) {
     Write-UiLine ""
-    Write-PrettyLine -Text "Notes  :" -Kind 'WARN'
-    foreach ($n in $Notes) { Write-PrettyLine -Text ("- {0}" -f $n) -Kind 'WARN' }
+    Write-ColorLine -Text "Notes  :" -Color 'WARN'
+    foreach ($n in $Notes) { Write-ColorLine -Text ("- {0}" -f $n) -Color 'WARN' }
   } else {
-    Write-PrettyLine -Text "Notes  : (none)" -Kind 'DIM'
+    Write-ColorLine -Text "Notes  : (none)" -Color 'DIM'
   }
 }
 
@@ -566,8 +566,8 @@ try {
 catch {
   $errMsg = "Hardware/TPM-Audit failed: " + $_.Exception.Message
   Write-HealthEvent -Id 4900 -Message $errMsg -Level 'Error' -Source $EventSource -LogName $EventLogName
-  Write-PrettyHeader -Title "Hardware/TPM Audit Summary"
-  Write-PrettyLine -Text $errMsg -Kind 'ERR'
+  Write-UiHeader -Title "Hardware/TPM Audit Summary"
+  Write-ColorLine -Text $errMsg -Color 'ERR'
 }
 
 

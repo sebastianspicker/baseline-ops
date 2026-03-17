@@ -23,16 +23,6 @@ function Get-RegValue {
   }
 }
 
-function Get-RegValueSafe {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Path,
-    [Parameter(Mandatory)][string]$Name
-  )
-
-  return (Get-RegValue -Path $Path -Name $Name)
-}
-
 function Set-RegDword {
   [CmdletBinding()]
   param(
@@ -273,7 +263,6 @@ function Remove-RegistryKeyIfExists {
 Export-ModuleMember -Function `
   Ensure-RegistryKey, `
   Get-RegValue, `
-  Get-RegValueSafe, `
   Set-RegDword, `
   Set-RegString, `
   Remove-RegValueIfExists, `

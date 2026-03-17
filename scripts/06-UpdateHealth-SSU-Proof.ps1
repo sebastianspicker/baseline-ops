@@ -156,13 +156,13 @@ $script:FallbackLog = $null
 function Write-FallbackLogLine {
   param([string]$Line)
   try {
-    Ensure-Dir (Split-Path -Parent $script:FallbackLog)
+    Ensure-Directory (Split-Path -Parent $script:FallbackLog)
     ("{0} {1}" -f (Get-Date).ToString('s'), $Line) | Out-File -FilePath $script:FallbackLog -Encoding UTF8 -Append
   } catch { }
 }
 
 
-function Is-Admin {
+function Test-IsAdmin {
   try {
     $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -174,7 +174,7 @@ function Is-Admin {
 function Save-Json {
   param([object]$Obj,[string]$Path)
   try {
-    Ensure-Dir (Split-Path -Parent $Path)
+    Ensure-Directory (Split-Path -Parent $Path)
     ($Obj | ConvertTo-Json -Depth 12) | Out-File -Encoding UTF8 -FilePath $Path
     return $true
   } catch {
@@ -569,7 +569,7 @@ function Get-WU-CoreServices {
 $sw = New-Object System.Diagnostics.Stopwatch
 $sw.Start()
 
-$admin = Is-Admin
+$admin = Test-IsAdmin
 $eventSourceOk = Ensure-EventSource
 
 $findings = New-Object System.Collections.ArrayList
@@ -770,14 +770,14 @@ if ($admin) { $adminStyle = 'Ok' }
 
 Write-UiLine ""
 Write-UiLine -Text "=== UpdateHealth/SSU Proof Summary ===" -Style 'Header'
-Write-UiKeyValue -Key 'Status'    -Value $summaryStatus -Style $summaryStyle
-Write-UiKeyValue -Key 'Remediate' -Value ([string][bool]$Remediate) -Style 'Dim'
-Write-UiKeyValue -Key 'Strict'    -Value ([string][bool]$Strict) -Style 'Dim'
-Write-UiKeyValue -Key 'Admin'     -Value ([string]$admin) -Style $adminStyle
-Write-UiKeyValue -Key 'Catalog'   -Value $catalogSource2 -Style 'Dim'
-Write-UiKeyValue -Key 'JSON'      -Value $outFile -Style 'Dim'
-Write-UiKeyValue -Key 'EventLog'  -Value ("{0}/{1}" -f $script:EventLog,$script:EventSource) -Style 'Dim'
-Write-UiKeyValue -Key 'Duration'  -Value ("{0} ms" -f $sw.ElapsedMilliseconds) -Style 'Dim'
+Write-KeyValue -Key 'Status'    -Value $summaryStatus -Style $summaryStyle
+Write-KeyValue -Key 'Remediate' -Value ([string][bool]$Remediate) -Style 'Dim'
+Write-KeyValue -Key 'Strict'    -Value ([string][bool]$Strict) -Style 'Dim'
+Write-KeyValue -Key 'Admin'     -Value ([string]$admin) -Style $adminStyle
+Write-KeyValue -Key 'Catalog'   -Value $catalogSource2 -Style 'Dim'
+Write-KeyValue -Key 'JSON'      -Value $outFile -Style 'Dim'
+Write-KeyValue -Key 'EventLog'  -Value ("{0}/{1}" -f $script:EventLog,$script:EventSource) -Style 'Dim'
+Write-KeyValue -Key 'Duration'  -Value ("{0} ms" -f $sw.ElapsedMilliseconds) -Style 'Dim'
 
 if ($notes.Count -gt 0) {
   Write-UiLine ""

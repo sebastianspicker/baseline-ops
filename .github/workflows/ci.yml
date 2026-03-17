@@ -70,6 +70,8 @@ jobs:
       contents: read
     needs: verify
     timeout-minutes: 20
+    env:
+      PESTER_VERSION: '5.7.1'
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
@@ -81,10 +83,29 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Cache PowerShell modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~\Documents\WindowsPowerShell\Modules
+            ~\Documents\PowerShell\Modules
+          key: psmodules-${{ runner.os }}-pester-${{ env.PESTER_VERSION }}
+
+      - name: Ensure Pester
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:PESTER_VERSION
+          $installed = Get-Module -ListAvailable -Name Pester | Where-Object { $_.Version -eq $version }
+          if (-not $installed) {
+            Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
+            Install-Module -Name Pester -RequiredVersion $version -Scope CurrentUser -Force -SkipPublisherCheck
+          }
+
       - name: Run Pester
         shell: pwsh
         run: |
-          Invoke-Pester -Path .\tests -Output Detailed
+          Invoke-Pester -Path .\tests -Output Detailed -CI
 
   test-smoke-linux:
     name: Smoke (Linux)

@@ -406,7 +406,7 @@ function Ensure-SysmonChannel([switch]$DoIt,[int]$MiB){
 
 function Write-State([string]$p,[hashtable]$obj){
   try {
-    Ensure-Dir (Split-Path -Parent $p)
+    Ensure-Directory (Split-Path -Parent $p)
     ($obj | ConvertTo-Json -Depth 8) | Out-File -LiteralPath $p -Encoding UTF8 -Force
     return $true
   } catch { return $false }

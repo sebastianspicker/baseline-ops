@@ -184,7 +184,7 @@ function Resolve-PhysicalDisk {
   throw "Unable to resolve PhysicalDisk object for '$($DiskRow.FriendlyName)'."
 }
 
-function Ensure-Folder {
+function Ensure-Directory {
   param([Parameter(Mandatory)][string]$Path)
   if (-not (Test-Path -Path $Path)) {
     New-Item -Path $Path -ItemType Directory -Force | Out-Null
@@ -204,22 +204,22 @@ function Write-ConsoleSummary {
 
   Write-Rule -Title "Storage Reliability Audit Summary" -Color 'Gray'
 
-  Write-Ui -Text ("ComputerName  : {0}" -f $Summary.ComputerName) -Color 'Gray'
-  Write-Ui -Text ("Timestamp     : {0}" -f $Summary.Timestamp) -Color 'Gray'
-  Write-Ui -Text ("PhysicalDisks : {0}" -f $Summary.PhysicalDisks) -Color 'Gray'
-  Write-Ui -Text ("Reliability   : {0}" -f $Summary.ReliabilityRead) -Color 'Gray'
+  Write-UiLine -Text ("ComputerName  : {0}" -f $Summary.ComputerName) -Color 'Gray'
+  Write-UiLine -Text ("Timestamp     : {0}" -f $Summary.Timestamp) -Color 'Gray'
+  Write-UiLine -Text ("PhysicalDisks : {0}" -f $Summary.PhysicalDisks) -Color 'Gray'
+  Write-UiLine -Text ("Reliability   : {0}" -f $Summary.ReliabilityRead) -Color 'Gray'
 
   $findingsColor = 'Green'
   if ($Summary.FindingsCount -gt 0) { $findingsColor = 'Yellow' }
   if (($Findings | Where-Object { $_.Severity -eq 'High' } | Measure-Object).Count -gt 0) { $findingsColor = 'Red' }
 
-  Write-Ui -Text ("Findings      : {0}" -f $Summary.FindingsCount) -Color $findingsColor
+  Write-UiLine -Text ("Findings      : {0}" -f $Summary.FindingsCount) -Color $findingsColor
 
   if ($Findings.Count -gt 0) {
     $group = $Findings | Group-Object Severity | Sort-Object @{Expression={ $sevOrder[$_.Name] }}
-    Write-Ui -BlankLine
-    Write-Ui -Text "Findings by severity" -Color 'Gray'
-    Write-Ui -Text (($group | Select-Object Name, Count | Format-Table -AutoSize | Out-String).TrimEnd()) -Color 'Gray'
+    Write-BlankLine
+    Write-UiLine -Text "Findings by severity" -Color 'Gray'
+    Write-UiLine -Text (($group | Select-Object Name, Count | Format-Table -AutoSize | Out-String).TrimEnd()) -Color 'Gray'
 
     $topN = 10
     try { $topN = [int]$Config.Output.ConsoleSummaryTopFindings } catch { $topN = 10 }
@@ -227,14 +227,14 @@ function Write-ConsoleSummary {
 
     $top = $Findings | Sort-Object @{Expression={ $sevOrder[$_.Severity] }}, Code | Select-Object -First $topN
 
-    Write-Ui -BlankLine
-    Write-Ui -Text ("Top {0} findings" -f $topN) -Color 'Gray'
+    Write-BlankLine
+    Write-UiLine -Text ("Top {0} findings" -f $topN) -Color 'Gray'
 
     foreach ($f in $top) {
       $c = Get-SeverityColor -Severity $f.Severity
       $dk = $f.DiskKey
       if ([string]::IsNullOrWhiteSpace($dk)) { $dk = '-' }
-      Write-Ui -Text ("[{0}] {1} | {2} | {3}" -f $f.Severity.ToUpper(), $f.Code, $dk, $f.Message) -Color $c
+      Write-UiLine -Text ("[{0}] {1} | {2} | {3}" -f $f.Severity.ToUpper(), $f.Code, $dk, $f.Message) -Color $c
     }
   }
 
@@ -243,17 +243,17 @@ function Write-ConsoleSummary {
 
   if ($showDiskTable -and $Disks -and $Disks.Count -gt 0) {
     Write-Rule -Title "Physical disks" -Color 'Gray'
-    Write-Ui -Text ((($Disks | Select-Object FriendlyName, MediaType, BusType, HealthStatus, OperationalStatus, Size) |
+    Write-UiLine -Text ((($Disks | Select-Object FriendlyName, MediaType, BusType, HealthStatus, OperationalStatus, Size) |
         Format-Table -AutoSize | Out-String).TrimEnd()) -Color 'Gray'
   }
 
   if ($Reliability -and $Reliability.Count -gt 0) {
     Write-Rule -Title "Reliability counters (sample fields)" -Color 'Gray'
-    Write-Ui -Text ((($Reliability | Select-Object FriendlyName, Temperature, Wear, UncorrectableErrors, ReadErrorsTotal, WriteErrorsTotal, PowerOnHours |
+    Write-UiLine -Text ((($Reliability | Select-Object FriendlyName, Temperature, Wear, UncorrectableErrors, ReadErrorsTotal, WriteErrorsTotal, PowerOnHours |
         Format-Table -AutoSize | Out-String).TrimEnd())) -Color 'Gray'
   }
 
-  Write-Ui -BlankLine
+  Write-BlankLine
 }
 
 # endregion Helpers
@@ -373,7 +373,7 @@ $summary = [pscustomobject]@{
 if ($ExportPath) {
   $folder = Split-Path -Path $ExportPath -Parent
   if (-not $folder) { $folder = (Get-Location).Path }
-  Ensure-Folder -Path $folder
+  Ensure-Directory -Path $folder
 
   $base = [IO.Path]::GetFileNameWithoutExtension($ExportPath)
 

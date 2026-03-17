@@ -28,18 +28,6 @@ function Test-IsAdmin {
   }
 }
 
-function Test-IsAdministrator {
-  [CmdletBinding()]
-  param()
-  return (Test-IsAdmin)
-}
-
-function Is-Admin {
-  [CmdletBinding()]
-  param()
-  return (Test-IsAdmin)
-}
-
 function Require-Admin {
   [CmdletBinding()]
   param(
@@ -76,24 +64,6 @@ function Ensure-DirectoryForFile {
   $dir = Split-Path -Path $FilePath -Parent
   if ([string]::IsNullOrWhiteSpace($dir)) { return }
   Ensure-Directory -Path $dir
-}
-
-function Ensure-Dir {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
-  Ensure-Directory -Path $Path
-}
-
-function Ensure-Folder {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
-  Ensure-Directory -Path $Path
-}
-
-function Ensure-FolderForFile {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$FilePath)
-  Ensure-DirectoryForFile -FilePath $FilePath
 }
 
 function Sanitize-Path {
@@ -152,13 +122,8 @@ function Read-JsonConfig {
 Export-ModuleMember -Function `
   Get-CallerValue, `
   Test-IsAdmin, `
-  Test-IsAdministrator, `
-  Is-Admin, `
   Require-Admin, `
   Ensure-Directory, `
   Ensure-DirectoryForFile, `
-  Ensure-Dir, `
-  Ensure-Folder, `
-  Ensure-FolderForFile, `
   Read-JsonConfig, `
   Sanitize-Path

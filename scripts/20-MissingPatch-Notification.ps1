@@ -193,7 +193,7 @@ function Get-DefaultStatePath {
   Join-Path -Path $base -ChildPath "PatchReminder\update-reminder.json"
 }
 
-function Ensure-FolderForFile {
+function Ensure-DirectoryForFile {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$FilePath)
 
@@ -220,7 +220,7 @@ function Save-JsonUtf8NoBom {
     [Parameter(Mandatory)][string]$Path
   )
 
-  Ensure-FolderForFile -FilePath $Path
+  Ensure-DirectoryForFile -FilePath $Path
 
   $json = $Obj | ConvertTo-Json -Depth 12
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -469,7 +469,7 @@ $msg = "Patch Status: MissingCritical=$(Get-Count $missingCritical), ZeroDayGaps
 if ((Get-Count $zeroDays) -gt 0) { $msg += " | ZERO-DAY: $zList" }
 elseif ((Get-Count $missingCritical) -gt 0) { $msg += " | Missing: $mList" }
 
-Write-HealthEvent -Id $status -Msg $msg -Level $level -CanEventLog:$canEventLog -Source $eventSource
+Write-HealthEvent -Id $status -Msg $msg -Level $level -Source $eventSource
 
 # Pretty console output.
 $headerLine = New-ConsoleLine -Char '='

@@ -341,6 +341,19 @@ function Schedule-AutoRollback {
 
   if ($Minutes -le 0) { return $false }
 
+  # Validate inputs before embedding in heredoc (prevents PS code injection into
+  # the base64-encoded rollback script that runs elevated via scheduled task).
+  if ($TaskName -notmatch '^[a-zA-Z0-9\-_\\]+$') {
+    Add-RunError "Schedule-AutoRollback: TaskName '$TaskName' contains invalid characters (allowed: a-z A-Z 0-9 - _ \)"
+    return $false
+  }
+  foreach ($rn in $RuleNames) {
+    if ($rn -match "'") {
+      Add-RunError "Schedule-AutoRollback: RuleNames entry '$rn' contains a single quote, which is not allowed"
+      return $false
+    }
+  }
+
   $runAt = (Get-Date).AddMinutes($Minutes)
   $logPath = Join-Path $env:TEMP "KillSwitch-Rollback-$($TaskName -replace '[^a-zA-Z0-9]', '').log"
 
@@ -373,8 +386,10 @@ try {
   $enc   = [Convert]::ToBase64String($bytes)
   $tr    = "PowerShell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand $enc"
 
-  # Validate schtasks exit code (fixes #21)
-  $output = schtasks.exe /Create /TN $TaskName /SC ONCE /ST $runAt.ToString('HH:mm') /TR $tr /RL HIGHEST /F 2>&1
+  # Use array-based invocation to avoid argument-splitting edge cases (S4)
+  $schtasksArgs = @('/Create', '/TN', $TaskName, '/SC', 'ONCE',
+                    '/ST', $runAt.ToString('HH:mm'), '/TR', $tr, '/RL', 'HIGHEST', '/F')
+  $output = schtasks.exe @schtasksArgs 2>&1
   if ($LASTEXITCODE -ne 0) {
     Add-RunError "Auto-rollback schedule failed (exit code $LASTEXITCODE): $output"
     return $false
@@ -408,24 +423,24 @@ function Write-ConsoleSummary {
 
   Write-UiHeader -Title $title
 
-  Write-UiKV   -Key 'ComputerName' -Value $Run.ComputerName -ValueColor White
-  Write-UiKV   -Key 'User'         -Value $Run.User
+  Write-KeyValue   -Key 'ComputerName' -Value $Run.ComputerName -ValueColor White
+  Write-KeyValue   -Key 'User'         -Value $Run.User
   Write-UiBool -Key 'Admin'        -Value $Run.IsAdmin
-  Write-UiKV   -Key 'StartTime'    -Value $Run.StartTime.ToString('s')
-  Write-UiKV   -Key 'EndTime'      -Value $Run.EndTime.ToString('s')
-  Write-UiKV   -Key 'Duration'     -Value $Run.Duration -ValueColor $durationColor
+  Write-KeyValue   -Key 'StartTime'    -Value $Run.StartTime.ToString('s')
+  Write-KeyValue   -Key 'EndTime'      -Value $Run.EndTime.ToString('s')
+  Write-KeyValue   -Key 'Duration'     -Value $Run.Duration -ValueColor $durationColor
 
   Write-UiLine ""
-  Write-UiKV -Key 'JSON used' -Value $Run.JsonUsed -ValueColor $jsonUsedColor
-  Write-UiKV -Key 'JSON path' -Value $Run.JsonPath
-  if ($Run.JsonError) { Write-UiKV -Key 'JSON error' -Value $Run.JsonError -ValueColor Yellow }
+  Write-KeyValue -Key 'JSON used' -Value $Run.JsonUsed -ValueColor $jsonUsedColor
+  Write-KeyValue -Key 'JSON path' -Value $Run.JsonPath
+  if ($Run.JsonError) { Write-KeyValue -Key 'JSON error' -Value $Run.JsonError -ValueColor Yellow }
 
   Write-UiLine ""
-  Write-UiKV   -Key 'Reason' -Value $Run.Effective.Reason -ValueColor Cyan
+  Write-KeyValue   -Key 'Reason' -Value $Run.Effective.Reason -ValueColor Cyan
   Write-UiBool -Key 'IsolationActive' -Value $Run.Outcome.IsolationActive
   Write-UiBool -Key 'DisableAdapters' -Value ([bool]$Run.Effective.DisableAdapters)
-  Write-UiKV   -Key 'BreakGlass' -Value ($Run.Effective.BreakGlassRemoteAddress -join ', ')
-  Write-UiKV   -Key 'AutoRollbackMinutes' -Value $Run.Effective.AutoRollbackMinutes
+  Write-KeyValue   -Key 'BreakGlass' -Value ($Run.Effective.BreakGlassRemoteAddress -join ', ')
+  Write-KeyValue   -Key 'AutoRollbackMinutes' -Value $Run.Effective.AutoRollbackMinutes
 
   Write-UiLine ""
   Write-UiBool -Key 'RegistryWritten'    -Value $Run.Actions.RegistryWritten
@@ -580,9 +595,9 @@ AutoRollbackMinutes: $($Run.Effective.AutoRollbackMinutes)
   } else {
     Write-UiLine -Text "Isolation is NOT active (actions were skipped/declined)." -Color Yellow
   }
-  Write-UiKV -Key 'Reason' -Value $Run.Effective.Reason -ValueColor Cyan
-  Write-UiKV -Key 'BreakGlass' -Value ($Run.Effective.BreakGlassRemoteAddress -join ', ')
-  Write-UiKV -Key 'AutoRollbackMinutes' -Value $Run.Effective.AutoRollbackMinutes
+  Write-KeyValue -Key 'Reason' -Value $Run.Effective.Reason -ValueColor Cyan
+  Write-KeyValue -Key 'BreakGlass' -Value ($Run.Effective.BreakGlassRemoteAddress -join ', ')
+  Write-KeyValue -Key 'AutoRollbackMinutes' -Value $Run.Effective.AutoRollbackMinutes
 }
 catch {
   $err = $_.Exception.Message

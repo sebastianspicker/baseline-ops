@@ -457,23 +457,23 @@ function Write-ConsoleSummary {
   Write-UiLine "Defender / ASR / CFA Allowlist Sync" -ForegroundColor White
   Write-UiLine "============================================================" -ForegroundColor DarkGray
 
-  Write-Kv "Mode"       ($(if ($Result.Remediate) { "Remediate" } else { "Audit" })) DarkGray $modeColor
-  Write-Kv "Baseline"   $Result.BaselineUsed DarkGray ($(if ($Result.BaselineUsed -eq 'None') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
-  Write-Kv "Computer"   $Result.ComputerName
-  Write-Kv "Timestamp"  $Result.Timestamp
-  Write-Kv "JSON"       $Result.SourceJson
-  Write-Kv "Audit"      $Result.AuditPath
+  Write-KeyValue "Mode"       ($(if ($Result.Remediate) { "Remediate" } else { "Audit" })) DarkGray $modeColor
+  Write-KeyValue "Baseline"   $Result.BaselineUsed DarkGray ($(if ($Result.BaselineUsed -eq 'None') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
+  Write-KeyValue "Computer"   $Result.ComputerName
+  Write-KeyValue "Timestamp"  $Result.Timestamp
+  Write-KeyValue "JSON"       $Result.SourceJson
+  Write-KeyValue "Audit"      $Result.AuditPath
 
   Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-  Write-Kv "JsonLoaded" ([string]$Result.JsonLoaded) DarkGray ($(if ($Result.JsonLoaded) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
-  if ($Result.JsonError) { Write-Kv "JsonError" $Result.JsonError DarkGray Yellow }
+  Write-KeyValue "JsonLoaded" ([string]$Result.JsonLoaded) DarkGray ($(if ($Result.JsonLoaded) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
+  if ($Result.JsonError) { Write-KeyValue "JsonError" $Result.JsonError DarkGray Yellow }
 
   Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-  Write-Kv "Add"        ([string]$Result.TotalAdd)      DarkGray ($(if ($Result.TotalAdd -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
-  Write-Kv "Remove"     ([string]$Result.TotalRemove)   DarkGray ($(if ($Result.TotalRemove -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
-  Write-Kv "Rejected"   ([string]$Result.TotalRejected) DarkGray ($(if ($Result.TotalRejected -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::DarkGray }))
-  Write-Kv "Errors"     ([string]$Result.TotalErrors)   DarkGray ($(if ($Result.TotalErrors -gt 0) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkGray }))
-  Write-Kv "Result"     $Result.Result                 DarkGray $resColor
+  Write-KeyValue "Add"        ([string]$Result.TotalAdd)      DarkGray ($(if ($Result.TotalAdd -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
+  Write-KeyValue "Remove"     ([string]$Result.TotalRemove)   DarkGray ($(if ($Result.TotalRemove -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
+  Write-KeyValue "Rejected"   ([string]$Result.TotalRejected) DarkGray ($(if ($Result.TotalRejected -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::DarkGray }))
+  Write-KeyValue "Errors"     ([string]$Result.TotalErrors)   DarkGray ($(if ($Result.TotalErrors -gt 0) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkGray }))
+  Write-KeyValue "Result"     $Result.Result                 DarkGray $resColor
 
   if ($Result.Notes -and $Result.Notes.Count -gt 0) {
     Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
@@ -589,11 +589,11 @@ try {
 
   if (($totalAdd + $totalRem + $totalBad) -eq 0) {
     $resultCode = "OK_NO_DRIFT"
-    Write-HealthEvent -Id 3200 -Msg "Defender/ASR allowlist OK: no drift. JSON=$sourceJson Audit=$AuditPath" -Level Information -EventLogReady:$eventLogReady
+    Write-HealthEvent -Id 3200 -Msg "Defender/ASR allowlist OK: no drift. JSON=$sourceJson Audit=$AuditPath" -Level Information
   }
   elseif (-not $Remediate) {
     $resultCode = "DRIFT_NO_REMEDIATION"
-    Write-HealthEvent -Id 3210 -Msg "Defender/ASR allowlist drift: add=$totalAdd remove=$totalRem rejected=$totalBad (no remediation). JSON=$sourceJson Audit=$AuditPath" -Level Warning -EventLogReady:$eventLogReady
+    Write-HealthEvent -Id 3210 -Msg "Defender/ASR allowlist drift: add=$totalAdd remove=$totalRem rejected=$totalBad (no remediation). JSON=$sourceJson Audit=$AuditPath" -Level Warning
     foreach ($d in $diffs) {
         if ($d.ToAdd.Count -gt 0) { Add-Finding -Code 'ASR-Drift-Add' -Severity 'Low' -Message "ASR drift (missing): $($d.Name)" -Extra @{ Missing = $d.ToAdd } }
         if ($d.ToRemove.Count -gt 0) { Add-Finding -Code 'ASR-Drift-Remove' -Severity 'Low' -Message "ASR drift (extra): $($d.Name)" -Extra @{ Extra = $d.ToRemove } }
@@ -606,10 +606,10 @@ try {
 
     if ($errsFlat.Count -gt 0) {
       $resultCode = "REMEDIATION_ERRORS"
-      Write-HealthEvent -Id 3210 -Msg ("Defender/ASR allowlist sync completed with errors. add=$totalAdd remove=$totalRem rejected=$totalBad JSON=$sourceJson Audit=$AuditPath`r`nErrors: " + ($errsFlat -join ' | ')) -Level Error -EventLogReady:$eventLogReady
+      Write-HealthEvent -Id 3210 -Msg ("Defender/ASR allowlist sync completed with errors. add=$totalAdd remove=$totalRem rejected=$totalBad JSON=$sourceJson Audit=$AuditPath`r`nErrors: " + ($errsFlat -join ' | ')) -Level Error
     } else {
       $resultCode = "REMEDIATION_OK"
-      Write-HealthEvent -Id 3200 -Msg "Defender/ASR allowlist sync OK. add=$totalAdd remove=$totalRem rejected=$totalBad JSON=$sourceJson Audit=$AuditPath" -Level Information -EventLogReady:$eventLogReady
+      Write-HealthEvent -Id 3200 -Msg "Defender/ASR allowlist sync OK. add=$totalAdd remove=$totalRem rejected=$totalBad JSON=$sourceJson Audit=$AuditPath" -Level Information
     }
   }
 
@@ -652,7 +652,7 @@ try {
 }
 catch {
   $msg = "Defender/ASR allowlist failed: $($_.Exception.Message)"
-  Write-HealthEvent -Id 3210 -Msg $msg -Level Error -EventLogReady:$eventLogReady
+  Write-HealthEvent -Id 3210 -Msg $msg -Level Error
 
   $final = [pscustomobject]@{
     Timestamp     = (Get-Date).ToString("o")

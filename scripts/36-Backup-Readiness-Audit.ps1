@@ -270,19 +270,19 @@ function Write-ConsoleSummary {
 
   # Keep formatting off the success output stream (pipeline). [page:0]
   Write-UiLine ''
-  Write-PrettyLine -Text ('=' * 46) -Color DarkGray
-  Write-PrettyLine -Text ' Backup Readiness Audit (Baseline)' -Color White
-  Write-PrettyLine -Text ('=' * 46) -Color DarkGray
+  Write-ColorLine -Text ('=' * 46) -Color DarkGray
+  Write-ColorLine -Text ' Backup Readiness Audit (Baseline)' -Color White
+  Write-ColorLine -Text ('=' * 46) -Color DarkGray
 
-  Write-PrettyLine -Text (" Computer : {0}" -f $Summary.ComputerName) -Color Gray
-  Write-PrettyLine -Text (" Time     : {0}" -f $Summary.Timestamp) -Color Gray
+  Write-ColorLine -Text (" Computer : {0}" -f $Summary.ComputerName) -Color Gray
+  Write-ColorLine -Text (" Time     : {0}" -f $Summary.Timestamp) -Color Gray
 
   $badgeColor = if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' }
-  Write-PrettyLine -Text (" Findings : {0}" -f $Summary.FindingsCount) -Color $badgeColor
+  Write-ColorLine -Text (" Findings : {0}" -f $Summary.FindingsCount) -Color $badgeColor
 
   Write-UiLine ''
-  Write-PrettyLine -Text ' Indicators' -Color White
-  Write-PrettyLine -Text ('-' * 46) -Color DarkGray
+  Write-ColorLine -Text ' Indicators' -Color White
+  Write-ColorLine -Text ('-' * 46) -Color DarkGray
 
   $osLine = if ($null -eq $Indicators.OsFreeGB -or $null -eq $Indicators.OsSizeGB) {
     ' OS Disk  : <unavailable>'
@@ -293,26 +293,26 @@ function Write-ConsoleSummary {
   $osColor = 'Green'
   if ($null -eq $Indicators.OsFreeGB) { $osColor = 'Yellow' }
   elseif ($Indicators.OsFreeGB -lt $Config.MinOsFreeGB) { $osColor = 'Red' }
-  Write-PrettyLine -Text $osLine -Color $osColor
+  Write-ColorLine -Text $osLine -Color $osColor
 
-  Write-PrettyLine -Text (" VSS      : Writers detected = {0}" -f $Indicators.VssWritersCount) -Color Gray
+  Write-ColorLine -Text (" VSS      : Writers detected = {0}" -f $Indicators.VssWritersCount) -Color Gray
 
   $wsbColor = switch ($Indicators.WSBStatus) {
     'Installed'   { 'Green' }
     'NotInstalled'{ 'Yellow' }
     default       { 'Gray' }
   }
-  Write-PrettyLine -Text (" WSB      : {0}" -f $Indicators.WSBStatus) -Color $wsbColor
+  Write-ColorLine -Text (" WSB      : {0}" -f $Indicators.WSBStatus) -Color $wsbColor
 
   $fhColor = if ($Indicators.FileHistoryKey) { 'Green' } else { 'Gray' }
-  Write-PrettyLine -Text (" FileHist : {0}" -f $Indicators.FileHistoryKey) -Color $fhColor
+  Write-ColorLine -Text (" FileHist : {0}" -f $Indicators.FileHistoryKey) -Color $fhColor
 
   Write-UiLine ''
-  Write-PrettyLine -Text ' Findings' -Color White
-  Write-PrettyLine -Text ('-' * 46) -Color DarkGray
+  Write-ColorLine -Text ' Findings' -Color White
+  Write-ColorLine -Text ('-' * 46) -Color DarkGray
 
   if ($Findings.Count -eq 0) {
-    Write-PrettyLine -Text ' No findings.' -Color Green
+    Write-ColorLine -Text ' No findings.' -Color Green
     Write-UiLine ''
     return
   }
@@ -325,19 +325,19 @@ function Write-ConsoleSummary {
 
   foreach ($f in $top) {
     $c = Get-SeverityColor -Severity $f.Severity
-    Write-PrettyLine -Text (" [{0}] {1} - {2}" -f $f.Severity.ToUpper(), $f.Code, $f.Message) -Color $c
+    Write-ColorLine -Text (" [{0}] {1} - {2}" -f $f.Severity.ToUpper(), $f.Code, $f.Message) -Color $c
 
     if (-not [string]::IsNullOrWhiteSpace($f.Evidence)) {
-      Write-PrettyLine -Text ("        Evidence   : {0}" -f $f.Evidence) -Color DarkGray
+      Write-ColorLine -Text ("        Evidence   : {0}" -f $f.Evidence) -Color DarkGray
     }
     if (-not [string]::IsNullOrWhiteSpace($f.Remediation)) {
-      Write-PrettyLine -Text ("        Remediate  : {0}" -f $f.Remediation) -Color DarkGray
+      Write-ColorLine -Text ("        Remediate  : {0}" -f $f.Remediation) -Color DarkGray
     }
   }
 
   if ($Findings.Count -gt $Config.ConsoleTopFindings) {
     Write-UiLine ''
-    Write-PrettyLine -Text (" Showing top {0} of {1} findings." -f $Config.ConsoleTopFindings, $Findings.Count) -Color DarkGray
+    Write-ColorLine -Text (" Showing top {0} of {1} findings." -f $Config.ConsoleTopFindings, $Findings.Count) -Color DarkGray
   }
 
   Write-UiLine ''

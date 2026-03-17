@@ -43,14 +43,6 @@ Describe "Test-IsAdmin" {
   }
 }
 
-Describe "Test-IsAdministrator" {
-  It "Returns same result as Test-IsAdmin" {
-    $result1 = Test-IsAdmin
-    $result2 = Test-IsAdministrator
-    $result1 | Should -Be $result2
-  }
-}
-
 Describe "Ensure-Directory" {
   BeforeEach {
     # Clean up
@@ -77,15 +69,6 @@ Describe "Ensure-Directory" {
     $nestedPath = Join-Path $script:TestDir 'Level1\Level2\Level3'
     Ensure-Directory -Path $nestedPath
     Test-Path -LiteralPath $nestedPath | Should -Be $true
-  }
-}
-
-Describe "Ensure-Dir" {
-  It "Is an alias for Ensure-Directory" {
-    $result1 = Ensure-Directory -Path $script:TestDir
-    Remove-Item -LiteralPath $script:TestDir -Recurse -Force -ErrorAction SilentlyContinue
-    $result2 = Ensure-Dir -Path $script:TestDir
-    Test-Path -LiteralPath $script:TestDir | Should -Be $true
   }
 }
 

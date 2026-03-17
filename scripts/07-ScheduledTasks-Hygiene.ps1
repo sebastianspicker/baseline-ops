@@ -185,7 +185,7 @@ $DefaultProofOutFile   = $null
 # =========================
 
 
-function Is-Admin {
+function Test-IsAdmin {
   try {
     $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -195,7 +195,7 @@ function Is-Admin {
 
 function Save-Json {
   param([object]$Obj,[string]$Path)
-  Ensure-Dir (Split-Path -Parent $Path)
+  Ensure-Directory (Split-Path -Parent $Path)
   ($Obj | ConvertTo-Json -Depth 25) | Out-File -Encoding UTF8 -FilePath $Path
 }
 
@@ -604,7 +604,7 @@ function Quarantine-Task {
   $act = New-Object System.Collections.Generic.List[string]
 
   try {
-    Ensure-Dir $QuarantineDir
+    Ensure-Directory $QuarantineDir
     $xmlObj = Export-TaskXmlObject -TaskName $TaskName -TaskPath $TaskPath
 
     if ($xmlObj) {
@@ -741,7 +741,7 @@ $changes = New-Object System.Collections.Generic.List[string]
 $catalogFallback = New-DefaultCatalog -QuarantineDir $DefaultQuarantineDir -ProofOutFile $DefaultProofOutFile
 
 try {
-  $isAdmin = Is-Admin
+  $isAdmin = Test-IsAdmin
   if (-not $isAdmin) {
     $Proof.Notes += "Not elevated - remediation may fail."
     if ($Strict) { $ok = $false }
@@ -856,21 +856,21 @@ try {
   # Pretty console output (no pipeline pollution)
   Write-UiHeader "Scheduled Tasks Hygiene Summary"
 
-  Write-UiKV "Host"       $Proof.Hostname
-  Write-UiKV "Time"       $Proof.Time
-  Write-UiKV "Admin"      $Proof.Summary.IsAdmin
-  Write-UiKV "Remediate"  $Proof.Summary.Remediate
-  Write-UiKV "Purge"      $Proof.Summary.PurgeEnabled
-  Write-UiKV "Strict"     $Proof.Summary.Strict
+  Write-KeyValue "Host"       $Proof.Hostname
+  Write-KeyValue "Time"       $Proof.Time
+  Write-KeyValue "Admin"      $Proof.Summary.IsAdmin
+  Write-KeyValue "Remediate"  $Proof.Summary.Remediate
+  Write-KeyValue "Purge"      $Proof.Summary.PurgeEnabled
+  Write-KeyValue "Strict"     $Proof.Summary.Strict
 
   Write-UiLine ""
-  Write-UiKV "Tasks"      $Proof.Summary.TotalTasks
-  Write-UiKV "Critical"   $Proof.Summary.CriticalKnown
-  Write-UiKV "Risky"      $Proof.Summary.RiskyDetected
+  Write-KeyValue "Tasks"      $Proof.Summary.TotalTasks
+  Write-KeyValue "Critical"   $Proof.Summary.CriticalKnown
+  Write-KeyValue "Risky"      $Proof.Summary.RiskyDetected
 
   Write-UiLine ""
-  Write-UiKV "Proof JSON" $Proof.Summary.ProofOutFile
-  Write-UiKV "Quarantine" $Proof.Summary.QuarantineDir
+  Write-KeyValue "Proof JSON" $Proof.Summary.ProofOutFile
+  Write-KeyValue "Quarantine" $Proof.Summary.QuarantineDir
 
   Write-UiLine ""
   if ($ok -and -not $Strict) {
