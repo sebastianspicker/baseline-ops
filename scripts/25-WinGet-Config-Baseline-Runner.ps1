@@ -86,6 +86,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -503,7 +504,12 @@ $summary = New-SummaryObject -ConfigPathResolved $resolvedConfigPath -Results $r
   -ErrorMessage (if ($finalExitCode -ne 0) { "WinGet finished with a non-zero exit code." } else { $null })
 
 Write-ConsoleSummary -Summary $summary
-if ($PassThruEffective) { $summary }
+
+# V2 output contract
+$resultToken = if ($finalExitCode -ne 0) { 'FAIL' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '25-WinGet-Config-Baseline-Runner.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $summary -Metadata @{}
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit $finalExitCode
 
 

@@ -52,6 +52,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 $script:Quiet = [bool]$Quiet
@@ -537,9 +538,10 @@ if ($ExportPath) {
 
 Write-ConsoleSummary -Summary $summary -Rows $rows.ToArray() -RefInfo $refInfo
 
-# Pipeline output: objects only
-#$summary
-#$rows.ToArray()
+# V2 output contract
+$v2Result = New-V2ResultObject -ScriptName '42-Client-SecurityBaseline-Report-IntuneRef.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ Rows = @($rows.ToArray()); RefInfo = $refInfo }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 
 #endregion Main
 exit 0

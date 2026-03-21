@@ -49,6 +49,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -357,8 +358,9 @@ if (-not $NoConsoleSummary) {
   }
 }
 
-# -------------------------
-# Pipeline output
-# -------------------------
-$result
+# V2 output contract
+$resultToken = if ($Strict -and $findingsOut.Count -gt 0) { 'FAIL' } elseif ($findingsOut.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '37-Remote-Surface-Audit.ps1' -Mode $Mode -Result $resultToken -Findings $findingsOut -Summary $result.Summary -Metadata @{ Surfaces = $result.Surfaces }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

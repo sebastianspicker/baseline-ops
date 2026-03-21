@@ -132,6 +132,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 Set-StrictMode -Version Latest
 # v2-init
@@ -932,8 +933,10 @@ finally {
   # Must never throw: this is best-effort UI in finally.
   try { SB_ShowSummary -Summary $Summary } catch { }
 
-  if ($EmitObject) {
-    $Summary
-  }
 }
+
+# V2 output contract
+$v2Result = New-V2ResultObject -ScriptName '09-SupportBundle.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $Summary -Metadata @{}
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

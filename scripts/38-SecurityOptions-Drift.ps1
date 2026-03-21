@@ -61,6 +61,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -524,12 +525,9 @@ if ($ExportPath) {
 
 Write-ConsoleSummary -Summary $summary -Findings $script:Findings -CurrentValues $script:CurrentValues -Drift $script:Drift
 
-# Pipeline output: exactly one structured object (§3).
-[pscustomobject]@{
-  Summary       = $summary
-  Findings      = [object[]]$script:Findings
-  CurrentValues = [object[]]$script:CurrentValues
-  Drift         = [object[]]$script:Drift
-  DesiredLoaded = $desiredLoaded
-}
+# V2 output contract
+$resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '38-SecurityOptions-Drift.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $summary -Metadata @{ CurrentValues = [object[]]$script:CurrentValues; Drift = [object[]]$script:Drift; DesiredLoaded = $desiredLoaded }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

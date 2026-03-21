@@ -63,6 +63,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -390,12 +391,9 @@ if ($script:Config.ConsoleSummary) {
   Write-PrettySummary -Result $result
 }
 
-# Pipeline output (structured objects only)
-if ($PassThru) {
-  $result.Summary
-  $result.Findings
-  $result.Indicators
-} else {
-  $result
-}
+# V2 output contract
+$resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '45-WEF-Client-Forwarding-Readiness-Audit.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings.ToArray()) -Summary $result.Summary -Metadata @{ Indicators = $result.Indicators }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

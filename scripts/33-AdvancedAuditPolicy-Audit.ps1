@@ -51,6 +51,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -401,10 +402,9 @@ if ($ExportPath) {
 Write-ConsoleSummary -Summary $summary -Findings $script:Findings -DesiredPolicySource $desiredSource -DesiredPolicyError $desiredError
 Write-FindingsConsole -Findings $script:Findings
 
-# Pipeline output (structured only).
-[pscustomobject]@{
-  Summary        = $summary
-  Findings       = @($script:Findings)
-  ParsedPolicies = $policies
-}
+# V2 output contract
+$resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '33-AdvancedAuditPolicy-Audit.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $summary -Metadata @{ ParsedPolicies = $policies }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

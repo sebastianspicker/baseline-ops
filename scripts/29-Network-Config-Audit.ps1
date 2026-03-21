@@ -64,6 +64,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -370,6 +371,8 @@ $result = [pscustomobject]@{
   Interfaces = $interfaces
 }
 
-# Pipeline output only when -PassThru
-if ($PassThru) { $result }
+# V2 output contract
+$v2Result = New-V2ResultObject -ScriptName '29-Network-Config-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $result.Summary -Metadata @{ Interfaces = $result.Interfaces }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

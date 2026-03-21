@@ -133,6 +133,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 $script:UseInformationStream = [bool]$UseInformationStream
@@ -515,7 +516,9 @@ if (((Get-Count $zeroDays) -gt 0) -or ((Get-Count $missingCritical) -gt 0)) {
 
 Write-UiLine -Message $headerLine -Style Dim
 
-if ($PassThru) {
-  $report
-}
+# V2 output contract
+$resultToken = if ($report.Errors.Count -gt 0) { 'FAIL' } elseif ($report.Missing.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $report -Metadata @{}
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

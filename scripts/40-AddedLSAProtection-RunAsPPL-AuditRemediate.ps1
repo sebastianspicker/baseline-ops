@@ -79,6 +79,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -570,15 +571,15 @@ $result = [pscustomobject]@{
   CodeIntegrity = $codeIntegrity
 }
 
-if ($OutputFormat -eq 'Json' -and $OutputPath) {
-  Export-ResultJson -Result $result -Path $OutputPath
-} elseif ($ExportPath) {
+if ($ExportPath) {
   Export-ResultJson -Result $result -Path $ExportPath
-}
-if ($OutputFormat -eq 'Csv' -and $OutputPath) {
-  @($result.Findings) | Export-Csv -LiteralPath $OutputPath -NoTypeInformation -Encoding UTF8
 }
 
 if ($OutputFormat -eq 'Console' -and -not $Quiet) { Write-PrettySummary -Result $result }
-if ($PassThru -or $OutputFormat -eq 'Console') { $result }
+
+# V2 output contract
+$resultToken = if ($Strict -and $Findings.Count -gt 0) { 'FAIL' } elseif ($Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings @($Findings) -Summary $result.Summary -Metadata @{ Current = $result.Current; After = $result.After }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

@@ -146,13 +146,14 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 $script:Quiet = [bool]$Quiet
 
 Set-StrictMode -Version Latest
 # v2-init
-$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
+$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor, $NoPipelineOutput
 $script:__V2Context = @{
   Mode = $Mode
   ConfigPath = $ConfigPath
@@ -701,8 +702,9 @@ try {
   if ($result) { Write-ConsoleSummary -Result $result }
 }
 
-# Pipeline output: exactly one structured object (unless suppressed)
-if (-not $NoPipelineOutput) {
-  $result
-}
+# V2 output contract
+$resultToken = if ($result.DriftDetected) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '03-LocalAdmins-Guardrail.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $result -Metadata @{}
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

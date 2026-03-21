@@ -74,6 +74,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -480,8 +481,8 @@ if (-not $NoConsoleSummary) {
   Show-ConsoleSummary -ResultObject $result
 }
 
-# Pipeline output (optional)
-#if (-not $Quiet) {
-#  $result
-#}
+# V2 output contract
+$v2Result = New-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $result -Metadata @{}
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

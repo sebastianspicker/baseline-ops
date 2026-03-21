@@ -57,6 +57,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -366,15 +367,8 @@ if (-not $NoConsole) {
   Write-ConsoleRule -Title "End"
 }
 
-# -----------------------------
-# Pipeline output (single structured object)
-# -----------------------------
-[pscustomobject]@{
-  PSTypeName = 'ProcessServiceAudit.Record'
-  Summary    = $summary
-  TopCpu     = $topCpu
-  TopRam     = $topRam
-  Services   = $svcEnriched
-  Config     = [pscustomobject]$Config
-}
+# V2 output contract
+$v2Result = New-V2ResultObject -ScriptName '30-Service-Process-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ TopCpu = $topCpu; TopRam = $topRam; Services = $svcEnriched; Config = [pscustomobject]$Config }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

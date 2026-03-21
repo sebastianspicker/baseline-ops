@@ -79,6 +79,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -483,11 +484,9 @@ Write-ConsoleReport -Summary $summary -Before $before -After $after -FindingList
 # Pipeline output (objects only)
 # -----------------------------
 
-[pscustomobject]@{
-  PSTypeName = 'Defender.AuditResult'
-  Summary    = $summary
-  Findings   = @($findingList)
-  Before     = $before
-  After      = $after
-}
+# V2 output contract
+$resultToken = if ($Strict -and $findingList.Count -gt 0) { 'FAIL' } elseif ($findingList.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings @($findingList) -Summary $summary -Metadata @{ Before = $before; After = $after }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

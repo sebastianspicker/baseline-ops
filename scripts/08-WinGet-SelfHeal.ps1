@@ -157,6 +157,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 $script:NoConsole = [bool]$NoConsole
@@ -783,8 +784,12 @@ try {
     }
   }
 
-  # ---- Pipeline output (structured) ----
-  if ($script:PassThruRecords) { $records.ToArray() }
+  # V2 output contract
+  $resultToken = if (-not $overallOk) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+  $v2Summary = [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Mode = $Mode; OverallOk = $overallOk; Timestamp = Get-Date }
+  $v2Result = New-V2ResultObject -ScriptName '08-WinGet-SelfHeal.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $v2Summary -Metadata @{ Records = @($records) }
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
 
   if ($overallOk) { exit 0 } else { exit 1 }
 }

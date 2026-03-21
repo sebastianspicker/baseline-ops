@@ -223,6 +223,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -870,12 +871,16 @@ try {
 
   Write-AuditEvent -EventId $script:EventIdWarn -Message ("Sysmon Drift Sensor ERROR: {0}" -f $err) -Level 'Error'
 } finally {
-  if ($PassThru) {
-    $final
-  } else {
+  if (-not $PassThru) {
     Show-ConsoleSummary -Result $final
   }
 
   if ($final.Status -ne 'OK') { exit 1 }
 }
+
+# V2 output contract
+$resultToken = if ($final.Status -eq 'FAIL') { 'FAIL' } elseif ($final.Status -ne 'OK') { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '17-Sysmon-Rule-Drift-Sensor.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $final -Metadata @{}
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

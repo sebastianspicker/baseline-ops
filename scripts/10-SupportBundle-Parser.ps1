@@ -204,6 +204,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
@@ -912,4 +913,9 @@ else {
 }
 
 Write-ConsoleLine -Text "============================================================" -Role Header
+
+# V2 output contract
+$v2Result = New-V2ResultObject -ScriptName '10-SupportBundle-Parser.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $result -Metadata @{}
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0

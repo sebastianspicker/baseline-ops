@@ -120,6 +120,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 # v2-init
 $null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
@@ -808,17 +809,10 @@ if ($effectiveFindings.Count -gt 0) {
   Write-UiLine -Text "No findings." -Style 'Ok'
 }
 
-# ----------------------------- Pipeline output (single object) ---------------------
-[pscustomobject]@{
-  Status        = $summaryStatus
-  CatalogSource = $catalogSource2
-  Remediate     = [bool]$Remediate
-  Strict        = [bool]$Strict
-  IsAdmin       = $admin
-  JsonPath      = $outFile
-  Findings      = @($effectiveFindings)
-  Actions       = @($actions)
-  Notes         = @($notes)
-  DurationMs    = $sw.ElapsedMilliseconds
-}
+# V2 output contract
+$v2Summary = [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Status = $summaryStatus; Remediate = [bool]$Remediate; Strict = [bool]$Strict; DurationMs = $sw.ElapsedMilliseconds; Timestamp = Get-Date }
+$resultToken = if ($summaryStatus -eq 'FAIL') { 'FAIL' } elseif ($summaryStatus -eq 'WARN' -or @($effectiveFindings).Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '06-UpdateHealth-SSU-Proof.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $v2Summary -Metadata @{ Actions = @($actions); Notes = @($notes); CatalogSource = $catalogSource2 }
+Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+if ($PassThru) { $v2Result }
 exit 0
