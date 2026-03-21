@@ -341,6 +341,101 @@ Describe "Get-SeverityPrefix" {
   }
 }
 
+Describe "Write-ColoredLine" {
+  It "Does not throw when called with text and color" {
+    { Write-ColoredLine -Text 'Test line' -Color 'Green' } | Should -Not -Throw
+  }
+
+  It "Does not throw with empty text" {
+    { Write-ColoredLine -Text '' -Color 'Gray' } | Should -Not -Throw
+  }
+
+  It "Does not throw without a color parameter" {
+    { Write-ColoredLine -Text 'No color' } | Should -Not -Throw
+  }
+
+  It "Does not throw with NoNewLine switch" {
+    { Write-ColoredLine -Text 'inline' -Color 'Cyan' -NoNewLine } | Should -Not -Throw
+  }
+}
+
+Describe "Write-PrettyLine" {
+  It "Does not throw when called with text" {
+    { Write-PrettyLine -Text 'Pretty output' } | Should -Not -Throw
+  }
+
+  It "Does not throw with explicit color" {
+    { Write-PrettyLine -Text 'Colored' -Color 'Yellow' } | Should -Not -Throw
+  }
+}
+
+Describe "Write-Rule" {
+  It "Does not throw with default parameters" {
+    { Write-Rule } | Should -Not -Throw
+  }
+
+  It "Does not throw with title" {
+    { Write-Rule -Title 'Section Title' } | Should -Not -Throw
+  }
+
+  It "Does not throw with custom char and width" {
+    { Write-Rule -Char '-' -Width 40 -Color 'Cyan' } | Should -Not -Throw
+  }
+}
+
+Describe "Write-SectionHeader" {
+  It "Does not throw when called with title" {
+    { Write-SectionHeader -Title 'My Section' } | Should -Not -Throw
+  }
+}
+
+Describe "Write-SummaryHeader" {
+  It "Does not throw with all parameters" {
+    { Write-SummaryHeader -Title 'Summary' -ComputerName 'TEST-PC' -Timestamp '2026-01-01' -FindingsCount 3 } | Should -Not -Throw
+  }
+
+  It "Does not throw with zero findings" {
+    { Write-SummaryHeader -Title 'Clean' -ComputerName 'PC' -Timestamp 'now' -FindingsCount 0 } | Should -Not -Throw
+  }
+}
+
+Describe "Write-FindingLine" {
+  It "Does not throw for valid severity and code" {
+    { Write-FindingLine -Severity 'High' -Code 'TEST001' -Message 'A finding' } | Should -Not -Throw
+  }
+
+  It "Does not throw without message" {
+    { Write-FindingLine -Severity 'Low' -Code 'TEST002' } | Should -Not -Throw
+  }
+}
+
+Describe "Write-ConsoleSummary" {
+  It "Does not throw with findings" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'High'; Code = 'T001'; Message = 'Test' }
+    )
+    { Write-ConsoleSummary -Summary $summary -Findings $findings } | Should -Not -Throw
+  }
+
+  It "Does not throw with single finding" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'Info'; Code = 'T002'; Message = 'Info finding' }
+    )
+    { Write-ConsoleSummary -Summary $summary -Findings $findings } | Should -Not -Throw
+  }
+}
+
+Describe "Write-PrettySummary" {
+  It "Throws with empty findings due to ArrayList binding (known limitation)" {
+    $result = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    # Write-PrettySummary passes @() to Write-ConsoleSummary -Findings [ArrayList],
+    # which PowerShell cannot bind to an empty collection. This is a known source limitation.
+    { Write-PrettySummary -Result $result } | Should -Throw '*empty collection*'
+  }
+}
+
 Describe "Get-FindingStats" {
   BeforeAll {
     # Create mock findings

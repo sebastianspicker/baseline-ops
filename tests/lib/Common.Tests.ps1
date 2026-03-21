@@ -122,6 +122,49 @@ Describe "Sanitize-Path" {
     $result = Sanitize-Path -Path $tempRoot -MustExist
     $result | Should -Not -BeNullOrEmpty
   }
+
+  It "Rejects forward-slash traversal" {
+    $result = Sanitize-Path -Path '/tmp/../etc/passwd'
+    $result | Should -BeNullOrEmpty
+  }
+
+  It "Returns a full path for a relative safe path" {
+    $result = Sanitize-Path -Path 'some-folder'
+    $result | Should -Not -BeNullOrEmpty
+    # Should be an absolute path
+    [System.IO.Path]::IsPathRooted($result) | Should -Be $true
+  }
+}
+
+Describe "Require-Admin" {
+  It "Does not throw on non-Windows (warns instead)" -Skip:$IsWindows {
+    { Require-Admin } | Should -Not -Throw
+  }
+
+  It "Accepts a custom message parameter" {
+    # Just verifies the parameter binding works; on non-Windows this warns rather than throwing
+    { Require-Admin -Message 'Custom admin message' } | Should -Not -Throw
+  }
+}
+
+Describe "Ensure-Directory path traversal guard" {
+  It "Does not create directory when path contains .." {
+    $traversalPath = Join-Path ([System.IO.Path]::GetTempPath()) "test-ensure-dir/../../../should-not-create"
+    Ensure-Directory -Path $traversalPath
+    Test-Path -LiteralPath $traversalPath | Should -Be $false
+  }
+}
+
+Describe "Get-CallerValue" {
+  It "Returns null when variable is not found in any scope" {
+    $result = Get-CallerValue -Name 'VariableThatDoesNotExist_12345XYZ'
+    $result | Should -BeNullOrEmpty
+  }
+
+  It "Does not throw when looking up any variable name" {
+    # Get-CallerValue should never throw, even when variable does not exist
+    { Get-CallerValue -Name 'PATH' } | Should -Not -Throw
+  }
 }
 
 Describe "Read-JsonConfig" {

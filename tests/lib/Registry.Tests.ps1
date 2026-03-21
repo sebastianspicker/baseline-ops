@@ -245,3 +245,138 @@ Describe "Get-RegString" -Skip:$script:SkipRegistryTests {
     $result | Should -Be 'Default'
   }
 }
+
+Describe "Set-RegQword" -Skip:$script:SkipRegistryTests {
+  BeforeEach {
+    if (Test-Path -LiteralPath $script:TestKeyPath) {
+      Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  It "Creates key and sets QWORD value" {
+    $result = Set-RegQword -Path $script:TestKeyPath -Name 'MyQword' -Value 123456789012345
+    $result | Should -Be $true
+    $value = Get-ItemProperty -Path $script:TestKeyPath -Name 'MyQword'
+    $value.MyQword | Should -Be 123456789012345
+  }
+
+  It "Throws for empty name" {
+    { Set-RegQword -Path $script:TestKeyPath -Name '' -Value 1 } | Should -Throw
+  }
+}
+
+Describe "Set-RegExpandString" -Skip:$script:SkipRegistryTests {
+  BeforeEach {
+    if (Test-Path -LiteralPath $script:TestKeyPath) {
+      Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  It "Creates key and sets ExpandString value" {
+    $result = Set-RegExpandString -Path $script:TestKeyPath -Name 'MyExpand' -Value '%SystemRoot%\test'
+    $result | Should -Be $true
+    $value = Get-ItemProperty -Path $script:TestKeyPath -Name 'MyExpand'
+    $value.MyExpand | Should -Match 'test'
+  }
+
+  It "Throws for empty name" {
+    { Set-RegExpandString -Path $script:TestKeyPath -Name '' -Value 'val' } | Should -Throw
+  }
+}
+
+Describe "Set-RegMultiString" -Skip:$script:SkipRegistryTests {
+  BeforeEach {
+    if (Test-Path -LiteralPath $script:TestKeyPath) {
+      Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  It "Creates key and sets MultiString value" {
+    $result = Set-RegMultiString -Path $script:TestKeyPath -Name 'MyMulti' -Value @('one', 'two', 'three')
+    $result | Should -Be $true
+    $value = Get-ItemProperty -Path $script:TestKeyPath -Name 'MyMulti'
+    @($value.MyMulti).Count | Should -Be 3
+  }
+
+  It "Throws for empty name" {
+    { Set-RegMultiString -Path $script:TestKeyPath -Name '' -Value @('a') } | Should -Throw
+  }
+}
+
+Describe "Set-RegBinary" -Skip:$script:SkipRegistryTests {
+  BeforeEach {
+    if (Test-Path -LiteralPath $script:TestKeyPath) {
+      Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  It "Creates key and sets Binary value" {
+    $result = Set-RegBinary -Path $script:TestKeyPath -Name 'MyBinary' -Value @([byte]0x01, [byte]0x02, [byte]0xFF)
+    $result | Should -Be $true
+    $value = Get-ItemProperty -Path $script:TestKeyPath -Name 'MyBinary'
+    $value.MyBinary[0] | Should -Be 0x01
+    $value.MyBinary[2] | Should -Be 0xFF
+  }
+
+  It "Throws for empty name" {
+    { Set-RegBinary -Path $script:TestKeyPath -Name '' -Value @([byte]0x00) } | Should -Throw
+  }
+}
+
+Describe "Get-RegDwordOrNull" -Skip:$script:SkipRegistryTests {
+  BeforeEach {
+    if (Test-Path -LiteralPath $script:TestKeyPath) {
+      Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    New-Item -Path $script:TestKeyPath -Force | Out-Null
+    New-ItemProperty -Path $script:TestKeyPath -Name 'MyDword' -Value 42 -PropertyType DWord | Out-Null
+  }
+
+  It "Returns correct value when exists" {
+    $result = Get-RegDwordOrNull -Path $script:TestKeyPath -Name 'MyDword'
+    $result | Should -Be 42
+  }
+
+  It "Returns null for non-existent value" {
+    $result = Get-RegDwordOrNull -Path $script:TestKeyPath -Name 'NonExistent'
+    $result | Should -BeNullOrEmpty
+  }
+
+  It "Returns null for non-existent key" {
+    $result = Get-RegDwordOrNull -Path 'HKCU:\Software\NonExistentKey12345' -Name 'Value'
+    $result | Should -BeNullOrEmpty
+  }
+}
+
+Describe "Remove-RegistryKeyIfExists" -Skip:$script:SkipRegistryTests {
+  BeforeEach {
+    if (Test-Path -LiteralPath $script:TestKeyPath) {
+      Remove-Item -LiteralPath $script:TestKeyPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  It "Removes existing key and returns true" {
+    New-Item -Path $script:TestKeyPath -Force | Out-Null
+    $result = Remove-RegistryKeyIfExists -Path $script:TestKeyPath
+    $result | Should -Be $true
+    Test-Path -LiteralPath $script:TestKeyPath | Should -Be $false
+  }
+
+  It "Returns false for non-existent key" {
+    $result = Remove-RegistryKeyIfExists -Path 'HKCU:\Software\NonExistentKey12345'
+    $result | Should -Be $false
+  }
+
+  It "Removes key with subkeys when Recurse is specified" {
+    New-Item -Path $script:TestKeyPath2 -Force | Out-Null
+    $result = Remove-RegistryKeyIfExists -Path $script:TestKeyPath -Recurse
+    $result | Should -Be $true
+    Test-Path -LiteralPath $script:TestKeyPath | Should -Be $false
+  }
+}
+
+Describe "Set-RegString empty name" -Skip:$script:SkipRegistryTests {
+  It "Throws for empty name" {
+    { Set-RegString -Path $script:TestKeyPath -Name '' -Value 'val' } | Should -Throw
+  }
+}
