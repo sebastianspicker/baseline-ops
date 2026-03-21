@@ -240,7 +240,7 @@ function Get-FileSignatureInfo([string]$File) {
     $o.SignatureStatus = [string]$sig.Status
     $o.Signed = ($sig.Status -eq 'Valid')
     if ($sig.SignerCertificate) { $o.Publisher = $sig.SignerCertificate.Subject }
-  } catch { }
+  } catch { <# best-effort: Authenticode check may fail for in-use or inaccessible files #> }
   return $o
 }
 
@@ -249,7 +249,7 @@ function Get-PSObjectPropertyValue {
   try {
     if ($null -eq $Obj) { return $null }
     if ($Obj.PSObject.Properties.Name -contains $Name) { return $Obj.$Name }
-  } catch { }
+  } catch { <# best-effort: property access on dynamic object #> }
   return $null
 }
 
@@ -323,7 +323,7 @@ function Merge-Catalog {
 
     foreach ($p in $ov.PSObject.Properties.Name) {
       if (-not ($base.$section.PSObject.Properties.Name -contains $p)) {
-        try { $base.$section | Add-Member -NotePropertyName $p -NotePropertyValue $ov.$p -Force } catch { }
+        try { $base.$section | Add-Member -NotePropertyName $p -NotePropertyValue $ov.$p -Force } catch { <# best-effort: catalog merge for optional properties #> }
       }
     }
   }
@@ -387,12 +387,12 @@ function Read-Trigger {
       if ($p.PSObject.Properties.Name -contains 'MaxFileSizeMB') { $maxFileMB = Safe-ToInt $p.MaxFileSizeMB $maxFileMB }
       if ($p.PSObject.Properties.Name -contains 'MaxTotalMB') { $maxTotalMB = Safe-ToInt $p.MaxTotalMB $maxTotalMB }
     }
-  } catch { }
+  } catch { <# best-effort: trigger registry key may not exist #> }
 
   try {
     $ff = Expand-Env ([string]$cat.Trigger.FileFlag)
     if ($ff -and (Test-Path -LiteralPath $ff)) { $want = $true }
-  } catch { }
+  } catch { <# best-effort: trigger file flag path may be invalid #> }
 
   if ($CollectSamples) { $samples = $true }
 
@@ -417,12 +417,12 @@ function Collect-Processes {
   try {
     Ensure-Directory $outDir
 
-    $rxList=@(); try { $rxList=@($cat.Process.UserPathsRegex) } catch { }
+    $rxList=@(); try { $rxList=@($cat.Process.UserPathsRegex) } catch { <# best-effort: catalog property may not exist #> }
     $hashUserlandOnly = Safe-ToBool $cat.Process.HashUserlandOnly $true
 
     $procs = Get-CimInstance Win32_Process
     $rows = foreach ($p in $procs) {
-      $path=$null; try { $path=[string]$p.ExecutablePath } catch { }
+      $path=$null; try { $path=[string]$p.ExecutablePath } catch { <# best-effort: process path may be inaccessible #> }
 
       $userlandMatch=$false
       if ($path) { foreach ($rx in $rxList) { if ($path -match $rx) { $userlandMatch=$true; break } } }
@@ -485,12 +485,12 @@ function Try-CollectNetworkNetCmdlets {
       $note.Value = "UDP cmdlet unavailable: " + $_.Exception.Message
     }
 
-    try { Get-NetIPConfiguration | Export-Csv -NoTypeInformation -Encoding UTF8 -Path (Join-Path $outDir 'net_ipconfig.csv') } catch { }
+    try { Get-NetIPConfiguration | Export-Csv -NoTypeInformation -Encoding UTF8 -Path (Join-Path $outDir 'net_ipconfig.csv') } catch { <# best-effort: IP configuration cmdlet may not be available #> }
     try {
       Get-NetRoute | Select-Object ifIndex,DestinationPrefix,NextHop,RouteMetric,PolicyStore |
         Export-Csv -NoTypeInformation -Encoding UTF8 -Path (Join-Path $outDir 'net_routes.csv')
-    } catch { }
-    try { Get-DnsClientCache | Export-Csv -NoTypeInformation -Encoding UTF8 -Path (Join-Path $outDir 'dns_cache.csv') } catch { }
+    } catch { <# best-effort: routing table cmdlet may not be available #> }
+    try { Get-DnsClientCache | Export-Csv -NoTypeInformation -Encoding UTF8 -Path (Join-Path $outDir 'dns_cache.csv') } catch { <# best-effort: DNS cache cmdlet may not be available on all OS versions #> }
 
     return $true
   } catch {
@@ -651,7 +651,7 @@ function Export-SuspiciousTaskXml {
       if (-not (Test-PathUnderRoot -Path $xmlPath -Root $outDir)) { continue }
       Export-ScheduledTask -TaskName $t.TaskName -TaskPath $t.TaskPath | Out-File -FilePath $xmlPath -Encoding UTF8
       $exported++
-    } catch { }
+    } catch { <# best-effort: individual task XML export may fail #> }
   }
 
   return $exported
@@ -661,7 +661,7 @@ function Collect-Tasks {
   param([string]$outDir,$cat)
 
   $res = New-ResultObject 'Tasks'
-  $rx=@(); try { $rx=@($cat.Tasks.SuspiciousRegex) } catch { }
+  $rx=@(); try { $rx=@($cat.Tasks.SuspiciousRegex) } catch { <# best-effort: catalog property may not exist #> }
   $exportXml = Safe-ToBool $cat.Tasks.ExportXmlForSuspicious $true
   $maxXml    = Safe-ToInt  $cat.Tasks.MaxXml 50
 
@@ -670,14 +670,14 @@ function Collect-Tasks {
 
     $tasks = Get-ScheduledTask
     $flat = foreach ($t in $tasks) {
-      $actions=@(); try { $actions=@($t.Actions) } catch { }
+      $actions=@(); try { $actions=@($t.Actions) } catch { <# best-effort: task actions may not be accessible #> }
       $actionText = Convert-TaskActionsToText -Actions $actions
 
       $isSusp=$false
       foreach ($r in $rx) { if ($actionText -match $r) { $isSusp=$true; break } }
 
       $state=$null
-      try { $state = (Get-ScheduledTaskInfo -TaskName $t.TaskName -TaskPath $t.TaskPath -ErrorAction SilentlyContinue).State } catch { }
+      try { $state = (Get-ScheduledTaskInfo -TaskName $t.TaskName -TaskPath $t.TaskPath -ErrorAction SilentlyContinue).State } catch { <# best-effort: task state may not be readable #> }
 
       [pscustomobject]@{
         TaskName   = $t.TaskName
@@ -796,7 +796,7 @@ function Reset-Trigger {
     if ($rk -and (Test-Path -LiteralPath $rk)) {
       New-ItemProperty -Path $rk -Name 'Request' -PropertyType DWord -Value 0 -Force | Out-Null
     }
-  } catch { }
+  } catch { <# best-effort: trigger registry reset may fail without admin rights #> }
 }
 
 function Print-ConsoleSummary {
@@ -819,14 +819,14 @@ function Print-ConsoleSummary {
   Write-UiLine
   Write-UiLine "Counts:" -ForegroundColor Gray
 
-  try { Write-UiLine ("  Processes : {0}" -f (Safe-ToInt $Summary.Counts.Processes 0)) -ForegroundColor White } catch { }
+  try { Write-UiLine ("  Processes : {0}" -f (Safe-ToInt $Summary.Counts.Processes 0)) -ForegroundColor White } catch { <# best-effort: console summary display #> }
 
   try {
     $tcp = Safe-ToInt $Summary.Counts.Network.Tcp 0
     $lst = Safe-ToInt $Summary.Counts.Network.Listeners 0
     $udp = Safe-ToInt $Summary.Counts.Network.Udp 0
     Write-UiLine ("  Network   : TCP={0} Listeners={1} UDP={2}" -f $tcp,$lst,$udp) -ForegroundColor White
-  } catch { }
+  } catch { <# best-effort: console summary display #> }
 
   try {
     $tot = Safe-ToInt $Summary.Counts.Tasks.Total 0
@@ -836,7 +836,7 @@ function Print-ConsoleSummary {
     $c = 'White'
     if ($sus -gt 0) { $c = 'Yellow' }
     Write-UiLine ("  Tasks     : Total={0} Suspicious={1} XmlExported={2}" -f $tot,$sus,$xml) -ForegroundColor $c
-  } catch { }
+  } catch { <# best-effort: console summary display #> }
 
   try {
     $f = Safe-ToInt $Summary.Counts.WMI.Filters 0
@@ -851,9 +851,9 @@ function Print-ConsoleSummary {
     if ($wTotal -gt 0) { $col = 'Yellow' }
 
     Write-UiLine ("  WMI       : Filters={0} Bindings={1} Cmd={2} ActiveScript={3} NTEventLog={4} LogFile={5}" -f $f,$b,$c1,$a,$e,$l) -ForegroundColor $col
-  } catch { }
+  } catch { <# best-effort: console summary display #> }
 
-  try { Write-UiLine ("  Autoruns  : Items={0}" -f (Safe-ToInt $Summary.Counts.Autoruns.Items 0)) -ForegroundColor White } catch { }
+  try { Write-UiLine ("  Autoruns  : Items={0}" -f (Safe-ToInt $Summary.Counts.Autoruns.Items 0)) -ForegroundColor White } catch { <# best-effort: console summary display #> }
 
   try {
     if ($Summary.Counts.ContainsKey('Samples')) {
@@ -866,7 +866,7 @@ function Print-ConsoleSummary {
 
       Write-UiLine ("  Samples   : Copied={0} (MaxFileMB={1}, MaxTotalMB={2})" -f $cop,$m1,$m2) -ForegroundColor $col
     }
-  } catch { }
+  } catch { <# best-effort: console summary display #> }
 
   Write-UiLine
 
@@ -1071,7 +1071,7 @@ try {
 } finally {
   if ($null -ne $summary) {
     if ($errors.Count -gt 0) { $summary.Errors = @($errors) }
-    try { Print-ConsoleSummary -Summary $summary -Errors $errors -Findings $findings -CatalogLoadNote $catalogNote } catch { }
+    try { Print-ConsoleSummary -Summary $summary -Errors $errors -Findings $findings -CatalogLoadNote $catalogNote } catch { <# best-effort: console summary display in finally block #> }
   } else {
     Write-UiStatus -Label 'IR Grabber' -State 'FAIL' -Text "No summary object created."
   }

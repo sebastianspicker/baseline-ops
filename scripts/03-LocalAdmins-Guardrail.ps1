@@ -195,7 +195,7 @@ function Try-ReadJsonFile {
     if ($Path -and (Test-Path -LiteralPath $Path)) {
       return (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
     }
-  } catch {}
+  } catch { <# best-effort: JSON file may be missing or invalid #> }
 
   return $null
 }
@@ -216,7 +216,7 @@ function Get-Config {
       $cfg2 = Try-ReadJsonFile -Path $alt
       if ($cfg2) { return $cfg2 }
     }
-  } catch {}
+  } catch { <# best-effort: fallback config path may not exist #> }
 
   return $null
 }
@@ -233,7 +233,7 @@ function Read-AllowListFromJson {
     } elseif ($Json -and $Json.Allowed) {
       foreach ($x in @($Json.Allowed)) { if ($null -ne $x) { [void]$all.Add($x.ToString()) } }
     }
-  } catch {}
+  } catch { <# best-effort: JSON shape may not match expected allow-list format #> }
 
   return $all.ToArray()
 }
@@ -293,7 +293,7 @@ function Resolve-ToSid {
         $lu = Get-LocalUser -Name $name -ErrorAction Stop
         return $lu.SID.Value
       }
-    } catch {}
+    } catch { <# best-effort: local user shorthand resolution may fail #> }
   }
 
   return $null
@@ -307,7 +307,7 @@ function Get-BuiltinAdministratorSid {
   try {
     $adm = Get-LocalUser | Where-Object { $_.SID.Value -match '-500$' } | Select-Object -First 1
     if ($adm) { return $adm.SID.Value }
-  } catch {}
+  } catch { <# best-effort: LocalAccounts module may not be available #> }
 
   return $null
 }
@@ -330,18 +330,18 @@ function ConvertTo-AdminMemberRecord {
   )
 
   $sidString = $null
-  try { if ($RawMember.SID -and $RawMember.SID.Value) { $sidString = [string]$RawMember.SID.Value } } catch {}
-  if (-not $sidString) { try { if ($RawMember.SID) { $sidString = [string]$RawMember.SID } } catch {} }
+  try { if ($RawMember.SID -and $RawMember.SID.Value) { $sidString = [string]$RawMember.SID.Value } } catch { <# best-effort: SID property may vary by provider #> }
+  if (-not $sidString) { try { if ($RawMember.SID) { $sidString = [string]$RawMember.SID } } catch { <# best-effort: SID fallback #> } }
 
   $name = $null
-  try { $name = [string]$RawMember.Name } catch {}
-  if ([string]::IsNullOrWhiteSpace($name)) { try { $name = [string]$RawMember.ToString() } catch {} }
+  try { $name = [string]$RawMember.Name } catch { <# best-effort: Name property may not exist #> }
+  if ([string]::IsNullOrWhiteSpace($name)) { try { $name = [string]$RawMember.ToString() } catch { <# best-effort: ToString fallback #> } }
 
   $principalSource = $null
-  try { $principalSource = [string]$RawMember.PrincipalSource } catch {}
+  try { $principalSource = [string]$RawMember.PrincipalSource } catch { <# best-effort: PrincipalSource may not exist on all OS versions #> }
 
   $objectClass = $null
-  try { $objectClass = [string]$RawMember.ObjectClass } catch {}
+  try { $objectClass = [string]$RawMember.ObjectClass } catch { <# best-effort: ObjectClass may not exist #> }
 
   [pscustomobject]@{
     PSTypeName      = 'LocalAdmins.Guardrail.Member'
@@ -376,7 +376,7 @@ function Get-AdministratorsGroupMembers {
       try {
         $nt = New-Object System.Security.Principal.NTAccount($name)
         $sid = ($nt.Translate([System.Security.Principal.SecurityIdentifier])).Value
-      } catch {}
+      } catch { <# best-effort: ADSI member SID translation may fail for orphaned/external accounts #> }
 
       $src =
         if ($name -match '^AzureAD\\') { 'Microsoft Entra group' }
@@ -687,7 +687,7 @@ try {
 
   if (-not $result) {
     $groupNameFallback = '(unknown)'
-    try { $groupNameFallback = Get-AdministratorsGroupName } catch {}
+    try { $groupNameFallback = Get-AdministratorsGroupName } catch { <# best-effort: group name resolution in error handler #> }
     $result = New-GuardrailResult -GroupName $groupNameFallback
   }
 

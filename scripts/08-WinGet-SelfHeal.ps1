@@ -293,7 +293,7 @@ function Get-Config {
         return Get-Content -Raw -LiteralPath $sanitizedAlt -Encoding UTF8 | ConvertFrom-Json
       }
     }
-  } catch { }
+  } catch { <# best-effort: fallback config file may not exist or be invalid JSON #> }
 
   return $null
 }
@@ -336,7 +336,7 @@ function Resolve-WingetPath {
         $p = Join-Path $cand.FullName 'winget.exe'
         if (Test-Path -LiteralPath $p) { return $p }
       }
-    } catch { }
+    } catch { <# best-effort: WindowsApps directory may not be accessible #> }
   }
 
   return $null
@@ -371,7 +371,7 @@ function Invoke-Winget {
   $null = $p.Start()
 
   if (-not $p.WaitForExit($TimeoutSec * 1000)) {
-    try { $p.Kill() } catch {}
+    try { $p.Kill() } catch { <# best-effort: process may have already exited #> }
     return @{
       ExitCode = 408
       StdOut   = ''
@@ -408,7 +408,7 @@ function Get-WingetErrorText {
     $res = Invoke-Winget -WingetPath $WingetPath -WingetArgs @('error','--input',"$ExitCode") -TimeoutSec 30
     $t = ($res.StdOut + "`n" + $res.StdErr).Trim()
     if ($t) { return $t }
-  } catch { }
+  } catch { <# best-effort: winget error diagnostics may not be available #> }
 
   return $null
 }
@@ -455,7 +455,7 @@ function Test-WingetSupportsAcceptSourceAgreements {
     $h = Invoke-Winget -WingetPath $WingetPath -WingetArgs @('source','update','--help') -TimeoutSec 30
     $t = ($h.StdOut + "`n" + $h.StdErr)
     if ($t -match '--accept-source-agreements') { return $true }
-  } catch { }
+  } catch { <# best-effort: source update help check #> }
 
   return $false
 }
@@ -492,7 +492,7 @@ function Test-VcRedistInstalled {
         $p = Get-ItemProperty -Path $key -ErrorAction Stop
         $installed = ($p.Installed -eq 1) -or ($p.PSObject.Properties['Version'] -and $p.Version)
         if ($installed) { return $true, ($p.Version) }
-      } catch { }
+      } catch { <# best-effort: VC++ registry key may not exist #> }
     }
   }
 
@@ -602,7 +602,7 @@ $supportAcceptForSourceUpdate = $false
 
 try {
   # Do not fail the run if event source registration isn't possible (commonly needs admin). [web:2]
-  try { Ensure-EventSource -Source $EventSource -LogName $EventLogName } catch { }
+  try { Ensure-EventSource -Source $EventSource -LogName $EventLogName } catch { <# best-effort: event source registration commonly needs admin #> }
 
   $cfg = Get-Config -Path $ConfigPath
   if ($cfg) {

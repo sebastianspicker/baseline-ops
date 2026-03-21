@@ -357,7 +357,7 @@ function Get-ActiveLapsPolicy {
           }
         }
       }
-    } catch { }
+    } catch { <# best-effort: registry path may not exist or be accessible #> }
   }
 
   $legacyRoot = 'HKLM:\Software\Policies\Microsoft Services\AdmPwd'
@@ -373,7 +373,7 @@ function Get-ActiveLapsPolicy {
         }
       }
     }
-  } catch { }
+  } catch { <# best-effort: legacy LAPS registry may not exist #> }
 
   return $null
 }
@@ -386,7 +386,7 @@ function Get-BuiltInAdminNameRid500 {
     try {
       $acc2 = Get-CimInstance Win32_UserAccount -Filter "LocalAccount=True AND SID LIKE '%-500'" -ErrorAction Stop | Select-Object -First 1
       if ($acc2) { return $acc2.Name }
-    } catch { }
+    } catch { <# best-effort: CIM fallback for admin name discovery #> }
   }
   return 'Administrator'
 }
@@ -403,7 +403,7 @@ function Get-ManagedAdminAccountName {
         $n = [string]$PolicyObject.AdministratorAccountName
         if ($n -and $n.Trim().Length -gt 0) { return $n.Trim() }
       }
-    } catch { }
+    } catch { <# best-effort: policy property may not exist or be castable #> }
   }
 
   if ($PolicyType -eq 'LegacyLAPS') {
@@ -412,7 +412,7 @@ function Get-ManagedAdminAccountName {
         $n = [string]$PolicyObject.AdminAccountName
         if ($n -and $n.Trim().Length -gt 0) { return $n.Trim() }
       }
-    } catch { }
+    } catch { <# best-effort: legacy policy property may not exist or be castable #> }
   }
 
   return (Get-BuiltInAdminNameRid500)
@@ -441,7 +441,7 @@ function Get-LocalAdminInfo {
           Source          = 'CIM'
         }
       }
-    } catch { }
+    } catch { <# best-effort: CIM fallback for local user info #> }
 
     return [pscustomobject]@{
       Exists          = $false
@@ -529,7 +529,7 @@ function Get-PolicyPasswordAgeDays {
 
   if ($PolicyType -eq 'WindowsLAPS') {
     if ($PolicyObject -and $PolicyObject.PSObject.Properties['PasswordAgeDays']) {
-      try { return [int]$PolicyObject.PasswordAgeDays } catch { }
+      try { return [int]$PolicyObject.PasswordAgeDays } catch { <# best-effort: property cast may fail #> }
     }
     return $DefaultAgeDays
   }
@@ -539,7 +539,7 @@ function Get-PolicyPasswordAgeDays {
       try {
         $hours = [int]$PolicyObject.PasswordAge
         return [math]::Ceiling($hours / 24)
-      } catch { }
+      } catch { <# best-effort: legacy policy hours-to-days cast may fail #> }
     }
     return $DefaultAgeDays
   }
@@ -551,7 +551,7 @@ function Get-PolicyComplexity {
   param($PolicyObject)
   try {
     if ($PolicyObject -and $PolicyObject.PSObject.Properties['PasswordComplexity']) { return [int]$PolicyObject.PasswordComplexity }
-  } catch { }
+  } catch { <# best-effort: policy property cast may fail #> }
   return $null
 }
 
@@ -559,7 +559,7 @@ function Get-WindowsLapsBackupDirectory {
   param($PolicyObject)
   try {
     if ($PolicyObject -and $PolicyObject.PSObject.Properties['BackupDirectory']) { return [int]$PolicyObject.BackupDirectory }
-  } catch { }
+  } catch { <# best-effort: policy property cast may fail #> }
   return $null
 }
 
@@ -649,7 +649,7 @@ try {
   $result.PasswordLastSet       = $adminInfo.PasswordLastSet
 
   if ($adminInfo.PasswordLastSet) {
-    try { $result.PasswordAgeDays = [math]::Floor((New-TimeSpan -Start $adminInfo.PasswordLastSet -End (Get-Date)).TotalDays) } catch { $result.PasswordAgeDays = $null }
+    try { $result.PasswordAgeDays = [math]::Floor((New-TimeSpan -Start $adminInfo.PasswordLastSet -End (Get-Date)).TotalDays) } catch { <# best-effort: date arithmetic may fail on invalid timestamps #> $result.PasswordAgeDays = $null }
   }
 
   $result.AADJoined = [bool](Get-AADJoin)
@@ -706,7 +706,7 @@ try {
       $adminInfo2 = Get-LocalAdminInfo -Name $result.ManagedAccount
       $result.PasswordLastSet = $adminInfo2.PasswordLastSet
       if ($adminInfo2.PasswordLastSet) {
-        try { $result.PasswordAgeDays = [math]::Floor((New-TimeSpan -Start $adminInfo2.PasswordLastSet -End (Get-Date)).TotalDays) } catch { }
+        try { $result.PasswordAgeDays = [math]::Floor((New-TimeSpan -Start $adminInfo2.PasswordLastSet -End (Get-Date)).TotalDays) } catch { <# best-effort: date arithmetic may fail #> }
       }
     }
   }

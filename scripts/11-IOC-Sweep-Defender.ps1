@@ -224,7 +224,7 @@ function Get-ObjPropValue {
     if ($null -eq $Obj) { return $null }
     $p = $Obj.PSObject.Properties[$Name]
     if ($p) { return $p.Value }
-  } catch { }
+  } catch { <# best-effort: property access on dynamic object #> }
   return $null
 }
 
@@ -290,7 +290,7 @@ function Get-ProcessImageSha256([int]$ProcessId){
   try {
     $p = Get-Process -Id $ProcessId -ErrorAction Stop
     if ($p.Path) { return Get-FileSha256 -Path $p.Path }
-  } catch { }
+  } catch { <# best-effort: process may have exited or path may be inaccessible #> }
   return $null
 }
 
@@ -621,7 +621,7 @@ try {
           }
         }
       }
-    } catch { }
+    } catch { Write-Warning "IOC service sweep error: $($_.Exception.Message)" }
   }
 
   # Scheduled tasks
@@ -757,9 +757,9 @@ try {
             }
           }
         }
-      } catch { }
+      } catch { Write-Warning "IOC network DNS cache check error: $($_.Exception.Message)" }
     }
-  } catch { }
+  } catch { Write-Warning "IOC network sweep error: $($_.Exception.Message)" }
 
   if ($nFind.Count -gt 0) { $Proof.Findings.Network = $nFind }
 
@@ -778,7 +778,7 @@ try {
   $err = "IOC sweep failed: $($_.Exception.Message)"
   $Proof.Errors += $err
 
-  try { Save-Json -Obj $Proof -Path $outFile } catch { }
+  try { Save-Json -Obj $Proof -Path $outFile } catch { <# best-effort: attempt to save partial proof on fatal error #> }
   Write-HealthEvent -Id 10010 -Msg $err -Level 'Error'
 }
 

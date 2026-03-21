@@ -160,7 +160,7 @@ function Write-FallbackLogLine {
   try {
     Ensure-Directory (Split-Path -Parent $script:FallbackLog)
     ("{0} {1}" -f (Get-Date).ToString('s'), $Line) | Out-File -FilePath $script:FallbackLog -Encoding UTF8 -Append
-  } catch { }
+  } catch { <# best-effort: fallback log write may fail if path is inaccessible #> }
 }
 
 
@@ -324,14 +324,14 @@ function Get-TaskInfoUnder {
     $tasks = Get-ScheduledTask -TaskPath $Folder -ErrorAction Stop
     foreach($t in $tasks){
       $state = "Unknown"
-      try { $state = (Get-ScheduledTaskInfo -TaskName $t.TaskName -TaskPath $t.TaskPath -ErrorAction Stop).State.ToString() } catch { }
+      try { $state = (Get-ScheduledTaskInfo -TaskName $t.TaskName -TaskPath $t.TaskPath -ErrorAction Stop).State.ToString() } catch { <# best-effort: task state may not be readable #> }
       Add-ArrayList $list ([pscustomobject]@{
         Path    = ($t.TaskPath + $t.TaskName)
         Enabled = [bool]$t.Enabled
         State   = $state
       })
     }
-  } catch { }
+  } catch { <# best-effort: scheduled task enumeration may fail if task folder does not exist #> }
   return $list
 }
 
@@ -465,7 +465,7 @@ function Get-UHT-Info {
         if ($p.DisplayName -match 'Microsoft Update Health Tools') { $hit=$p; break }
       }
       if ($hit){ break }
-    } catch { }
+    } catch { <# best-effort: registry key may not exist on all OS editions #> }
   }
 
   if ($hit){
@@ -491,7 +491,7 @@ function Get-UHT-Info {
         if ($exe) { $ret.FileVersion = $exe.VersionInfo.FileVersion }
         if (-not $ret.InstallLocation) { $ret.InstallLocation = $d }
       }
-    } catch { }
+    } catch { <# best-effort: UHT install directory probing #> }
   }
 
   try {
@@ -525,7 +525,7 @@ function Get-SSU-Info {
       $ret.Source  = 'Registry:ServicingStackVersion'
       return $ret
     }
-  } catch { }
+  } catch { <# best-effort: SSU version registry key may not exist #> }
 
   try {
     $out = (& dism.exe /online /get-packages /format:table 2>&1) | Out-String
@@ -541,7 +541,7 @@ function Get-SSU-Info {
       if ($ver) { $ret.Version = $ver.ToString() }
       $ret.Source = 'DISM:Get-Packages'
     }
-  } catch { }
+  } catch { <# best-effort: DISM SSU detection may fail without elevation #> }
 
   return $ret
 }
@@ -622,7 +622,7 @@ try {
   if ($u.Installed) {
     $allowed = @('Automatic','AutomaticDelayedStart')
     if ($cat -and $cat.UpdateHealthTools -and $cat.UpdateHealthTools.ServiceStartAllowed) {
-      try { $allowed = @($cat.UpdateHealthTools.ServiceStartAllowed) } catch { }
+      try { $allowed = @($cat.UpdateHealthTools.ServiceStartAllowed) } catch { <# best-effort: catalog property may not exist #> }
       if (-not $allowed -or $allowed.Count -eq 0) { $allowed = @('Automatic','AutomaticDelayedStart') }
     }
 
