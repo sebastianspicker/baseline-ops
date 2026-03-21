@@ -11,6 +11,9 @@ Windows Forms launcher to:
 - save output logs
 #>
 
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
 if ($env:OS -ne 'Windows_NT') {
   Write-Error 'Launcher-GUI requires Windows.'
   exit 1

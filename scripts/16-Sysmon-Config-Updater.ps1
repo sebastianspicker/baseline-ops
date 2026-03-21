@@ -268,10 +268,8 @@ function Resolve-SysmonExe {
   foreach($c in @(
     "$env:SystemRoot\Sysmon64.exe",
     "$env:SystemRoot\Sysmon.exe",
-    "C:\Program Files\Sysmon\Sysmon64.exe",
-    "C:\Program Files\Sysmon\Sysmon.exe",
-    "C:\Windows\Sysmon64.exe",
-    "C:\Windows\Sysmon.exe"
+    "$env:ProgramFiles\Sysmon\Sysmon64.exe",
+    "$env:ProgramFiles\Sysmon\Sysmon.exe"
   )){
     if (Test-Path -LiteralPath $c) { return $c }
   }

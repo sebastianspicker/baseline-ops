@@ -283,9 +283,9 @@ function New-DefaultCatalog {
       "\\Company\\Managed\\.*"
     )
     AllowActionPathPrefixes = @(
-      "C:\Windows\",
-      "C:\Program Files\",
-      "C:\Program Files (x86)\",
+      "$env:SystemRoot\",
+      "$env:ProgramFiles\",
+      "${env:ProgramFiles(x86)}\",
       "PATH/TO/SCRIPTS/"
     )
     DenyActionPathRegex = @(
