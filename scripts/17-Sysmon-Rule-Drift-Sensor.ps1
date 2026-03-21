@@ -221,6 +221,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -434,7 +435,9 @@ function Get-SysmonChannelStatus {
   }
 
   try {
-    $xml = & wevtutil gl $script:SysmonLogName /f:xml 2>$null
+    # S9 fix: use Invoke-Wevtutil wrapper with array-based args instead of direct wevtutil call
+    $wevtResult = Invoke-Wevtutil -Arguments @('gl', $script:SysmonLogName, '/f:xml') -CaptureOutput
+    $xml = if ($wevtResult -and $wevtResult.Output) { $wevtResult.Output } else { $null }
     if (-not $xml) { return $info }
 
     $x = [xml]$xml
@@ -472,7 +475,8 @@ function Enable-SysmonChannelIfRequested {
   if (-not (Test-IsAdmin)) { return $ChannelStatus }
 
   try {
-    & wevtutil sl $script:SysmonLogName /e:true 2>$null | Out-Null
+    # S9 fix: use Invoke-Wevtutil wrapper with array-based args instead of direct wevtutil call
+    Invoke-Wevtutil -Arguments @('sl', $script:SysmonLogName, '/e:true') | Out-Null
   } catch { }
 
   return (Get-SysmonChannelStatus)

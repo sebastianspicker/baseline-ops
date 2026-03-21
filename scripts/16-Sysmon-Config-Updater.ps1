@@ -178,6 +178,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -388,16 +389,18 @@ function Ensure-SysmonChannel([switch]$DoIt,[int]$MiB){
   $name = 'Microsoft-Windows-Sysmon/Operational'
   $ok=$true; $msgs=@()
   try {
-    $q = wevtutil gl "$name" 2>$null
+    # S9 fix: use Invoke-Wevtutil wrapper with array-based args instead of direct wevtutil calls
+    $glResult = Invoke-Wevtutil -Arguments @('gl', $name) -CaptureOutput
+    $q = if ($glResult -and $glResult.Output) { $glResult.Output } else { '' }
     $enabled = ($q -match 'enabled:\s*true')
     if (-not $enabled) {
-      if ($DoIt) { wevtutil sl "$name" /e:true 2>$null; $msgs += "enabled" } else { $ok=$false }
+      if ($DoIt) { Invoke-Wevtutil -Arguments @('sl', $name, '/e:true') | Out-Null; $msgs += "enabled" } else { $ok=$false }
     }
     if ($MiB -gt 0) {
       $m = [regex]::Match($q,'maximum size:\s*(\d+)')
       $cur = if ($m.Success){ [int64]$m.Groups[1].Value } else { 0 }
       $want = [int64]$MiB * 1024 * 1024
-      if ($cur -lt $want -and $DoIt) { wevtutil sl "$name" /ms:$want 2>$null; $msgs += ("size=" + $MiB + "MiB") }
+      if ($cur -lt $want -and $DoIt) { Invoke-Wevtutil -Arguments @('sl', $name, "/ms:$want") | Out-Null; $msgs += ("size=" + $MiB + "MiB") }
       elseif ($cur -lt $want) { $ok=$false }
     }
   } catch { $ok=$false; $msgs += $_.Exception.Message }
