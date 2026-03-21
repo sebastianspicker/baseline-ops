@@ -78,6 +78,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -470,7 +471,7 @@ $CILookbackHours = $config['CILookbackHours']
 $ExportPath = $config['ExportPath']
 $Quiet = $config['Quiet']
 
-$Findings = New-Object 'System.Collections.Generic.List[object]'
+$Findings = New-FindingsList
 $Changes  = New-Object 'System.Collections.Generic.List[string]'
 $rebootRequired = $false
 
@@ -482,11 +483,11 @@ $current = [pscustomobject]@{
 }
 
 if ($null -eq $current.RunAsPPL) {
-  $Findings.Add([pscustomobject]@{ Code='LSA-PPL-Missing'; Severity='High'; Message='RunAsPPL is not set (effectively disabled).' }) | Out-Null
+  Add-Finding -FindingList $Findings -Code 'LSA-PPL-Missing' -Severity 'High' -Message 'RunAsPPL is not set (effectively disabled).'
 } elseif ($current.RunAsPPL -eq 0) {
-  $Findings.Add([pscustomobject]@{ Code='LSA-PPL-Off'; Severity='High'; Message='RunAsPPL is 0 (Added LSA protection disabled).' }) | Out-Null
+  Add-Finding -FindingList $Findings -Code 'LSA-PPL-Off' -Severity 'High' -Message 'RunAsPPL is 0 (Added LSA protection disabled).'
 } elseif ($current.RunAsPPL -notin @(1,2)) {
-  $Findings.Add([pscustomobject]@{ Code='LSA-PPL-Invalid'; Severity='Medium'; Message=("RunAsPPL has unexpected value: {0}" -f $current.RunAsPPL) }) | Out-Null
+  Add-Finding -FindingList $Findings -Code 'LSA-PPL-Invalid' -Severity 'Medium' -Message ("RunAsPPL has unexpected value: {0}" -f $current.RunAsPPL)
 }
 
 if ($Mode -eq 'Remediate') {
