@@ -141,6 +141,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -194,18 +195,7 @@ function Save-Json {
   ($Obj | ConvertTo-Json -Depth 25) | Out-File -Encoding UTF8 -FilePath $Path
 }
 
-function Try-LoadJsonFile {
-  param([string]$Path)
-  if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
-  if (-not (Test-Path $Path)) { return $null }
-  try {
-    $raw = Get-Content -Raw -Path $Path -Encoding UTF8 -ErrorAction Stop
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-    return ($raw | ConvertFrom-Json -ErrorAction Stop)
-  } catch {
-    return $null
-  }
-}
+# Try-LoadJsonFile replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
 function Get-PropValue {
   param(
@@ -353,16 +343,16 @@ function Normalize-Catalog {
 function Load-Catalog {
   param([string]$CatalogPath,[string]$ConfigPath,[object]$DefaultCatalog)
 
-  $cat = Try-LoadJsonFile -Path $CatalogPath
+  $cat = Read-JsonFileSafe -Path $CatalogPath
   if ($cat) { return (Normalize-Catalog -cat $cat -fallback $DefaultCatalog) }
 
-  $cfg = Try-LoadJsonFile -Path $ConfigPath
+  $cfg = Read-JsonFileSafe -Path $ConfigPath
   $th  = $null
   if ($cfg) { $th = Get-PropValue $cfg 'TasksHygiene' $null }
   if ($th) {
     $p = Get-PropValue $th 'CatalogPath' $null
     if (-not [string]::IsNullOrWhiteSpace([string]$p)) {
-      $cat = Try-LoadJsonFile -Path ([string]$p)
+      $cat = Read-JsonFileSafe -Path ([string]$p)
       if ($cat) { return (Normalize-Catalog -cat $cat -fallback $DefaultCatalog) }
     }
   }

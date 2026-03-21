@@ -205,6 +205,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -338,24 +339,7 @@ function Coalesce-Bool {
 
 # Ensure-Directory imported from lib/Common.psm1
 
-function Load-JsonFile {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$Path
-  )
-
-  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
-
-  try {
-    return (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
-  }
-  catch {
-    Write-Warning ("Failed to parse JSON: {0} ({1})" -f (ConvertTo-SafeDisplayPath $Path), $_.Exception.Message)
-    return $null
-  }
-}
+# Load-JsonFile replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
 function Get-LatestSupportBundleZip {
   [CmdletBinding()]
@@ -381,7 +365,7 @@ function Resolve-SummaryFromZip {
 
   $adjacentSummaryPath = "$($Zip.FullName).summary.json"
   if (Test-Path -LiteralPath $adjacentSummaryPath -PathType Leaf) {
-    $summary = Load-JsonFile -Path $adjacentSummaryPath
+    $summary = Read-JsonFileSafe -Path $adjacentSummaryPath
     if ($summary) {
       return [pscustomobject]@{
         SummaryPath = $adjacentSummaryPath
@@ -470,7 +454,7 @@ function Resolve-WorkDirAndSummary {
   if ($workDir -and (Test-Path -LiteralPath $workDir -PathType Container)) {
     $workSummaryPath = Join-Path -Path $workDir -ChildPath 'Summary.json'
     if (Test-Path -LiteralPath $workSummaryPath -PathType Leaf) {
-      $summary = Load-JsonFile -Path $workSummaryPath
+      $summary = Read-JsonFileSafe -Path $workSummaryPath
       if ($summary) {
         return [pscustomobject]@{
           ZipPath     = $Zip.FullName
@@ -651,7 +635,7 @@ function Get-KBStatusSummary {
     }
   }
 
-  $kb = Load-JsonFile -Path $kbStatusPath
+  $kb = Read-JsonFileSafe -Path $kbStatusPath
   if (-not $kb) {
     return [pscustomobject]@{
       KbStatusPath    = $kbStatusPath
@@ -749,7 +733,7 @@ $summaryErrors   = Get-PropArrayStrings -Object $summary -Name 'Errors'
 $summaryNotes    = Get-PropArrayStrings -Object $summary -Name 'Notes'
 $outputs         = @((Get-PropArrayStrings -Object $summary -Name 'Outputs'))
 
-$conf = Load-JsonFile -Path $ConfigPath
+$conf = Read-JsonFileSafe -Path $ConfigPath
 if (-not $conf) {
   $runNotes.Add(("Config not loaded; using defaults (ConfigPath={0})." -f (ConvertTo-SafeDisplayPath $ConfigPath)))
 }

@@ -223,6 +223,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -319,16 +320,7 @@ function ConvertTo-Hashtable {
 # Utility: File IO (safe)
 # -----------------------------
 
-function Read-JsonFile {
-  param([Parameter(Mandatory)][string]$Path)
-  if (-not (Test-Path -LiteralPath $Path)) { return $null }
-
-  try {
-    return (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop)
-  } catch {
-    return $null
-  }
-}
+# Read-JsonFile replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
 function Write-JsonFile {
   param(
@@ -385,7 +377,7 @@ function Load-CatalogOrDefault {
     [pscustomobject]$DefaultCatalog
   )
 
-  $cat = Read-JsonFile -Path $Path
+  $cat = Read-JsonFileSafe -Path $Path
   if ($null -eq $cat) { return $DefaultCatalog }
 
   if ($null -eq $cat.Rules) {
@@ -748,7 +740,7 @@ if (-not $channel.Exists -or -not $channel.Enabled) {
 
 # Load baseline state (tolerant)
 $baseline = @{}
-$state = Read-JsonFile -Path $StatePath
+$state = Read-JsonFileSafe -Path $StatePath
 if ($state -and $state.Baseline) {
   $baseline = ConvertTo-Hashtable -InputObject $state.Baseline
 }

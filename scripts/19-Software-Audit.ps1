@@ -118,6 +118,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -199,22 +200,7 @@ function Get-PropInt {
 
 # -------------------- Helpers: filesystem + JSON --------------------
 
-function Read-JsonFile {
-  [CmdletBinding()]
-  param([Parameter(Mandatory=$true)][string]$Path)
-
-  try {
-    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
-    if (-not (Test-Path -LiteralPath $Path)) { return $null }
-
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-
-    $raw | ConvertFrom-Json -ErrorAction Stop
-  } catch {
-    return $null
-  }
-}
+# Read-JsonFile replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
 function ConvertFrom-JsonSafe {
   [CmdletBinding()]
@@ -263,16 +249,16 @@ function Load-Catalog {
   )
 
   if (-not [string]::IsNullOrWhiteSpace($CatalogPath)) {
-    $cat = Read-JsonFile -Path $CatalogPath
+    $cat = Read-JsonFileSafe -Path $CatalogPath
     if ($cat) { return (New-CatalogWrapper -Source 'CatalogPath' -Loaded $true -CatalogObject $cat) }
   }
 
   if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) {
-    $cfg = Read-JsonFile -Path $ConfigPath
+    $cfg = Read-JsonFileSafe -Path $ConfigPath
     if ($cfg -and (Test-HasProperty $cfg 'Software') -and $cfg.Software -and (Test-HasProperty $cfg.Software 'CatalogPath')) {
       $p = [string]$cfg.Software.CatalogPath
       if (-not [string]::IsNullOrWhiteSpace($p)) {
-        $cat = Read-JsonFile -Path $p
+        $cat = Read-JsonFileSafe -Path $p
         if ($cat) { return (New-CatalogWrapper -Source 'ConfigPath:Software.CatalogPath' -Loaded $true -CatalogObject $cat) }
       }
     }
