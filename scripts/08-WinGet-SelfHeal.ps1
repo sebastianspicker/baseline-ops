@@ -178,6 +178,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
@@ -224,18 +225,7 @@ $EventLogName = "Application"
 # ---------------- Console Helpers ----------------
 
 
-function Get-StatusColor {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Status)
-
-  switch ($Status) {
-    'OK'      { 'Green' }
-    'Warning' { 'Yellow' }
-    'Error'   { 'Red' }
-    'Skipped' { 'Gray' }
-    default   { 'Gray' }
-  }
-}
+# Get-StatusColor imported from lib/Console.psm1
 
 # ---------------- Event Log Helpers ----------------
 

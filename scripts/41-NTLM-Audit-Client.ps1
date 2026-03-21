@@ -218,71 +218,7 @@ function Import-JsonConfigOrDefault {
 }
 
 
-function Write-ConsoleSummary {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] [pscustomobject]$Summary,
-    [Parameter(Mandatory)] [System.Collections.Generic.List[object]]$Findings,
-    [Parameter(Mandatory)] [pscustomobject]$Config
-  )
-
-  $sorted = @($Findings | Sort-Object @{ Expression = { Get-SeverityRank $_.Severity }; Descending = $true }, Code)
-  $top    = $sorted | Select-Object -First 1
-
-  $bannerColor = 'Green'
-  if ($Summary.FindingsCount -gt 0 -and $null -ne $top) {
-    if ($top.Severity -eq 'High') { $bannerColor = 'Red' }
-    elseif ($top.Severity -eq 'Medium') { $bannerColor = 'Yellow' }
-    elseif ($top.Severity -eq 'Low') { $bannerColor = 'Cyan' }
-  }
-
-  Write-UiLine ''
-  Write-UiLine ('=' * 34) -ForegroundColor DarkGray
-  Write-UiLine 'NTLM Audit (LmCompatibilityLevel)' -ForegroundColor $bannerColor
-  Write-UiLine ('=' * 34) -ForegroundColor DarkGray
-
-  Write-KeyValue -Key 'ComputerName' -Value $Summary.ComputerName -ValueColor White
-  Write-KeyValue -Key 'Timestamp' -Value ($Summary.Timestamp.ToString('s')) -ValueColor Gray
-
-  $lvlValue = if ($null -eq $Summary.LmCompatibilityLevel) { '<not set>' } else { [string]$Summary.LmCompatibilityLevel }
-  $lvlColor = if ($null -eq $Summary.LmCompatibilityLevel) { 'Yellow' } elseif ($Summary.LmCompatibilityLevel -lt $Summary.MinimumLevel) { 'Red' } else { 'Green' }
-
-  Write-KeyValue -Key 'LmCompatibilityLevel' -Value $lvlValue -ValueColor $lvlColor
-  Write-KeyValue -Key 'LmCompatibilityText' -Value $Summary.LmCompatibilityText -ValueColor Gray
-  Write-KeyValue -Key 'MinimumLevel' -Value ([string]$Summary.MinimumLevel) -ValueColor Gray
-  Write-KeyValue -Key 'FindingsCount' -Value ([string]$Summary.FindingsCount) -ValueColor $(if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' })
-  Write-KeyValue -Key 'ConfigLoaded' -Value ([string]$Summary.ConfigLoaded) -ValueColor $(if ($Summary.ConfigLoaded) { 'Green' } else { 'DarkGray' })
-
-  if ($null -ne $top) {
-    $c = Get-SeverityColor -Severity $top.Severity
-    Write-KeyValue -Key 'TopFinding' -Value ("{0} ({1})" -f $top.Severity, $top.Code) -ValueColor $c
-  } else {
-    Write-KeyValue -Key 'TopFinding' -Value 'None' -ValueColor Green
-  }
-
-  $counts = @{ High = 0; Medium = 0; Low = 0; Info = 0 }
-  foreach ($g in ($Findings | Group-Object Severity)) {
-    if ($counts.ContainsKey($g.Name)) { $counts[$g.Name] = [int]$g.Count }
-  }
-
-  Write-UiLine ''
-  Write-UiLine 'Findings by severity:' -ForegroundColor DarkGray
-  Write-UiLine ("  High  : {0}" -f $counts.High)   -ForegroundColor (Get-SeverityColor -Severity 'High')
-  Write-UiLine ("  Medium: {0}" -f $counts.Medium) -ForegroundColor (Get-SeverityColor -Severity 'Medium')
-  Write-UiLine ("  Low   : {0}" -f $counts.Low)    -ForegroundColor (Get-SeverityColor -Severity 'Low')
-  Write-UiLine ("  Info  : {0}" -f $counts.Info)   -ForegroundColor (Get-SeverityColor -Severity 'Info')
-
-  if ($sorted.Count -gt 0 -and $Config.ConsoleMode -eq 'Pretty') {
-    Write-UiLine ''
-    Write-UiLine 'Top findings:' -ForegroundColor DarkGray
-    foreach ($f in ($sorted | Select-Object -First 5)) {
-      $color = Get-SeverityColor -Severity $f.Severity
-      Write-UiLine ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -ForegroundColor $color
-    }
-  }
-
-  Write-UiLine ''
-}
+# Write-ConsoleSummary imported from lib/Console.psm1
 
 #endregion Helpers
 
@@ -371,7 +307,16 @@ if ($ExportPath) {
 #endregion Export
 
 #region Console-only output (no pipeline pollution)
-Write-ConsoleSummary -Summary $summary -Findings $findings -Config $config
+$lvlValue = if ($null -eq $summary.LmCompatibilityLevel) { '<not set>' } else { [string]$summary.LmCompatibilityLevel }
+$customFields = [ordered]@{
+  'LmLevel'    = ("{0} ({1})" -f $lvlValue, $summary.LmCompatibilityText)
+  'MinLevel'   = [string]$summary.MinimumLevel
+  'ConfigLoad' = [string]$summary.ConfigLoaded
+}
+$findingsAL = [System.Collections.ArrayList]@($findings)
+Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
+  -Title 'NTLM Audit (LmCompatibilityLevel)' `
+  -CustomFields $customFields
 #endregion Console-only output
 
 # V2 output contract

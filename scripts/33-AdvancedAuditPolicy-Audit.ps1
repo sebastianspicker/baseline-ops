@@ -108,8 +108,8 @@ if ($NoColor) {
 }
 $ErrorActionPreference = 'Stop'
 
-# Findings are kept in ArrayList to avoid PS 5.1 DLR binder edge-cases with Generic.List.
-$script:Findings = New-Object System.Collections.ArrayList
+# C10: use canonical New-FindingsList from Results.psm1
+$script:Findings = New-FindingsList
 
 # -------------------- Helpers --------------------
 
@@ -236,38 +236,10 @@ function Try-ReadDesiredPolicyJson {
   }
 }
 
-# -------------------- Console UI (Get-SeverityColor from lib/Console.psm1) --------------------
-
-function Write-ConsoleSummary {
-  param(
-    [Parameter(Mandatory=$true)][psobject]$Summary,
-    [Parameter(Mandatory=$true)][System.Collections.ArrayList]$Findings,
-    [Parameter(Mandatory=$true)][string]$DesiredPolicySource,
-    [string]$DesiredPolicyError
-  )
-
-  $stats = Get-FindingStats -Findings $Findings
-
-  Write-DecorativeRule -Title 'Advanced Audit Policy - Summary'
-
-  Write-UiLine ("ComputerName     : {0}" -f $Summary.ComputerName)
-  Write-UiLine ("Mode             : {0}" -f $Summary.Mode)
-  Write-UiLine ("Policies parsed  : {0}" -f $Summary.PoliciesParsed)
-
-  $countLine = ("Findings         : {0} (High={1}, Medium={2}, Low={3}, Info={4})" -f $Findings.Count, $stats.High, $stats.Medium, $stats.Low, $stats.Info)
-  $countColor = if ($stats.High -gt 0) { 'Red' } elseif ($stats.Medium -gt 0) { 'Yellow' } elseif ($Findings.Count -gt 0) { 'Cyan' } else { 'Green' }
-  Write-UiLine $countLine -ForegroundColor $countColor
-
-  Write-UiLine ("Desired policy   : {0}" -f $DesiredPolicySource)
-  if ($DesiredPolicyError) {
-    Write-UiLine ("DesiredPolicyError: {0}" -f $DesiredPolicyError) -ForegroundColor Yellow
-  }
-
-  Write-UiLine ("Timestamp        : {0}" -f $Summary.Timestamp)
-}
+# -------------------- Console UI (Write-ConsoleSummary / Get-SeverityColor from lib/Console.psm1) --------------------
 
 function Write-FindingsConsole {
-  param([Parameter(Mandatory=$true)][System.Collections.ArrayList]$Findings)
+  param([Parameter(Mandatory=$true)][System.Collections.IList]$Findings)
 
   Write-DecorativeRule -Title ("Findings ({0})" -f $Findings.Count)
 
@@ -432,7 +404,15 @@ if ($ExportPath) {
 }
 
 # Pretty console output (does not touch pipeline).
-Write-ConsoleSummary -Summary $summary -Findings $script:Findings -DesiredPolicySource $desiredSource -DesiredPolicyError $desiredError
+$customFields = [ordered]@{
+  'Mode'          = $summary.Mode
+  'Parsed'        = [string]$summary.PoliciesParsed
+  'DesiredPolicy' = $desiredSource
+}
+if ($desiredError) { $customFields['PolicyError'] = $desiredError }
+Write-ConsoleSummary -Summary $summary -Findings $script:Findings `
+  -Title 'Advanced Audit Policy - Summary' `
+  -CustomFields $customFields
 Write-FindingsConsole -Findings $script:Findings
 
 # V2 output contract
