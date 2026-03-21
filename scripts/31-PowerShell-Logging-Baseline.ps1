@@ -138,11 +138,7 @@ $ErrorActionPreference = 'Stop'
 
 
 # Ensure-Key replaced by Ensure-RegistryKey from lib/Registry.psm1
-
-function Set-RegString {
-  param([string]$Path, [string]$Name, [string]$Value)
-  $null = New-ItemProperty -Path $Path -Name $Name -PropertyType String -Value $Value -Force
-}
+# Set-RegString replaced by lib/Registry.psm1::Set-RegString (has full error handling and validation)
 
 function Get-ModuleNamesConfigured {
   param([string]$ModuleNamesKeyPath)

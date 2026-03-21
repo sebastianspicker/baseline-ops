@@ -174,7 +174,7 @@ function Write-ConsoleSummary {
   elseif ($result -eq 'ERROR') { $resColor = [ConsoleColor]::Red }
 
   Write-UiLine ""
-  Write-Rule -Title "WUfB Proofing Summary" -Color ([ConsoleColor]::DarkCyan)
+  Write-Rule -Title "WUfB Proofing Summary" -Color 'Header'
 
   Write-KeyValue -Key 'Result'    -Value $Summary.Result -ValueColor $resColor
   Write-KeyValue -Key 'Elevated'  -Value $Summary.Elevated
@@ -506,7 +506,7 @@ $Proof = [ordered]@{
 $modeText = 'Audit'
 if ($Remediate) { $modeText = 'Remediate' }
 
-Write-Rule -Title ("WUfB Proofing - {0}" -f $env:COMPUTERNAME) -Color ([ConsoleColor]::DarkCyan)
+Write-Rule -Title ("WUfB Proofing - {0}" -f $env:COMPUTERNAME) -Color 'Header'
 Write-KeyValue -Key 'Start' -Value (Get-Date).ToString()
 Write-KeyValue -Key 'Mode'  -Value $modeText
 Write-UiLine ""

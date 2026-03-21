@@ -363,7 +363,7 @@ function Write-PrettySettingChange {
   )
 
   if (-not $Supported) {
-    Write-KeyValue -Key $Label -Value 'n/a (not supported on this OS/build)' -ValueColor ([ConsoleColor]::DarkYellow)
+    Write-KeyValue -Key $Label -Value 'n/a (not supported on this OS/build)' -ValueColor 'Warning'
     return
   }
 

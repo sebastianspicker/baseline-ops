@@ -261,7 +261,7 @@ function Show-ConsoleSummary {
   Write-UiLine "Configuration" -ForegroundColor Cyan
   Write-UiLine ('-' * 40) -ForegroundColor DarkGray
 
-  $cfgLoadedColor = 'DarkYellow'
+  $cfgLoadedColor = 'Warning'
   if ($ResultObject.ConfigLoaded) { $cfgLoadedColor = 'Green' }
   Write-KeyValue -Label 'ConfigLoaded' -Value ([string]$ResultObject.ConfigLoaded) -ValueColor $cfgLoadedColor
 
@@ -289,7 +289,7 @@ function Show-ConsoleSummary {
   Write-UiLine "Event Log" -ForegroundColor Cyan
   Write-UiLine ('-' * 40) -ForegroundColor DarkGray
 
-  $modeColor = 'DarkYellow'
+  $modeColor = 'Warning'
   if ($ResultObject.EventQueryMode -eq 'Operational') { $modeColor = 'Green' }
   if ($ResultObject.EventQueryMode -eq 'None') { $modeColor = 'Red' }
   Write-KeyValue -Label 'QueryMode' -Value $ResultObject.EventQueryMode -ValueColor $modeColor
@@ -298,7 +298,7 @@ function Show-ConsoleSummary {
   Write-KeyValue -Label 'HoursBack' -Value ([string]$ResultObject.HoursBack) -ValueColor White
 
   $eventsColor = 'Gray'
-  if ($ResultObject.EventsFound -gt 0) { $eventsColor = 'DarkYellow' }
+  if ($ResultObject.EventsFound -gt 0) { $eventsColor = 'Warning' }
   Write-KeyValue -Label 'EventsFound' -Value ([string]$ResultObject.EventsFound) -ValueColor $eventsColor
 
   if ($ResultObject.EventQueryError) {

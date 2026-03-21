@@ -887,9 +887,9 @@ function Write-ConsoleSummary {
   )
 
   Write-UiLine ""
-  Write-UiLine "==================================================" -ForegroundColor DarkCyan
-  Write-UiLine " Office / Browser Hardening Summary" -ForegroundColor Cyan
-  Write-UiLine "==================================================" -ForegroundColor DarkCyan
+  Write-UiLine "==================================================" -Style 'Header'
+  Write-UiLine " Office / Browser Hardening Summary" -Style 'Accent'
+  Write-UiLine "==================================================" -Style 'Header'
   Write-UiLine ("Catalog source : {0}" -f $CatalogInfo.LoadedFrom) -ForegroundColor Gray
   Write-UiLine ("Mode           : Remediate={0}  Strict={1}  IsAdmin={2}" -f $Remediate, $Strict, $IsAdmin) -ForegroundColor Gray
   Write-UiLine ""
@@ -907,7 +907,7 @@ function Write-ConsoleSummary {
   if ($driftSample.Count -gt 0) {
     Write-UiLine ""
     Write-UiLine "Drift sample (first 10 items)" -ForegroundColor Yellow
-    Write-UiLine "---------------------------------------------" -ForegroundColor DarkYellow
+    Write-UiLine "---------------------------------------------" -Style 'Warning'
     foreach($d in $driftSample) {
       Write-UiLine ("- [{0}/{1}] {2} :: {3}\{4} (Expected={5} Actual={6})" -f $d.Product, $d.Area, $d.Policy, $d.Target, $d.Name, $d.Expected, $d.Actual) -ForegroundColor Yellow
     }
@@ -932,10 +932,10 @@ function Write-ConsoleSummary {
   $finalColor = if ($overallOk -and -not $Strict) { 'Green' } else { 'Red' }
   $finalText  = if ($overallOk -and -not $Strict) { 'HARDENING OK' } else { 'DRIFT DETECTED' }
 
-  Write-UiLine "==================================================" -ForegroundColor DarkCyan
+  Write-UiLine "==================================================" -Style 'Header'
   Write-UiLine (" Final result : {0}" -f $finalText) -ForegroundColor $finalColor
   Write-UiLine (" Items        : Total={0}  NonCompliant={1}  Changed={2}" -f $total, $nonCompliant, $changed) -ForegroundColor Gray
-  Write-UiLine "==================================================" -ForegroundColor DarkCyan
+  Write-UiLine "==================================================" -Style 'Header'
 
   Write-Information ("Summary: FinalResult={0}; Total={1}; NonCompliant={2}; Changed={3}" -f $finalText, $total, $nonCompliant, $changed)
 }

@@ -335,7 +335,7 @@ function Stop-UserFriendly {
 
   if (-not $QuietConsoleEffective) {
     Write-Bad ("ERROR: {0}" -f $Message)
-    Write-UiLine "Hint: Provide -ConfigPath 'PATH/TO/config.dsc.yaml' or set 'ConfigPath' in PATH/TO/JSON." -ForegroundColor DarkYellow
+    Write-UiLine "Hint: Provide -ConfigPath 'PATH/TO/config.dsc.yaml' or set 'ConfigPath' in PATH/TO/JSON." -Style 'Warning'
   }
 
   $safeResults = $Results

@@ -250,6 +250,6 @@ if ($PSCmdlet.ShouldProcess((Split-Path -Leaf $scriptPath), 'Execute local scrip
   Invoke-TargetScript -Path $scriptPath -Arguments $ScriptArgs
   exit $(if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE })
 } else {
-  Write-UiLine -Text ("[SKIP] {0} (WhatIf/Confirm)" -f (Split-Path -Leaf $scriptPath)) -ForegroundColor DarkGray
+  Write-UiLine ("[SKIP] {0} (WhatIf/Confirm)" -f (Split-Path -Leaf $scriptPath)) -Style 'Muted'
   exit 0
 }
