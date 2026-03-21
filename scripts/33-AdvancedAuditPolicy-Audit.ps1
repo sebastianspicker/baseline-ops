@@ -355,6 +355,12 @@ if ($Mode -eq 'Remediate') {
       $subName   = $subProp.Name
       $setWanted = [string]$subProp.Value
 
+      # S6 fix: validate subcategory name to prevent argument injection via auditpol.exe
+      if ($subName -notmatch '^[a-zA-Z0-9 \-\/]+$') {
+        Add-Finding -Code 'AuditPol-InvalidSubcategory' -Severity 'High' -Message ("Subcategory name contains invalid characters, skipped: {0}" -f $subName)
+        continue
+      }
+
       $flags      = Convert-DesiredSettingToFlags -SettingString $setWanted
       $successArg = if ($flags.Success) { '/success:enable' } else { '/success:disable' }
       $failureArg = if ($flags.Failure) { '/failure:enable' } else { '/failure:disable' }
