@@ -48,8 +48,9 @@ $patterns = @(
   @{ Name = 'GitHub Token'; Regex = 'ghp_[0-9A-Za-z]{36}' },
   @{ Name = 'Slack Token'; Regex = 'xox[baprs]-[0-9A-Za-z-]{10,48}' },
   # Generic patterns: tuned to reduce false positives while catching likely hardcoded secrets.
-  @{ Name = 'Generic Password'; Regex = '(?i)\bpassword\b\s*[:=]\s*(?!\$)(?:"[^"\r\n]{6,}"|''[^''\r\n]{6,}''|[^\s#]{6,})' },
-  @{ Name = 'Generic Token'; Regex = '(?i)\btoken\b\s*[:=]\s*(?!\$)(?:"[^"\r\n]{10,}"|''[^''\r\n]{10,}''|[^\s#]{10,})' }
+  # Negative lookbehind (?<!\$) excludes PowerShell variable names like $password or $token.
+  @{ Name = 'Generic Password'; Regex = '(?i)(?<!\$)\bpassword\b\s*[:=]\s*(?!\$)(?:"[^"\r\n]{6,}"|''[^''\r\n]{6,}''|[^\s#]{6,})' },
+  @{ Name = 'Generic Token'; Regex = '(?i)(?<!\$)\btoken\b\s*[:=]\s*(?!\$)(?:"[^"\r\n]{10,}"|''[^''\r\n]{10,}''|[^\s#]{10,})' }
 )
 
 $allowedExt = @(
