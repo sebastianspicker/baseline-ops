@@ -260,7 +260,7 @@ function Resolve-SysmonExe {
           if (Test-Path -LiteralPath $cand) { return $cand }
         }
       }
-    } catch {}
+    } catch { <# best-effort: Sysmon service image path probing #> }
   }
 
   if ($Hint -and (Test-Path -LiteralPath $Hint)) { return $Hint }
@@ -280,7 +280,7 @@ function Resolve-SysmonExe {
 
 function Get-SysmonServiceName(){
   foreach($n in 'Sysmon64','Sysmon'){
-    try { $null = Get-Service -Name $n -ErrorAction Stop; return $n } catch {}
+    try { $null = Get-Service -Name $n -ErrorAction Stop; return $n } catch { <# best-effort: probing for Sysmon service name variant #> }
   }
   return $null
 }
@@ -293,7 +293,7 @@ function Get-SysmonEngineVersion([string]$Exe){
     $pv = (Get-Item -LiteralPath $Exe -ErrorAction Stop).VersionInfo.ProductVersion
     $v  = Parse-Version $pv
     if ($v) { return $v }
-  } catch {}
+  } catch { <# best-effort: file version metadata may not be available #> }
 
   # Fallback: parse help text (sysmon -?).
   try {
@@ -310,7 +310,7 @@ function Get-SysmonEngineVersion([string]$Exe){
 
     $m = [regex]::Match($txt, '(?i)\bsysmon v(?<v>\d+\.\d+(?:\.\d+)?)\b')
     if ($m.Success) { return Parse-Version $m.Groups['v'].Value }
-  } catch {}
+  } catch { <# best-effort: Sysmon help text version extraction fallback #> }
 
   return $null
 }

@@ -316,9 +316,9 @@ function Disable-LocalBuiltinRdpInbound {
   try {
     $rules = Get-NetFirewallRule -PolicyStore PersistentStore -DisplayGroup 'Remote Desktop' -Direction Inbound -ErrorAction Stop
     foreach ($r in @($rules)) {
-      try { $r | Disable-NetFirewallRule -ErrorAction Stop | Out-Null } catch { }
+      try { $r | Disable-NetFirewallRule -ErrorAction Stop | Out-Null } catch { <# best-effort: individual rule disable may fail #> }
     }
-  } catch { }
+  } catch { <# best-effort: built-in RDP rules may not exist on all editions #> }
 }
 
 function Ensure-RdpFirewallRules {

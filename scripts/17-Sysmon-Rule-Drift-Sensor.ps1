@@ -451,7 +451,7 @@ function Get-SysmonChannelStatus {
     try {
       $oldest = Get-WinEvent -LogName $script:SysmonLogName -MaxEvents 1 -Oldest -ErrorAction SilentlyContinue
       if ($oldest) { $info.OldestRecord = $oldest.TimeCreated }
-    } catch { }
+    } catch { <# best-effort: oldest event record may not be readable #> }
 
   } catch {
     $info.Error = $_.Exception.Message
@@ -472,7 +472,7 @@ function Enable-SysmonChannelIfRequested {
   try {
     # S9 fix: use Invoke-Wevtutil wrapper with array-based args instead of direct wevtutil call
     Invoke-Wevtutil -Arguments @('sl', $script:SysmonLogName, '/e:true') | Out-Null
-  } catch { }
+  } catch { <# best-effort: channel enable may fail without admin rights #> }
 
   return (Get-SysmonChannelStatus)
 }
@@ -750,7 +750,7 @@ $configChanged = $false
 try {
   $cfg = Get-WinEvent -FilterHashtable @{ LogName=$script:SysmonLogName; ID=16; StartTime=$startTime } -MaxEvents 1 -ErrorAction SilentlyContinue
   if ($cfg -and $cfg.Count -gt 0) { $configChanged = $true }
-} catch { }
+} catch { <# best-effort: Sysmon config change event may not exist in time window #> }
 
 $ruleResults = @()
 $remediationResult = $null

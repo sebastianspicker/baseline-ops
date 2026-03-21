@@ -168,20 +168,20 @@ function Resolve-PhysicalDisk {
     if (-not [string]::IsNullOrWhiteSpace([string]$DiskRow.UniqueId)) {
       return Get-PhysicalDisk -UniqueId $DiskRow.UniqueId -ErrorAction Stop
     }
-  } catch { }
+  } catch { <# best-effort: UniqueId resolution may fail #> }
 
   try {
     if ($null -ne $DiskRow.DeviceId -and "$($DiskRow.DeviceId)" -ne "") {
       $pd = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq $DiskRow.DeviceId } | Select-Object -First 1
       if ($pd) { return $pd }
     }
-  } catch { }
+  } catch { <# best-effort: DeviceId resolution may fail #> }
 
   try {
     if (-not [string]::IsNullOrWhiteSpace([string]$DiskRow.FriendlyName)) {
       return (Get-PhysicalDisk -FriendlyName $DiskRow.FriendlyName -ErrorAction Stop | Select-Object -First 1)
     }
-  } catch { }
+  } catch { <# best-effort: FriendlyName resolution may fail #> }
 
   throw "Unable to resolve PhysicalDisk object for '$($DiskRow.FriendlyName)'."
 }
@@ -219,7 +219,7 @@ function Write-ConsoleSummary {
     Write-UiLine -Text (($group | Select-Object Name, Count | Format-Table -AutoSize | Out-String).TrimEnd()) -Color 'Gray'
 
     $topN = 10
-    try { $topN = [int]$Config.Output.ConsoleSummaryTopFindings } catch { $topN = 10 }
+    try { $topN = [int]$Config.Output.ConsoleSummaryTopFindings } catch { <# best-effort: config property cast #> $topN = 10 }
     if ($topN -lt 1) { $topN = 10 }
 
     $top = $Findings | Sort-Object @{Expression={ $sevOrder[$_.Severity] }}, Code | Select-Object -First $topN
@@ -236,7 +236,7 @@ function Write-ConsoleSummary {
   }
 
   $showDiskTable = $true
-  try { $showDiskTable = [bool]$Config.Output.ShowDiskTable } catch { $showDiskTable = $true }
+  try { $showDiskTable = [bool]$Config.Output.ShowDiskTable } catch { <# best-effort: config property cast #> $showDiskTable = $true }
 
   if ($showDiskTable -and $Disks -and $Disks.Count -gt 0) {
     Write-Rule -Title "Physical disks" -Color 'Gray'
@@ -260,7 +260,11 @@ function Write-ConsoleSummary {
 $Findings = New-FindingsList
 
 if (-not (Test-CmdletAvailable -Name 'Get-PhysicalDisk')) {
-  throw "Required cmdlet missing: Get-PhysicalDisk (Storage module/OS)."
+  Add-Finding -FindingList $Findings -Code 'STO-CmdletMissing' -Severity 'Critical' -Message 'Required cmdlet missing: Get-PhysicalDisk (Storage module/OS).' -TypeName 'StorageAudit.Finding'
+  $v2Result = New-V2ResultObject -ScriptName '35-Storage-Reliability-Audit.ps1' -Mode $Mode -Result 'FAIL' -Findings @($Findings.ToArray()) -Summary @{} -Metadata @{}
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
+  exit 1
 }
 
 $hasReliability = Test-CmdletAvailable -Name 'Get-StorageReliabilityCounter'
@@ -271,7 +275,7 @@ if (-not $hasReliability) {
 $Config = Load-Config -Path $ConfigJsonPath
 
 $script:UseWriteInformation = $false
-try { $script:UseWriteInformation = [bool]$Config.Output.UseWriteInformation } catch { $script:UseWriteInformation = $false }
+try { $script:UseWriteInformation = [bool]$Config.Output.UseWriteInformation } catch { <# best-effort: config property may not exist #> $script:UseWriteInformation = $false }
 
 $disks = Get-PhysicalDisk | Select-Object `
   FriendlyName, SerialNumber, UniqueId, DeviceId, MediaType, Size, HealthStatus, OperationalStatus, BusType
@@ -312,15 +316,15 @@ if ($hasReliability) {
 
       # Thresholds (robust parsing)
       $tWarn = 55; $tHigh = 65
-      try { $tWarn = [int]$Config.Thresholds.TemperatureWarnC } catch { }
-      try { $tHigh = [int]$Config.Thresholds.TemperatureHighC } catch { }
+      try { $tWarn = [int]$Config.Thresholds.TemperatureWarnC } catch { <# best-effort: config threshold cast #> }
+      try { $tHigh = [int]$Config.Thresholds.TemperatureHighC } catch { <# best-effort: config threshold cast #> }
       if ($tHigh -lt $tWarn) { $tHigh = $tWarn + 10 }
 
       $thrUnc = 1; $thrRead = 1; $thrWrite = 1; $wearWarn = 20
-      try { $thrUnc   = [int]$Config.Thresholds.UncorrectableErrorsHigh } catch { $thrUnc = 1 }
-      try { $thrRead  = [int]$Config.Thresholds.ReadErrorsWarn } catch { $thrRead = 1 }
-      try { $thrWrite = [int]$Config.Thresholds.WriteErrorsWarn } catch { $thrWrite = 1 }
-      try { $wearWarn = [int]$Config.Thresholds.WearWarnPercentRemaining } catch { $wearWarn = 20 }
+      try { $thrUnc   = [int]$Config.Thresholds.UncorrectableErrorsHigh } catch { <# best-effort: config threshold cast #> $thrUnc = 1 }
+      try { $thrRead  = [int]$Config.Thresholds.ReadErrorsWarn } catch { <# best-effort: config threshold cast #> $thrRead = 1 }
+      try { $thrWrite = [int]$Config.Thresholds.WriteErrorsWarn } catch { <# best-effort: config threshold cast #> $thrWrite = 1 }
+      try { $wearWarn = [int]$Config.Thresholds.WearWarnPercentRemaining } catch { <# best-effort: config threshold cast #> $wearWarn = 20 }
 
       if ($thrUnc -lt 1)   { $thrUnc = 1 }
       if ($thrRead -lt 1)  { $thrRead = 1 }

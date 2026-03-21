@@ -325,7 +325,7 @@ function Save-JsonNoBom {
   if ([string]::IsNullOrWhiteSpace($Path)) { throw "Proof path is empty." }
 
   $fullPath = $Path
-  try { $fullPath = [System.IO.Path]::GetFullPath($Path) } catch {}
+  try { $fullPath = [System.IO.Path]::GetFullPath($Path) } catch { <# best-effort: path normalization may fail for UNC or invalid chars #> }
 
   $parent = Split-Path -Parent $fullPath
   if ([string]::IsNullOrWhiteSpace($parent)) { throw "Invalid proof path (no parent folder): $fullPath" }
@@ -673,7 +673,7 @@ try {
   try {
     $fallback = Join-Path $env:ProgramData 'WUfB-Proofing\proof-error.json'
     $proofWrittenPath = Save-JsonNoBom -Obj $Proof -Path $fallback
-  } catch {}
+  } catch { <# best-effort: fallback proof save on fatal error #> }
 } finally {
   $hasDriftFinal = ($drifts.Count -gt 0)
 
