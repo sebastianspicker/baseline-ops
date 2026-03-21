@@ -49,6 +49,13 @@ function Copy-ToEvidence {
     [int]$MaxTotalMB = 0,
     [ref]$RunningTotalBytes
   )
+  # S15 fix: expand environment variables before traversal check so that paths
+  # like %TEMP%\..\..\..\Windows are correctly detected after expansion
+  $expandedSource = [System.Environment]::ExpandEnvironmentVariables($SourcePath)
+  $expandedBase   = [System.Environment]::ExpandEnvironmentVariables($EvidenceBaseDir)
+  if ($expandedSource -match '\.\.' -or $expandedBase -match '\.\.') {
+    return $false, 'path-traversal-not-allowed'
+  }
   if ($SourcePath -match '\.\.' -or $EvidenceBaseDir -match '\.\.') {
     return $false, 'path-traversal-not-allowed'
   }
