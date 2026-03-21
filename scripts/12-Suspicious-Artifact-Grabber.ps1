@@ -134,6 +134,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 
 
 Set-StrictMode -Version 2.0
@@ -652,6 +653,9 @@ function Export-SuspiciousTaskXml {
     try {
       $safe = (($t.TaskPath + $t.TaskName) -replace '[\\/:*?"<>|]','_')
       $xmlPath = Join-Path $outDir ($safe + '.xml')
+      # S14 fix: validate constructed path does not escape the output directory
+      Assert-NoPathTraversal -Path $safe -ParameterName 'TaskName'
+      if (-not (Test-PathUnderRoot -Path $xmlPath -Root $outDir)) { continue }
       Export-ScheduledTask -TaskName $t.TaskName -TaskPath $t.TaskPath | Out-File -FilePath $xmlPath -Encoding UTF8
       $exported++
     } catch { }
