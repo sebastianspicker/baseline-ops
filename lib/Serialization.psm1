@@ -7,9 +7,16 @@ function Save-Json {
     [object]$InputObject,
     [Parameter(Mandatory)]
     [string]$Path,
-    [int]$Depth = 8,
+    [int]$Depth = 20,
     [switch]$NoBom
   )
+
+  if ([string]::IsNullOrWhiteSpace($Path)) {
+    throw 'Save-Json: Path cannot be null or empty.'
+  }
+  if ($Path -match '\.\.') {
+    throw 'Save-Json: Path must not contain ".." (path traversal not allowed).'
+  }
 
   $dir = Split-Path -Path $Path -Parent
   if (-not [string]::IsNullOrWhiteSpace($dir) -and -not (Test-Path -LiteralPath $dir)) {

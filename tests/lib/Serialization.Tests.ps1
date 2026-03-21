@@ -72,6 +72,29 @@ Describe 'Save-Json' {
       if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
     }
   }
+
+  It 'Throws for empty path' {
+    { Save-Json -InputObject @{ A = 1 } -Path '' } | Should -Throw '*Path*'
+  }
+
+  It 'Throws for path traversal attempt' {
+    $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) 'ser-traversal-test'
+    { Save-Json -InputObject @{ A = 1 } -Path (Join-Path $tmpDir '../../escape.json') } | Should -Throw '*path traversal*'
+  }
+
+  It 'Roundtrip: write then read returns same data' {
+    Import-Module (Join-Path $PSScriptRoot '../../lib/JsonCatalog.psm1') -Force
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("ser-rt-{0}.json" -f [guid]::NewGuid().ToString('N'))
+    try {
+      $original = [pscustomobject]@{ Name = 'Roundtrip'; Items = @(1, 2, 3) }
+      Save-Json -InputObject $original -Path $tmp -NoBom
+      $loaded = Read-JsonFileSafe -Path $tmp
+      $loaded.Name | Should -Be 'Roundtrip'
+      $loaded.Items.Count | Should -Be 3
+    } finally {
+      if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+    }
+  }
 }
 
 Describe 'Save-Csv' {

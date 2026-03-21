@@ -4,7 +4,8 @@
 Pester tests for JsonCatalog.psm1 module
 
 .DESCRIPTION
-Unit tests for Read-JsonFileSafe and Write-JsonToFile.
+Unit tests for Read-JsonFileSafe.
+Write-JsonToFile was removed in Phase 4.1; JSON writing is handled by Save-Json (Serialization.psm1).
 #>
 
 [CmdletBinding()]
@@ -59,54 +60,5 @@ Describe 'Read-JsonFileSafe' {
     $result = Read-JsonFileSafe -Path $script:TestJsonFile
     $result.Name | Should -Be 'Test'
     $result.Value | Should -Be 42
-  }
-}
-
-Describe 'Write-JsonToFile' {
-  BeforeEach {
-    if (Test-Path -LiteralPath $script:TestDir) {
-      Remove-Item -LiteralPath $script:TestDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    New-Item -Path $script:TestDir -ItemType Directory -Force | Out-Null
-  }
-
-  It 'Writes valid JSON to file' {
-    $obj = [pscustomobject]@{ Key = 'Value'; Num = 10 }
-    Write-JsonToFile -Object $obj -Path $script:TestJsonFile
-    Test-Path -LiteralPath $script:TestJsonFile | Should -Be $true
-    $content = Get-Content -LiteralPath $script:TestJsonFile -Raw | ConvertFrom-Json
-    $content.Key | Should -Be 'Value'
-    $content.Num | Should -Be 10
-  }
-
-  It 'Creates parent directory if it does not exist' {
-    $nestedPath = Join-Path $script:TestDir 'sub1/sub2/output.json'
-    $obj = @{ Data = 'test' }
-    Write-JsonToFile -Object $obj -Path $nestedPath
-    Test-Path -LiteralPath $nestedPath | Should -Be $true
-  }
-
-  It 'Throws for empty path' {
-    { Write-JsonToFile -Object @{ A = 1 } -Path '' } | Should -Throw '*Path*'
-  }
-
-  It 'Throws for path traversal attempt' {
-    { Write-JsonToFile -Object @{ A = 1 } -Path (Join-Path $script:TestDir '../../escape.json') } | Should -Throw '*path traversal*'
-  }
-
-  It 'Roundtrip: write then read returns same data' {
-    $original = [pscustomobject]@{ Name = 'Roundtrip'; Items = @(1, 2, 3) }
-    Write-JsonToFile -Object $original -Path $script:TestJsonFile
-    $loaded = Read-JsonFileSafe -Path $script:TestJsonFile
-    $loaded.Name | Should -Be 'Roundtrip'
-    $loaded.Items.Count | Should -Be 3
-  }
-
-  It 'Writes NoBom encoded file' {
-    $obj = @{ Encoding = 'NoBom' }
-    Write-JsonToFile -Object $obj -Path $script:TestJsonFile -NoBom
-    Test-Path -LiteralPath $script:TestJsonFile | Should -Be $true
-    $content = Get-Content -LiteralPath $script:TestJsonFile -Raw | ConvertFrom-Json
-    $content.Encoding | Should -Be 'NoBom'
   }
 }
