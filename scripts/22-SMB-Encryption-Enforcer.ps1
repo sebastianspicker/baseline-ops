@@ -599,7 +599,7 @@ try {
 
 } catch {
   $changes.Status = 'FAILED'
-  throw
+  Add-Finding -FindingList $script:Findings -Code 'SMB-RemediationFailed' -Severity 'Critical' -Message ("SMB remediation failed: {0}" -f $_.Exception.Message)
 } finally {
 
   $serverCfgAfter = Get-SmbServerConfiguration

@@ -891,7 +891,10 @@ catch {
   Write-UiHeader "Scheduled Tasks Hygiene Summary"
   Write-UiStatus -Label "FAIL" -State FAIL -Text $errMsg
 
-  throw
+  $v2Result = New-V2ResultObject -ScriptName '07-ScheduledTasks-Hygiene.ps1' -Mode $Mode -Result 'FAIL' -Findings @() -Summary @{ Error = $errMsg } -Metadata @{}
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
+  exit 1
 }
 
 # V2 output contract

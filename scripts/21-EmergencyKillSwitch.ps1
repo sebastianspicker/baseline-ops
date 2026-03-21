@@ -628,7 +628,6 @@ catch {
 
   Write-UiHeader -Title "Kill Switch"
   Write-UiLine -Text ("ERROR: {0}" -f $err) -Color Red
-  throw
 }
 finally {
   # Always write console summary, even if an exception is thrown.
@@ -640,4 +639,5 @@ $resultToken = if ($Run.Errors.Count -gt 0) { 'FAIL' } elseif ($Run.Actions.Coun
 $v2Result = New-V2ResultObject -ScriptName '21-EmergencyKillSwitch.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary ([pscustomobject]$Run) -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
+if ($Run.Errors.Count -gt 0) { exit 1 }
 exit 0

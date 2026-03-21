@@ -334,7 +334,11 @@ catch {
   if ($_.Exception.Message -match 'No events were found') {
     $eventsRaw = @()
   } else {
-    throw
+    Write-Warning "Get-WinEvent query failed: $($_.Exception.Message)"
+    $v2Result = New-V2ResultObject -ScriptName '26-Get-WinEvent-FastTriage.ps1' -Mode $Mode -Result 'FAIL' -Findings @() -Summary @{ Error = $_.Exception.Message } -Metadata @{}
+    Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+    if ($PassThru) { $v2Result }
+    exit 1
   }
 }
 
