@@ -160,6 +160,18 @@ function Has-Property {
   return $null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name
 }
 
+<#
+.SYNOPSIS
+  Replaces characters that are invalid in file names with underscores.
+.PARAMETER Name
+  The candidate file name to sanitize.
+#>
+function New-SafeFileName {
+  [CmdletBinding()]
+  param([Parameter(Mandatory)][string]$Name)
+  return ($Name -replace '[<>:"/\\|?*\x00-\x1F]', '_')
+}
+
 Export-ModuleMember -Function `
   Get-CallerValue, `
   Test-IsAdmin, `
@@ -167,4 +179,5 @@ Export-ModuleMember -Function `
   Ensure-Directory, `
   Ensure-DirectoryForFile, `
   Sanitize-Path, `
-  Has-Property
+  Has-Property, `
+  New-SafeFileName

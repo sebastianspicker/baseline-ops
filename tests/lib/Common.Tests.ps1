@@ -166,6 +166,34 @@ Describe "Get-CallerValue" {
   }
 }
 
+Describe "New-SafeFileName" {
+  It "Passes through a valid filename unchanged" {
+    New-SafeFileName -Name 'report-2025.json' | Should -Be 'report-2025.json'
+  }
+
+  It "Replaces special characters with underscores" {
+    New-SafeFileName -Name 'file<>:"/\|?*name.txt' | Should -Be 'file_________name.txt'
+  }
+
+  It "Replaces control characters with underscores" {
+    $input = "file$([char]0x00)$([char]0x1F)name"
+    $result = New-SafeFileName -Name $input
+    $result | Should -Be 'file__name'
+  }
+
+  It "Handles a name with no special characters" {
+    New-SafeFileName -Name 'simple-file_name.log' | Should -Be 'simple-file_name.log'
+  }
+
+  It "Throws on null input" {
+    { New-SafeFileName -Name $null } | Should -Throw
+  }
+
+  It "Throws on empty string (Mandatory parameter)" {
+    { New-SafeFileName -Name '' } | Should -Throw
+  }
+}
+
 # Read-JsonConfig was removed in Phase 4.1 dedup. JSON reading is now handled by
 # Read-JsonFileSafe (JsonCatalog.psm1) for simple reads, and
 # Read-ConfigWithDefaults (Config.psm1) for config loading with defaults.
