@@ -1,6 +1,50 @@
 # Audit Progress
 
-## Ralph Loop — 2026-03-21 (Phases 1–5)
+## Ralph Loop Round 2 — 2026-03-21 (Phases 1–5)
+
+### Phase 1: Analysis (3 agents)
+
+| Sub-phase | Agent | Output |
+|-----------|-------|--------|
+| 1.1 | Write-ConsoleSummary/Get-StatusColor catalog | 21 local Write-ConsoleSummary variants cataloged (6 Adaptable, 15 Incompatible); 4 local Get-StatusColor variants (1 Drop-in, 1 Adaptable, 2 Incompatible) |
+| 1.2 | Save-Json variants + batch category audit | 9 local Save-Json functions + 7 inline patterns cataloged; 3 orphan scripts, 17 missing Audit, 6 missing Remediation identified |
+| 1.3 | C10 findings pattern feasibility | 24 already compliant, 1 Easy, 6 Moderate, 6 Hard, 8 Incompatible; max achievable 82% |
+
+### Phase 2: Fix (3 agents)
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 2.1 Console.psm1 enhancements | COMPLETE | Added CustomFields/Title parameters to Write-ConsoleSummary; added 'Note' to Get-StatusColor regex |
+| 2.2 Save-Json consolidation | COMPLETE (9/9) | Replaced 9 local Save-Json functions across scripts 04, 05, 06, 07, 11, 12, 15, 17, 20 with lib/Serialization.psm1:Save-Json. ~110 lines removed. |
+| 2.3 Batch category fixes | COMPLETE | Added 17 scripts to Audit, 6 to Remediation. Fixed 3 orphans (07, 24, 41). |
+| 2.4 New-SafeFileName | COMPLETE | Added New-SafeFileName to lib/Common.psm1 |
+
+### Phase 3: Migration (2 agents)
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 3.1 Write-ConsoleSummary migration | COMPLETE (7/7) | Migrated scripts 08, 27, 31, 33, 34, 36, 41 to lib Write-ConsoleSummary with CustomFields. ~330 lines removed. |
+| 3.2 C10 findings migration | COMPLETE (13/13) | Migrated 1 Easy (33), 6 Moderate (06, 10, 20, 24, 25, 29), 6 Hard (04, 05, 07, 14, 15, 16). C10 compliance: 47% -> 82%. |
+
+### Phase 4: New Scripts + Profiles (2 agents)
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 4.1 New scripts | COMPLETE (4 scripts) | 46-SecureBoot-UEFI-Audit, 47-WDAG-Readiness-Audit, 48-ExploitProtection-Audit, 49-DriverSigning-Integrity-Audit |
+| 4.2 New profiles | COMPLETE (4 profiles) | full-audit, endpoint-health-check, incident-response, compliance-full |
+
+### Phase 5: Testing + Documentation
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 5.1 Tests | COMPLETE | V2Contract tests for new scripts (auto-discovered), profile validation tests for 4 new profiles, New-SafeFileName tests, Console CustomFields tests. 505 -> 534 tests. |
+| 5.2 Documentation + verification | COMPLETE | CHANGELOG [2.1.0], progress.md, scripts/README.md, lib/README.md, R2-SUMMARY.md updated |
+
+**Test count: 505 -> 534 (+29 new tests)**
+
+---
+
+## Ralph Loop Round 1 — 2026-03-21 (Phases 1–5)
 
 ### Phase 1: Analysis (4 agents)
 

@@ -5,11 +5,11 @@ Shared PowerShell modules used to remove script-level duplication and standardiz
 ## Module index
 
 - `Common.psm1`
-  - caller-scope lookup, admin checks, safe directory/path helpers, property existence check (`Has-Property`)
+  - caller-scope lookup, admin checks, safe directory/path helpers, property existence check (`Has-Property`), file name sanitization (`New-SafeFileName`)
 - `Output.psm1`
   - unified console output helpers
 - `Console.psm1`
-  - severity colors, summary rendering, finding statistics, decorative rule output (`Write-DecorativeRule`)
+  - severity colors, summary rendering with pluggable `CustomFields`, finding statistics, decorative rule output (`Write-DecorativeRule`)
 - `Registry.psm1`
   - registry read/write wrappers
 - `Config.psm1`

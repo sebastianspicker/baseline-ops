@@ -33,6 +33,10 @@ Scripts that check configuration and report drift without making changes.
 | `43-AppControlForBusiness-Audit.ps1` | App Control for Business audit | `-ConfigPath` |
 | `44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1` | Ransomware protection audit | `-ConfigJsonPath`, `-Mode Remediate` |
 | `45-WEF-Client-Forwarding-Readiness-Audit.ps1` | WEF client readiness | `-ConfigPath`, `-IncludeWecutilCheck` |
+| `46-SecureBoot-UEFI-Audit.ps1` | Secure Boot and UEFI firmware verification | `-ConfigPath` |
+| `47-WDAG-Readiness-Audit.ps1` | Application Guard prerequisites audit | `-ConfigPath` |
+| `48-ExploitProtection-Audit.ps1` | Exploit Protection and ASR mitigations | `-ConfigPath` |
+| `49-DriverSigning-Integrity-Audit.ps1` | Driver signing and kernel code integrity | `-ConfigPath` |
 
 ### Remediation Scripts
 Scripts that can apply fixes when run with `-Mode Remediate`.

@@ -2,6 +2,49 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.1.0] - 2026-03-21
+
+### Added
+
+- **4 new security audit scripts**: `46-SecureBoot-UEFI-Audit.ps1` (Secure Boot
+  and UEFI firmware verification), `47-WDAG-Readiness-Audit.ps1` (Application
+  Guard prerequisites), `48-ExploitProtection-Audit.ps1` (system/process
+  exploit mitigations and ASR rules), `49-DriverSigning-Integrity-Audit.ps1`
+  (driver signing enforcement and HVCI status). All follow v2 contract with
+  C10 findings pattern.
+- **4 new execution profiles**: `full-audit.json` (all 49 audit scripts),
+  `endpoint-health-check.json` (health-focused subset),
+  `incident-response.json` (IR triage with DependsOn ordering),
+  `compliance-full.json` (compliance-focused audit battery).
+- **`New-SafeFileName`** function in `lib/Common.psm1` for sanitizing file
+  names by replacing invalid characters.
+- **`CustomFields` parameter** in `Write-ConsoleSummary` (`lib/Console.psm1`)
+  for injecting domain-specific key-value lines into summary output.
+
+### Changed
+
+- **Batch categories expanded**: 17 scripts added to Audit category
+  (03, 04, 06, 07, 11, 13, 14, 18, 20, 22, 24, 31, 32, 34, 38, 39, 40, 41),
+  6 scripts added to Remediation category (06, 07, 08, 25, 32, 38).
+  3 orphan scripts (07, 24, 41) now included in appropriate categories.
+- **13 scripts migrated to C10 findings pattern** (`New-FindingsList`/`Add-Finding`):
+  6 moderate (06, 10, 20, 24, 25, 29) and 6 hard (04, 05, 07, 14, 15, 16)
+  conversions plus 1 easy fix (33). C10 compliance rose from 47% to 82%.
+- **7 scripts migrated to lib `Write-ConsoleSummary`**: scripts 08, 27, 31, 33,
+  34, 36, 41 replaced local Write-ConsoleSummary implementations with the
+  canonical `lib/Console.psm1` version using `CustomFields`. ~330 lines removed.
+- **9 local `Save-Json` variants consolidated**: scripts 04, 05, 06, 07, 11,
+  12, 15, 17, 20 replaced local JSON-write functions with canonical
+  `lib/Serialization.psm1:Save-Json`. ~110 lines removed; all writes now
+  include path-traversal guards.
+- **`Get-StatusColor` 'Note' mapping added** to `lib/Console.psm1` regex
+  normalizer, enabling drop-in replacement in script 08.
+
+### Fixed
+
+- **3 orphan scripts** (07-ScheduledTasks-Hygiene, 24-Cert-AutoEnrollment-Health,
+  41-NTLM-Audit-Client) added to batch categories in `00-Run-Batch.ps1`.
+
 ## [2.0.2] - 2026-03-21
 
 ### Fixed
