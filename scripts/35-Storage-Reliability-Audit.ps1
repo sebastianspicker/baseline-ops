@@ -54,6 +54,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 
@@ -184,12 +185,7 @@ function Resolve-PhysicalDisk {
   throw "Unable to resolve PhysicalDisk object for '$($DiskRow.FriendlyName)'."
 }
 
-function Ensure-Directory {
-  param([Parameter(Mandatory)][string]$Path)
-  if (-not (Test-Path -Path $Path)) {
-    New-Item -Path $Path -ItemType Directory -Force | Out-Null
-  }
-}
+# Ensure-Directory imported from lib/Common.psm1
 
 function Write-ConsoleSummary {
   param(

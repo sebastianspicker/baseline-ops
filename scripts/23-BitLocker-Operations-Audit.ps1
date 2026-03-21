@@ -131,6 +131,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -161,16 +162,7 @@ if ($NoColor) {
 $ErrorActionPreference = 'Stop'
 
 
-function Ensure-Cmdlet {
-  param(
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$Name
-  )
-  if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) {
-    throw "Required cmdlet not found: $Name. Verify BitLocker feature/module availability."
-  }
-}
+# Ensure-Cmdlet imported from lib/External.psm1
 
 function Normalize-MountPoint {
   param(

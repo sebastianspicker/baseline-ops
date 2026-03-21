@@ -132,6 +132,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 
 
 $script:UseInformationStream = [bool]$UseInformationStream
@@ -193,18 +194,7 @@ function Get-DefaultStatePath {
   Join-Path -Path $base -ChildPath "PatchReminder\update-reminder.json"
 }
 
-function Ensure-DirectoryForFile {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$FilePath)
-
-  $dir = Split-Path -Parent $FilePath
-  if ([string]::IsNullOrWhiteSpace($dir)) { return }
-
-  if (-not (Test-Path -Path $dir -PathType Container)) {
-    New-Item -ItemType Directory -Path $dir -Force | Out-Null
-  }
-}
-
+# Ensure-DirectoryForFile imported from lib/Common.psm1
 
 function New-ConsoleLine {
   [CmdletBinding()]

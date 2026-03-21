@@ -63,6 +63,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -92,18 +93,7 @@ if ($NoColor) {
 }
 $ErrorActionPreference = 'Stop'
 
-function Ensure-Cmdlet {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$Name
-  )
-
-  if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) {
-    throw "Required cmdlet is missing: $Name. Verify OS / NetTCPIP module availability."
-  }
-}
+# Ensure-Cmdlet imported from lib/External.psm1
 
 function Get-OptionalPropertyValue {
   [CmdletBinding()]

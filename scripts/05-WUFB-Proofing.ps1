@@ -122,6 +122,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -214,23 +215,9 @@ function Write-ConsoleSummary {
 # Security / registry / file helpers
 # -----------------------------
 
-function Test-IsAdmin {
-  [CmdletBinding()]
-  param()
-  try {
-    $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch { return $false }
-}
+# Test-IsAdmin imported from lib/Common.psm1
 
-
-function Ensure-Key {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -Path $Path -Force | Out-Null
-  }
-}
+# Ensure-Key replaced by Ensure-RegistryKey from lib/Registry.psm1
 
 function Get-REG {
   [CmdletBinding()]
@@ -251,7 +238,7 @@ function Set-REGDWORD {
   )
 
   # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-Key -Path $Path }
+  if ($Remediate) { Ensure-RegistryKey -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($cur -eq $Value) {
@@ -280,7 +267,7 @@ function Set-REGSZ {
   )
 
   # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-Key -Path $Path }
+  if ($Remediate) { Ensure-RegistryKey -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($cur -eq $Value) {
@@ -308,7 +295,7 @@ function Remove-REGValue {
   )
 
   # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-Key -Path $Path }
+  if ($Remediate) { Ensure-RegistryKey -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($null -eq $cur) {

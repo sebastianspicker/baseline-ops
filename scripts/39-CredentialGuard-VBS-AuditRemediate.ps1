@@ -118,13 +118,7 @@ $ErrorActionPreference = 'Stop'
 # -----------------------------
 
 
-function Ensure-Key {
-  param([Parameter(Mandatory)][string]$Path)
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -Path $Path -Force | Out-Null
-  }
-}
-
+# Ensure-Key removed; Ensure-RegistryKey available from lib/Registry.psm1
 
 
 function Apply-ConfigOverrides {

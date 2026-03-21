@@ -212,27 +212,10 @@ $DefaultCatalogJson = @"
 # Utilities
 # -----------------------------
 
-
-function Test-IsAdmin {
-  [CmdletBinding()]
-  param()
-  try {
-    $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object System.Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch {
-    return $false
-  }
-}
+# Test-IsAdmin imported from lib/Common.psm1
 
 
-function Ensure-Key {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -Path $Path -Force | Out-Null
-  }
-}
+# Ensure-Key replaced by Ensure-RegistryKey from lib/Registry.psm1
 
 function Get-TextOrNull {
   [CmdletBinding()]
@@ -353,7 +336,7 @@ function Set-RegValueProof {
   )
 
   # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-Key -Path $Path }
+  if ($Remediate) { Ensure-RegistryKey -Path $Path }
 
   $expected = Convert-RegValue -Type $Type -Value $Value
   $cur      = Get-RegValue -Path $Path -Name $Name
@@ -669,7 +652,7 @@ function Ensure-Edge {
   $desiredUrls = Get-ArrayStrings $EdgeCfg.StartupURLs
 
   if ($Remediate) {
-    Ensure-Key -Path $urlsKey
+    Ensure-RegistryKey -Path $urlsKey
 
     try {
       $p = Get-ItemProperty -Path $urlsKey -ErrorAction SilentlyContinue

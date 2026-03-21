@@ -143,6 +143,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -218,16 +219,7 @@ function Test-IsElevated {
   } catch { return $false }
 }
 
-function Ensure-DirectoryForFile {
-  param([string]$FilePath)
-  try {
-    $dir = Split-Path -Parent $FilePath
-    if ($dir -and -not (Test-Path -LiteralPath $dir)) {
-      New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    }
-    return $true
-  } catch { return $false }
-}
+# Ensure-DirectoryForFile imported from lib/Common.psm1
 
 function Normalize-Array {
   param([object]$Value)

@@ -86,17 +86,7 @@ $script:Findings = New-Object System.Collections.ArrayList
 # -------------------- Helpers --------------------
 
 
-function Get-FindingStats {
-  param([Parameter(Mandatory=$true)][System.Collections.ArrayList]$Findings)
-
-  $h = @{ Info = 0; Low = 0; Medium = 0; High = 0 }
-  foreach ($f in $Findings) {
-    if ($null -eq $f) { continue }
-    $sev = [string]$f.Severity
-    if ($h.ContainsKey($sev)) { $h[$sev]++ }
-  }
-  [pscustomobject]$h
-}
+# Get-FindingStats imported from lib/Console.psm1
 
 function Get-AuditPolText {
   $r = Invoke-Auditpol -Arguments @('/get', '/category:*') -CaptureOutput

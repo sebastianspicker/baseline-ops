@@ -185,13 +185,7 @@ $DefaultProofOutFile   = $null
 # =========================
 
 
-function Test-IsAdmin {
-  try {
-    $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch { return $false }
-}
-
+# Test-IsAdmin imported from lib/Common.psm1
 
 function Save-Json {
   param([object]$Obj,[string]$Path)

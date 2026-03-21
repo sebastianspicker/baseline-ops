@@ -136,11 +136,7 @@ $ErrorActionPreference = 'Stop'
 # ---------------------------
 
 
-function Ensure-Key {
-  param([string]$Path)
-  if (-not (Test-Path -LiteralPath $Path)) { $null = New-Item -Path $Path -Force }
-}
-
+# Ensure-Key replaced by Ensure-RegistryKey from lib/Registry.psm1
 
 function Set-RegString {
   param([string]$Path, [string]$Name, [string]$Value)
@@ -490,11 +486,11 @@ if ($Mode -eq 'Remediate') {
     $modPath   = Join-Path $hklmBase 'ModuleLogging'
     $modNames  = Join-Path $modPath 'ModuleNames'
 
-    Ensure-Key -Path $hklmBase
-    Ensure-Key -Path $transPath
-    Ensure-Key -Path $sbPath
-    Ensure-Key -Path $modPath
-    Ensure-Key -Path $modNames
+    Ensure-RegistryKey -Path $hklmBase
+    Ensure-RegistryKey -Path $transPath
+    Ensure-RegistryKey -Path $sbPath
+    Ensure-RegistryKey -Path $modPath
+    Ensure-RegistryKey -Path $modNames
 
     if ($targetEnableTranscription) {
       Set-RegDword  -Path $transPath -Name 'EnableTranscripting' -Value 1

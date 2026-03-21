@@ -158,6 +158,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -191,12 +192,7 @@ $ErrorActionPreference = 'Stop'
 # Helpers
 # -------------------------
 
-function Ensure-Cmdlet {
-  param([Parameter(Mandatory)][string]$Name)
-  if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) {
-    throw ('Required cmdlet missing: {0}. Verify the SmbShare module / OS features.' -f $Name)
-  }
-}
+# Ensure-Cmdlet imported from lib/External.psm1
 
 function Get-Prop {
   param(

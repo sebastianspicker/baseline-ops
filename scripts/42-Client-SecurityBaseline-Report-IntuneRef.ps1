@@ -51,6 +51,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 
 
 $script:Quiet = [bool]$Quiet
@@ -95,14 +96,7 @@ function Test-RegKey {
   try { Test-Path -Path $Path } catch { $false }
 }
 
-function Ensure-Directory {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
-
-  if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -Path $Path -ItemType Directory -Force | Out-Null
-  }
-}
+# Ensure-Directory imported from lib/Common.psm1
 
 function ConvertTo-ScalarString {
   [CmdletBinding()]
