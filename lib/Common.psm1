@@ -102,28 +102,10 @@ function Sanitize-Path {
   }
 }
 
-function Read-JsonConfig {
-  [CmdletBinding()]
-  param([string]$Path)
-
-  $sanitized = Sanitize-Path -Path $Path -MustExist
-  if (-not $sanitized) { return $null }
-
-  try {
-    $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 -ErrorAction Stop
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-    return ($raw | ConvertFrom-Json -ErrorAction Stop)
-  } catch {
-    Write-Error "Failed to parse JSON config at $sanitized : $($_.Exception.Message)"
-    return $null
-  }
-}
-
 Export-ModuleMember -Function `
   Get-CallerValue, `
   Test-IsAdmin, `
   Require-Admin, `
   Ensure-Directory, `
   Ensure-DirectoryForFile, `
-  Read-JsonConfig, `
   Sanitize-Path

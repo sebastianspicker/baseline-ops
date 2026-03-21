@@ -74,6 +74,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -345,7 +346,7 @@ $defaults = [pscustomobject]@{
   LogName           = 'Microsoft-Windows-CertificateServicesClient-AutoEnrollment/Operational'
 }
 
-$configObj = Read-JsonConfig -Path $ConfigPath
+$configObj = Read-JsonFileSafe -Path $ConfigPath
 
 $WarnDays  = Get-ConfigValueInt -ConfigObject $configObj -Name 'WarnDays'  -DefaultValue $WarnDays  -Min 1 -Max 3650
 $HoursBack = Get-ConfigValueInt -ConfigObject $configObj -Name 'HoursBack' -DefaultValue $HoursBack -Min 1 -Max 168

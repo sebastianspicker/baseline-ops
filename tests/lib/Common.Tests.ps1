@@ -8,7 +8,6 @@ Unit tests for the Common module functions including:
 - Test-IsAdmin
 - Ensure-Directory
 - Sanitize-Path
-- Read-JsonConfig
 #>
 
 [CmdletBinding()]
@@ -167,56 +166,6 @@ Describe "Get-CallerValue" {
   }
 }
 
-Describe "Read-JsonConfig" {
-  BeforeEach {
-    if (Test-Path -LiteralPath $script:TestDir) {
-      Remove-Item -LiteralPath $script:TestDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    New-Item -Path $script:TestDir -ItemType Directory -Force | Out-Null
-  }
-
-  It "Returns null for non-existent file" {
-    $result = Read-JsonConfig -Path 'C:\NonExistent12345\config.json'
-    $result | Should -BeNullOrEmpty
-  }
-
-  It "Parses valid JSON" {
-    $json = '{"Key": "Value", "Number": 42}'
-    $json | Out-File -FilePath $script:TestJsonFile -Encoding UTF8
-
-    $result = Read-JsonConfig -Path $script:TestJsonFile
-    $result.Key | Should -Be 'Value'
-    $result.Number | Should -Be 42
-  }
-
-  It "Returns null for invalid JSON" {
-    'not valid json' | Out-File -FilePath $script:TestJsonFile -Encoding UTF8
-
-    $result = Read-JsonConfig -Path $script:TestJsonFile
-    $result | Should -BeNullOrEmpty
-  }
-
-  It "Returns null for empty file" {
-    '' | Out-File -FilePath $script:TestJsonFile -Encoding UTF8
-
-    $result = Read-JsonConfig -Path $script:TestJsonFile
-    $result | Should -BeNullOrEmpty
-  }
-
-  It "Handles nested JSON objects" {
-    $json = '{"Outer": {"Inner": {"Value": "Deep"}}}'
-    $json | Out-File -FilePath $script:TestJsonFile -Encoding UTF8
-
-    $result = Read-JsonConfig -Path $script:TestJsonFile
-    $result.Outer.Inner.Value | Should -Be 'Deep'
-  }
-
-  It "Handles JSON arrays" {
-    $json = '{"Items": [1, 2, 3]}'
-    $json | Out-File -FilePath $script:TestJsonFile -Encoding UTF8
-
-    $result = Read-JsonConfig -Path $script:TestJsonFile
-    $result.Items.Count | Should -Be 3
-    $result.Items[1] | Should -Be 2
-  }
-}
+# Read-JsonConfig was removed in Phase 4.1 dedup. JSON reading is now handled by
+# Read-JsonFileSafe (JsonCatalog.psm1) for simple reads, and
+# Read-ConfigWithDefaults (Config.psm1) for config loading with defaults.
