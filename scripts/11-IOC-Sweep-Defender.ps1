@@ -158,6 +158,7 @@ Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 # v2-init
@@ -210,18 +211,9 @@ function Save-Json([object]$Obj,[string]$Path){
   ($Obj | ConvertTo-Json -Depth 50) | Out-File -FilePath $Path -Encoding UTF8
 }
 
-function Expand-Env([string]$p){
-  try { return [Environment]::ExpandEnvironmentVariables($p) } catch { return $p }
-}
+# Expand-Env imported from lib/Evidence.psm1
 
-function Read-Json([string]$Path){
-  try {
-    if ($Path -and (Test-Path -LiteralPath $Path)) {
-      return Get-Content -Raw -LiteralPath $Path -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-    }
-  } catch { return $null }
-  return $null
-}
+# Read-Json replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
 function Get-ObjPropValue {
   param(
@@ -265,7 +257,7 @@ function Load-Catalog {
 
   $sanitizedCatalog = Sanitize-Path -Path $CatalogPath -MustExist
   if ($sanitizedCatalog) {
-    $c = Read-Json $sanitizedCatalog
+    $c = Read-JsonFileSafe -Path $sanitizedCatalog
     if ($c) { $res.Catalog = $c; $res.Source = 'CatalogPath'; return $res }
     $res.Errors += ("CatalogPath not loaded: {0}" -f $sanitizedCatalog)
   }
@@ -273,7 +265,7 @@ function Load-Catalog {
   $cfg = $null
   $sanitizedConfig = Sanitize-Path -Path $ConfigPath -MustExist
   if ($sanitizedConfig) {
-    $cfg = Read-Json $sanitizedConfig
+    $cfg = Read-JsonFileSafe -Path $sanitizedConfig
     if (-not $cfg) { $res.Errors += ("ConfigPath not loaded: {0}" -f $sanitizedConfig) }
   }
 
@@ -283,7 +275,7 @@ function Load-Catalog {
   if ($p) {
     $sanitizedP = Sanitize-Path -Path $p -MustExist
     if ($sanitizedP) {
-      $c2 = Read-Json $sanitizedP
+      $c2 = Read-JsonFileSafe -Path $sanitizedP
       if ($c2) { $res.Catalog = $c2; $res.Source = 'Config->IOC.CatalogPath'; return $res }
       $res.Errors += ("Config IOC.CatalogPath not loaded: {0}" -f $sanitizedP)
     }

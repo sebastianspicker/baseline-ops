@@ -135,6 +135,7 @@ Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -189,23 +190,14 @@ $ScriptVersion = '2025.12.22-ps51'
 # Generic helpers
 # -------------------------
 
-function Expand-Env([string]$p) {
-  try { [Environment]::ExpandEnvironmentVariables($p) } catch { $p }
-}
+# Expand-Env imported from lib/Evidence.psm1
 
 function Save-Json([object]$Obj,[string]$Path) {
   Ensure-Directory (Split-Path -Parent $Path)
   ($Obj | ConvertTo-Json -Depth 30) | Out-File -FilePath $Path -Encoding UTF8
 }
 
-function Read-Json([string]$Path) {
-  try {
-    if ($Path -and (Test-Path -LiteralPath $Path)) {
-      return (Get-Content -Raw -Path $Path -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop)
-    }
-  } catch { }
-  return $null
-}
+# Read-Json replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
 function New-ResultObject([string]$Name) {
   [pscustomobject]@{
@@ -347,20 +339,20 @@ function Load-Catalog {
 
   $sanitizedCatalog = Sanitize-Path -Path $CatalogPath -MustExist
   if ($sanitizedCatalog) {
-    $cat = Read-Json $sanitizedCatalog
+    $cat = Read-JsonFileSafe -Path $sanitizedCatalog
     if ($cat) { $CatalogLoadNote.Value = "Catalog loaded from -CatalogPath" }
   }
 
   if ($null -eq $cat -and $ConfigPath) {
     $sanitizedConfig = Sanitize-Path -Path $ConfigPath -MustExist
     if ($sanitizedConfig) {
-      $cfg = Read-Json $sanitizedConfig
+      $cfg = Read-JsonFileSafe -Path $sanitizedConfig
       $p = $null
       try { $p = $cfg.Grabber.CatalogPath } catch { $p = $null }
       if ($p) {
         $sanitizedP = Sanitize-Path -Path $p -MustExist
         if ($sanitizedP) {
-          $cat = Read-Json $sanitizedP
+          $cat = Read-JsonFileSafe -Path $sanitizedP
           if ($cat) { $CatalogLoadNote.Value = "Catalog loaded from ConfigPath reference" }
         }
       }
