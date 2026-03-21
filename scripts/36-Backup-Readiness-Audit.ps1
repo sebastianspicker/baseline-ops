@@ -175,8 +175,10 @@ function Get-OsDiskInfo {
     $driveId = $env:SystemDrive
     if ([string]::IsNullOrWhiteSpace($driveId)) { throw "SystemDrive is empty." }
     $driveId = $driveId.TrimEnd('\')
+    # S10 fix: escape single quotes to prevent WQL injection via manipulated env var
+    $escapedDriveId = $driveId -replace "'", "''"
 
-    $d = Get-CimInstance -ClassName Win32_LogicalDisk -Filter ("DeviceID='{0}'" -f $driveId) -ErrorAction Stop
+    $d = Get-CimInstance -ClassName Win32_LogicalDisk -Filter ("DeviceID='{0}'" -f $escapedDriveId) -ErrorAction Stop
     if (-not $d) { throw "Win32_LogicalDisk returned no result for $driveId" }
 
     [pscustomobject]@{
