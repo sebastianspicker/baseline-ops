@@ -71,7 +71,7 @@ function Get-StatusColor {
     '^(Medium|Warn|Warning|Drift|Changed)$' { 'Medium' }
     '^(Low)$' { 'Low' }
     '^(OK|Pass|Passed|Good|Success)$' { 'OK' }
-    '^(Skip|Skipped)$' { 'Skip' }
+    '^(Skip|Skipped|Note)$' { 'Skip' }
     default { 'Info' }
   }
 
@@ -279,6 +279,11 @@ function Write-FindingLine {
   Header title for the summary section.
 .PARAMETER Width
   Width of the decorative rule lines.
+.PARAMETER CustomFields
+  Optional hashtable of additional key-value pairs to render after the
+  standard fields (Computer, Time, Findings count). Keys are used as labels,
+  values as display text. Ordered dictionaries ([ordered]@{}) are supported
+  to control rendering order.
 #>
 function Write-ConsoleSummary {
   [CmdletBinding()]
@@ -288,7 +293,8 @@ function Write-ConsoleSummary {
     [Parameter(Mandatory)]
     [System.Collections.ArrayList]$Findings,
     [string]$Title = 'Audit Summary',
-    [int]$Width = 70
+    [int]$Width = 70,
+    [hashtable]$CustomFields
   )
 
   # Header
@@ -315,11 +321,20 @@ function Write-ConsoleSummary {
   $findingsColor = if ($findingsCount -gt 0) { 'Yellow' } else { 'Green' }
   Write-ColoredLine -Text " Findings : $findingsCount" -Color $findingsColor
 
+  # Custom fields (rendered after standard fields)
+  if ($CustomFields -and $CustomFields.Count -gt 0) {
+    foreach ($key in $CustomFields.Keys) {
+      $value = $CustomFields[$key]
+      $padded = $key.PadRight(9)
+      Write-ColoredLine -Text " $padded : $value" -Color 'Gray'
+    }
+  }
+
   # Findings list
   if ($Findings -and $Findings.Count -gt 0) {
     Write-ColoredLine -Text '' -Color 'Gray'
     Write-ColoredLine -Text ' Findings:' -Color 'White'
-    
+
     foreach ($finding in $Findings) {
       $sev = if ($finding.PSObject.Properties['Severity']) { $finding.Severity } else { 'Info' }
       $code = if ($finding.PSObject.Properties['Code']) { $finding.Code } else { 'UNKNOWN' }

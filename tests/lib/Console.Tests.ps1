@@ -480,3 +480,70 @@ Describe "Get-FindingStats" {
     $result.Total | Should -Be 0
   }
 }
+
+Describe "Get-StatusColor - Note keyword" {
+  It "Normalizes Note to DarkGray" {
+    $result = Get-StatusColor -Status 'Note'
+    $result | Should -Be 'DarkGray'
+  }
+}
+
+Describe "Write-ConsoleSummary - CustomFields parameter" {
+  It "Renders custom fields without throwing" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'Info'; Code = 'T001'; Message = 'Test' }
+    )
+    $custom = @{ 'Defender Version' = '4.18.2301.1'; 'Last Scan' = '2026-03-20' }
+    { Write-ConsoleSummary -Summary $summary -Findings $findings -CustomFields $custom } | Should -Not -Throw
+  }
+
+  It "Renders custom field key-value lines to host output" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'Info'; Code = 'T001'; Message = 'Test' }
+    )
+    $custom = [ordered]@{ 'Mode' = 'Audit'; 'Source' = 'GPO' }
+    # Capture Write-Host output via 6>&1 (InformationAction)
+    $output = Write-ConsoleSummary -Summary $summary -Findings $findings -CustomFields $custom 6>&1
+    $text = ($output | Out-String)
+    $text | Should -Match 'Mode'
+    $text | Should -Match 'Audit'
+    $text | Should -Match 'Source'
+    $text | Should -Match 'GPO'
+  }
+
+  It "Uses custom Title parameter" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'Low'; Code = 'T002'; Message = 'Low test' }
+    )
+    $output = Write-ConsoleSummary -Summary $summary -Findings $findings -Title 'Custom Title' 6>&1
+    $text = ($output | Out-String)
+    $text | Should -Match 'Custom Title'
+  }
+
+  It "Works without CustomFields (backward compatible)" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'Medium'; Code = 'T003'; Message = 'Med test' }
+    )
+    { Write-ConsoleSummary -Summary $summary -Findings $findings } | Should -Not -Throw
+  }
+
+  It "Handles empty CustomFields hashtable gracefully" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'Info'; Code = 'T004'; Message = 'Info test' }
+    )
+    { Write-ConsoleSummary -Summary $summary -Findings $findings -CustomFields @{} } | Should -Not -Throw
+  }
+
+  It "Handles null CustomFields gracefully" {
+    $summary = [pscustomobject]@{ ComputerName = 'PC'; Timestamp = 'now' }
+    $findings = [System.Collections.ArrayList]@(
+      [pscustomobject]@{ Severity = 'Info'; Code = 'T005'; Message = 'Null test' }
+    )
+    { Write-ConsoleSummary -Summary $summary -Findings $findings -CustomFields $null } | Should -Not -Throw
+  }
+}
