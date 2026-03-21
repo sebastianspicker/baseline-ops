@@ -222,6 +222,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 
 
 Set-StrictMode -Version Latest
@@ -531,6 +532,17 @@ function Test-RemediationScriptAllowed {
 
 function Invoke-RemediationScript {
   param([Parameter(Mandatory)][string]$ScriptPath)
+
+  # S17 fix: validate ScriptPath is a .ps1 file under the expected scripts directory
+  $scriptFileName = Split-Path -Leaf $ScriptPath
+  if (-not (Test-SafeScriptName -Name $scriptFileName)) {
+    throw "Invoke-RemediationScript: ScriptPath file name '$scriptFileName' failed safety validation."
+  }
+  $scriptRoot = Split-Path -Parent $PSScriptRoot  # repo root
+  $scriptsDir = Join-Path $scriptRoot 'scripts'
+  if ((Test-Path -LiteralPath $ScriptPath) -and -not (Test-PathUnderRoot -Path $ScriptPath -Root $scriptsDir)) {
+    throw "Invoke-RemediationScript: ScriptPath '$ScriptPath' is not under the expected scripts directory."
+  }
 
   $result = [pscustomobject]@{
     Attempted = $true
