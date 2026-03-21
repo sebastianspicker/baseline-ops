@@ -204,6 +204,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -335,25 +336,7 @@ function Coalesce-Bool {
 
 # -------------------- File/JSON helpers --------------------
 
-function Ensure-Directory {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$Path
-  )
-
-  if (Test-Path -LiteralPath $Path -PathType Container) { return $true }
-
-  try {
-    New-Item -ItemType Directory -Path $Path -Force -ErrorAction Stop | Out-Null
-    return $true
-  }
-  catch {
-    Write-Warning ("Cannot create folder: {0} ({1})" -f (ConvertTo-SafeDisplayPath $Path), $_.Exception.Message)
-    return $false
-  }
-}
+# Ensure-Directory imported from lib/Common.psm1
 
 function Load-JsonFile {
   [CmdletBinding()]
