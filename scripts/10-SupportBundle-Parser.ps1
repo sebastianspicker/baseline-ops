@@ -225,6 +225,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -255,6 +256,10 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
+
 # -------------------- Console helpers (no pipeline output) --------------------
 
 function Get-ConsoleColor {
@@ -676,7 +681,7 @@ function Get-KBStatusSummary {
   }
 }
 
-function New-Findings {
+function Invoke-FindingsCheck {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
@@ -694,26 +699,41 @@ function New-Findings {
     $KbStatus
   )
 
-  $findings = @()
+  # C10: populate $script:Findings via Add-Finding; also return legacy string array for backward compat
+  $legacyFindings = @()
 
   if (-not $ZipMarkerPresent) {
-    $findings += "ZIP marker (ZIP:*) not found in Outputs; bundle may be incomplete or formatted differently."
+    $msg = "ZIP marker (ZIP:*) not found in Outputs; bundle may be incomplete or formatted differently."
+    Add-Finding -FindingList $script:Findings -Code 'SB-ZipMarker' -Severity 'Medium' -Message $msg
+    $legacyFindings += $msg
   }
 
   if ($Proofs -and (@($Proofs | Where-Object { -not $_.Present }).Count -gt 0)) {
-    $findings += "At least one expected proof file is missing."
+    $msg = "At least one expected proof file is missing."
+    Add-Finding -FindingList $script:Findings -Code 'SB-MissingProof' -Severity 'Medium' -Message $msg
+    $legacyFindings += $msg
   }
 
   if (-not $WorkDirExists) {
-    $findings += "WorkDir not found; event logs and KB status may be incomplete."
+    $msg = "WorkDir not found; event logs and KB status may be incomplete."
+    Add-Finding -FindingList $script:Findings -Code 'SB-NoWorkDir' -Severity 'Low' -Message $msg
+    $legacyFindings += $msg
   }
 
   if ($KbStatus -and $KbStatus.Present) {
-    if (@($KbStatus.MissingZeroDay).Count -gt 0) { $findings += "Missing zero-day KBs reported by KBStatus.json." }
-    if (@($KbStatus.MissingCritical).Count -gt 0) { $findings += "Missing critical KBs reported by KBStatus.json." }
+    if (@($KbStatus.MissingZeroDay).Count -gt 0) {
+      $msg = "Missing zero-day KBs reported by KBStatus.json."
+      Add-Finding -FindingList $script:Findings -Code 'SB-MissingZeroDayKB' -Severity 'High' -Message $msg
+      $legacyFindings += $msg
+    }
+    if (@($KbStatus.MissingCritical).Count -gt 0) {
+      $msg = "Missing critical KBs reported by KBStatus.json."
+      Add-Finding -FindingList $script:Findings -Code 'SB-MissingCriticalKB' -Severity 'Medium' -Message $msg
+      $legacyFindings += $msg
+    }
   }
 
-  return $findings
+  return $legacyFindings
 }
 
 # -------------------- Main --------------------
@@ -785,7 +805,7 @@ if ($outputs.Count -gt 0) {
   $zipMarkerPresent = [bool]($outputs | Where-Object { $_ -like 'ZIP:*' } | Select-Object -First 1)
 }
 
-$findings = New-Findings -ZipMarkerPresent $zipMarkerPresent -Proofs $proofStatus -WorkDirExists $workDirExists -KbStatus $kbInfo
+$findings = Invoke-FindingsCheck -ZipMarkerPresent $zipMarkerPresent -Proofs $proofStatus -WorkDirExists $workDirExists -KbStatus $kbInfo
 
 $result = [pscustomobject]@{
   Hostname          = $summaryHostname
@@ -901,7 +921,8 @@ else {
 Write-ConsoleLine -Text "============================================================" -Role Header
 
 # V2 output contract
-$v2Result = New-V2ResultObject -ScriptName '10-SupportBundle-Parser.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $result -Metadata @{}
+$resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '10-SupportBundle-Parser.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $result -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

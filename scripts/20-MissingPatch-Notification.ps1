@@ -152,6 +152,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -184,6 +185,9 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 # ----------------------------
 # Helpers
@@ -396,6 +400,22 @@ foreach ($kb in @($feedKBs)) {
   }
 }
 
+# C10: populate structured findings from missing KBs
+foreach ($z in @($zeroDays)) {
+  Add-Finding -FindingList $script:Findings -Code 'PATCH-MissingZeroDay' -Severity 'High' `
+    -Message ("Missing zero-day KB: {0} [{1}]" -f $z.KB, $z.Title) `
+    -Extra @{ KB = $z.KB; Title = $z.Title; IsZeroDay = $true }
+}
+foreach ($mc in @($missingCritical)) {
+  Add-Finding -FindingList $script:Findings -Code 'PATCH-MissingCritical' -Severity 'Medium' `
+    -Message ("Missing critical KB: {0} [{1}]" -f $mc.KB, $mc.Title) `
+    -Extra @{ KB = $mc.KB; Title = $mc.Title; IsZeroDay = $false }
+}
+if ($run.FeedStatus -ne 'OK') {
+  Add-Finding -FindingList $script:Findings -Code 'PATCH-FeedIssue' -Severity 'Low' `
+    -Message ("KB feed status: {0}" -f $run.FeedStatus)
+}
+
 $status = 4904
 $level  = 'Information'
 
@@ -524,8 +544,8 @@ if (((Get-Count $zeroDays) -gt 0) -or ((Get-Count $missingCritical) -gt 0)) {
 Write-UiLine -Message $headerLine -Style Dim
 
 # V2 output contract
-$resultToken = if ($report.Errors.Count -gt 0) { 'FAIL' } elseif ($report.Missing.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = New-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $report -Metadata @{}
+$resultToken = if ($report.Errors.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $report -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

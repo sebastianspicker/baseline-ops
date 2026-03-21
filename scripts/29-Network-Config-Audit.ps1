@@ -83,6 +83,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -112,6 +113,9 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 # Ensure-Cmdlet imported from lib/External.psm1
 
@@ -390,8 +394,22 @@ $result = [pscustomobject]@{
   Interfaces = $interfaces
 }
 
+# C10: populate findings from interface issues
+$issueInterfaces = @($interfaces | Where-Object {
+  (-not $_.DnsServers) -or ((-not $_.IPv4Gateway) -and (-not $_.IPv6Gateway))
+})
+foreach ($iface in $issueInterfaces) {
+  $issueType = @()
+  if (-not $iface.DnsServers) { $issueType += 'missing DNS' }
+  if (-not $iface.IPv4Gateway -and -not $iface.IPv6Gateway) { $issueType += 'missing gateway' }
+  Add-Finding -FindingList $script:Findings -Code 'NET-InterfaceIssue' -Severity 'Medium' `
+    -Message ("Interface '{0}' has {1}" -f $iface.InterfaceAlias, ($issueType -join ' and ')) `
+    -Extra @{ InterfaceAlias = $iface.InterfaceAlias; InterfaceIndex = $iface.InterfaceIndex; IPv4Address = $iface.IPv4Address; DnsServers = $iface.DnsServers }
+}
+
 # V2 output contract
-$v2Result = New-V2ResultObject -ScriptName '29-Network-Config-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $result.Summary -Metadata @{ Interfaces = $result.Interfaces }
+$resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '29-Network-Config-Audit.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $result.Summary -Metadata @{ Interfaces = $result.Interfaces }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

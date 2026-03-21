@@ -99,6 +99,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -129,6 +130,8 @@ if ($NoColor) {
 }
 $ErrorActionPreference = 'Stop'
 
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 function Get-ConfigValueInt {
   param(
@@ -482,6 +485,27 @@ $result = [pscustomobject]@{
   ExpiringCertificates      = $certOut
 }
 
+# C10: populate structured findings from result
+if ($certReadError) {
+  Add-Finding -FindingList $script:Findings -Code 'CERT-ReadError' -Severity 'High' `
+    -Message ("Certificate read error: {0}" -f $certReadError)
+}
+if ($eventQuery.Mode -eq 'None') {
+  Add-Finding -FindingList $script:Findings -Code 'CERT-EventQueryFailed' -Severity 'Medium' `
+    -Message ("Event log query failed: {0}" -f $eventQuery.Error)
+}
+if (-not $NoPulse -and -not $autoEnrollTriggered) {
+  Add-Finding -FindingList $script:Findings -Code 'CERT-PulseFailed' -Severity 'Medium' `
+    -Message ("AutoEnrollment pulse failed: {0}" -f $autoEnrollError)
+}
+foreach ($cert in @($certOut)) {
+  $daysLeft = [math]::Round(($cert.NotAfter - (Get-Date)).TotalDays, 0)
+  $sev = if ($daysLeft -le 7) { 'High' } elseif ($daysLeft -le 14) { 'Medium' } else { 'Low' }
+  Add-Finding -FindingList $script:Findings -Code 'CERT-Expiring' -Severity $sev `
+    -Message ("Certificate expiring in {0} days: {1} (Thumbprint: {2})" -f $daysLeft, $cert.Subject, $cert.Thumbprint) `
+    -Extra @{ Subject = $cert.Subject; Thumbprint = $cert.Thumbprint; NotAfter = $cert.NotAfter; DaysLeft = $daysLeft }
+}
+
 # 5) Optional CSV export
 if ($ExportPath) {
   $folder = Split-Path -Path $ExportPath -Parent
@@ -512,7 +536,8 @@ if (-not $NoConsoleSummary) {
 }
 
 # V2 output contract
-$v2Result = New-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $result -Metadata @{}
+$resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $result -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

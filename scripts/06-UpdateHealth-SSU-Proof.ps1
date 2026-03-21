@@ -139,6 +139,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 # v2-init
@@ -168,6 +169,9 @@ $ErrorActionPreference = 'Stop'
 $script:EventSource = 'UpdateHealth-SSU-Proof'
 $script:EventLog    = 'Application'
 $script:FallbackLog = $null
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 # -------------------------------- Console helpers ----------------------------------
 
@@ -228,6 +232,13 @@ function New-Finding {
     Severity = $Severity
     Message  = $Message
   }
+}
+
+function Add-FindingToCanonical {
+  # C10: adds a legacy finding object to the canonical $script:Findings list
+  param([pscustomobject]$LegacyFinding)
+  $c10Sev = switch ($LegacyFinding.Severity) { 'Error' { 'High' }; 'Warning' { 'Medium' }; default { 'Info' } }
+  Add-Finding -FindingList $script:Findings -Code $LegacyFinding.Area -Severity $c10Sev -Message $LegacyFinding.Message -Extra @{ Time = $LegacyFinding.Time }
 }
 
 function New-Action {
@@ -711,6 +722,11 @@ $effectiveFindings = New-Object System.Collections.ArrayList
 Add-ArrayListMany $effectiveFindings $findings
 if ($Strict) { Add-ArrayListMany $effectiveFindings $notes }
 
+# C10: populate canonical findings from effectiveFindings
+foreach ($ef in @($effectiveFindings)) {
+  Add-FindingToCanonical -LegacyFinding $ef
+}
+
 # Compose proof object
 $proof = [pscustomobject]@{
   Time        = (Get-Date).ToString('s')
@@ -827,7 +843,7 @@ if ($effectiveFindings.Count -gt 0) {
 # V2 output contract
 $v2Summary = [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Status = $summaryStatus; Remediate = [bool]$Remediate; Strict = [bool]$Strict; DurationMs = $sw.ElapsedMilliseconds; Timestamp = Get-Date }
 $resultToken = if ($summaryStatus -eq 'FAIL') { 'FAIL' } elseif ($summaryStatus -eq 'WARN' -or @($effectiveFindings).Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = New-V2ResultObject -ScriptName '06-UpdateHealth-SSU-Proof.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $v2Summary -Metadata @{ Actions = @($actions); Notes = @($notes); CatalogSource = $catalogSource2 }
+$v2Result = New-V2ResultObject -ScriptName '06-UpdateHealth-SSU-Proof.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $v2Summary -Metadata @{ Actions = @($actions); Notes = @($notes); CatalogSource = $catalogSource2 }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

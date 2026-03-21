@@ -110,6 +110,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -139,6 +140,9 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 function Ensure-File {
   param([Parameter(Mandatory = $true)][string]$Path)
@@ -529,9 +533,19 @@ $summary = New-SummaryObject -ConfigPathResolved $resolvedConfigPath -Results $r
 
 Write-ConsoleSummary -Summary $summary
 
+# C10: populate findings from phase results
+foreach ($phaseResult in @($results.ToArray())) {
+  if ($phaseResult.ExitCode -ne 0) {
+    $sev = if ($phaseResult.Phase -eq 'apply') { 'High' } else { 'Medium' }
+    Add-Finding -FindingList $script:Findings -Code ("WINGET-{0}Failed" -f $phaseResult.Phase) -Severity $sev `
+      -Message ("WinGet phase '{0}' failed with exit code {1}" -f $phaseResult.Phase, $phaseResult.ExitCode) `
+      -Extra @{ Phase = $phaseResult.Phase; ExitCode = $phaseResult.ExitCode; DurationS = $phaseResult.DurationS }
+  }
+}
+
 # V2 output contract
 $resultToken = if ($finalExitCode -ne 0) { 'FAIL' } else { 'OK' }
-$v2Result = New-V2ResultObject -ScriptName '25-WinGet-Config-Baseline-Runner.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $summary -Metadata @{}
+$v2Result = New-V2ResultObject -ScriptName '25-WinGet-Config-Baseline-Runner.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $summary -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit $finalExitCode
