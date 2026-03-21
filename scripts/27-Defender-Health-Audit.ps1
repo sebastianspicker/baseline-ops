@@ -257,106 +257,7 @@ function Get-HighestSeverity {
   return 'Unknown'
 }
 
-function Write-ConsoleSummary {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Result
-  )
-
-  # Note: In Windows PowerShell 5.1, Write-UiLine writes to the Information stream. [page:0]
-  # We keep all formatting in host output to preserve pipeline purity.
-
-  $s = $Result.Summary
-  $f = $Result.Findings
-  $cfg = $Result.EffectiveConfig
-
-  $highest = Get-HighestSeverity -Findings $f
-  $highestColor = Get-SeverityColor -Severity $highest
-
-  Write-UiLine ''
-  Write-UiLine ('=' * 60) -ForegroundColor DarkGray
-  Write-UiLine ' Microsoft Defender Health Audit ' -ForegroundColor White
-  Write-UiLine ('=' * 60) -ForegroundColor DarkGray
-  Write-UiLine ''
-
-  Write-KeyValue -Key 'ComputerName' -Value ([string]$s.ComputerName) -ValueColor White
-  Write-KeyValue -Key 'Timestamp' -Value ([string]$s.Timestamp) -ValueColor Gray
-
-  Write-UiLine ''
-  Write-UiLine 'Core status' -ForegroundColor White
-  Write-UiLine ('-' * 60) -ForegroundColor DarkGray
-
-  $boolColor = { param($b) if ($b -eq $true) { 'Green' } else { 'Red' } }
-
-  Write-KeyValue -Key 'AMRunningMode' -Value ([string]$s.AMRunningMode) -ValueColor Gray
-  Write-KeyValue -Key 'AMServiceEnabled' -Value ([string]$s.AMServiceEnabled) -ValueColor (& $boolColor $s.AMServiceEnabled)
-  Write-KeyValue -Key 'AntivirusEnabled' -Value ([string]$s.AntivirusEnabled) -ValueColor (& $boolColor $s.AntivirusEnabled)
-  Write-KeyValue -Key 'RealTimeProtection' -Value ([string]$s.RealTimeProtectionEnabled) -ValueColor (& $boolColor $s.RealTimeProtectionEnabled)
-
-  $sigColor = if ($s.DefenderSignaturesOutOfDate -eq $true) { 'Red' } else { 'Green' }
-  Write-KeyValue -Key 'SignaturesOutOfDate' -Value ([string]$s.DefenderSignaturesOutOfDate) -ValueColor $sigColor
-
-  Write-UiLine ''
-  Write-UiLine 'Ages (days)' -ForegroundColor White
-  Write-UiLine ('-' * 60) -ForegroundColor DarkGray
-
-  $sigAgeColor = if (($null -ne $s.AntivirusSignatureAge) -and ($s.AntivirusSignatureAge -ge $cfg.WarnSignatureAgeDays)) { 'Yellow' } else { 'Green' }
-  Write-KeyValue -Key 'AntivirusSignatureAge' -Value ([string]$s.AntivirusSignatureAge) -ValueColor $sigAgeColor
-
-  $qa = Get-ScanAgeLabel (Normalize-UInt32Age $s.QuickScanAge)
-  $fa = Get-ScanAgeLabel (Normalize-UInt32Age $s.FullScanAge)
-
-  $quickAgeColor = if ($qa -eq 'never') { 'Yellow' } elseif (($qa -as [int]) -ge $cfg.WarnQuickScanAgeDays) { 'Cyan' } else { 'Green' }
-  $fullAgeColor  = if ($fa -eq 'never') { 'Yellow' } elseif (($fa -as [int]) -ge $cfg.WarnFullScanAgeDays) { 'Cyan' } else { 'Green' }
-
-  Write-KeyValue -Key 'QuickScanAge' -Value ("{0} (warn >= {1})" -f $qa, $cfg.WarnQuickScanAgeDays) -ValueColor $quickAgeColor
-  Write-KeyValue -Key 'FullScanAge'  -Value ("{0} (warn >= {1})" -f $fa, $cfg.WarnFullScanAgeDays) -ValueColor $fullAgeColor
-
-  if ($s.PSObject.Properties.Name -contains 'IsTamperProtected') {
-    $tpColor = if ($s.IsTamperProtected -eq $true) { 'Green' } else { 'Yellow' }
-    Write-UiLine ''
-    Write-UiLine 'Tamper protection' -ForegroundColor White
-    Write-UiLine ('-' * 60) -ForegroundColor DarkGray
-    Write-KeyValue -Key 'IsTamperProtected' -Value ([string]$s.IsTamperProtected) -ValueColor $tpColor
-  }
-
-  Write-UiLine ''
-  Write-UiLine 'Meta' -ForegroundColor White
-  Write-UiLine ('-' * 60) -ForegroundColor DarkGray
-
-  if ($cfg.LoadedFromJson) {
-    Write-KeyValue -Key 'ConfigSource' -Value ('JSON: ' + $cfg.SettingsJsonPath) -ValueColor Gray
-  } elseif ($cfg.JsonLoadError) {
-    Write-KeyValue -Key 'ConfigSource' -Value ('Defaults (JSON error: ' + $cfg.JsonLoadError + ')') -ValueColor Yellow
-  } elseif ($cfg.JsonPathExists) {
-    Write-KeyValue -Key 'ConfigSource' -Value ('Defaults (JSON empty)') -ValueColor Yellow
-  } else {
-    Write-KeyValue -Key 'ConfigSource' -Value ('Defaults (no JSON found: ' + $cfg.SettingsJsonPath + ')') -ValueColor Gray
-  }
-
-  if ($cfg.ExportPath) {
-    Write-KeyValue -Key 'CsvExport' -Value $cfg.ExportPath -ValueColor Gray
-  }
-
-  Write-KeyValue -Key 'FindingsCount' -Value ([string]$s.FindingsCount) -ValueColor $highestColor
-  Write-KeyValue -Key 'HighestSeverity' -Value $highest -ValueColor $highestColor
-
-  Write-UiLine ''
-  if ($f.Count -gt 0) {
-    Write-UiLine 'Findings' -ForegroundColor White
-    Write-UiLine ('-' * 60) -ForegroundColor DarkGray
-
-    foreach ($item in ($f | Sort-Object @{ Expression = { Get-SeverityRank -Severity $_.Severity }; Descending = $true }, Code)) {
-      $c = Get-SeverityColor -Severity $item.Severity
-      Write-UiLine ('[{0}] {1} - {2}' -f $item.Severity.ToUpper(), $item.Code, $item.Message) -ForegroundColor $c
-    }
-  }
-  else {
-    Write-UiLine 'No findings.' -ForegroundColor Green
-  }
-
-  Write-UiLine ''
-}
+# Write-ConsoleSummary imported from lib/Console.psm1
 
 # ----- Effective configuration (built-in defaults + optional JSON overlay)
 $effective = Get-DefaultConfig `
@@ -469,7 +370,33 @@ if ($effective.ExportPath) {
 
 # ----- Console summary at the end (pretty, host-only)
 if (-not $NoConsoleSummary) {
-  Write-ConsoleSummary -Result $result
+  $highest = Get-HighestSeverity -Findings $Findings
+  $qa = Get-ScanAgeLabel (Normalize-UInt32Age $summary.QuickScanAge)
+  $fa = Get-ScanAgeLabel (Normalize-UInt32Age $summary.FullScanAge)
+
+  $configSource = if ($effective.LoadedFromJson) { 'JSON: ' + $effective.SettingsJsonPath }
+    elseif ($effective.JsonLoadError) { 'Defaults (JSON error: ' + $effective.JsonLoadError + ')' }
+    elseif ($effective.JsonPathExists) { 'Defaults (JSON empty)' }
+    else { 'Defaults (no JSON found: ' + $effective.SettingsJsonPath + ')' }
+
+  $customFields = [ordered]@{
+    'AMRunning'  = [string]$summary.AMRunningMode
+    'AMService'  = [string]$summary.AMServiceEnabled
+    'Antivirus'  = [string]$summary.AntivirusEnabled
+    'RTP'        = [string]$summary.RealTimeProtectionEnabled
+    'SigsStale'  = [string]$summary.DefenderSignaturesOutOfDate
+    'SigAge'     = [string]$summary.AntivirusSignatureAge
+    'QuickScan'  = ("{0} (warn >= {1})" -f $qa, $effective.WarnQuickScanAgeDays)
+    'FullScan'   = ("{0} (warn >= {1})" -f $fa, $effective.WarnFullScanAgeDays)
+    'Tamper'     = [string]$summary.IsTamperProtected
+    'Severity'   = $highest
+    'Config'     = $configSource
+  }
+
+  $findingsAL = [System.Collections.ArrayList]@($Findings)
+  Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
+    -Title 'Microsoft Defender Health Audit' `
+    -CustomFields $customFields
 }
 
 # V2 output contract

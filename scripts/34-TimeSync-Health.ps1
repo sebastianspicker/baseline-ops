@@ -252,72 +252,7 @@ function Get-OutputFolderAndBase {
 
 
 
-function Write-ConsoleSummary {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][pscustomobject]$Result,
-    [switch]$UseWriteInformation
-  )
-
-  $sum = $Result.Summary
-  $f   = @($Result.Findings)
-
-  $high   = Get-CountSafe ($f | Where-Object { $_.Severity -eq 'High' })
-  $medium = Get-CountSafe ($f | Where-Object { $_.Severity -eq 'Medium' })
-  $low    = Get-CountSafe ($f | Where-Object { $_.Severity -eq 'Low' })
-  $total  = Get-CountSafe $f
-
-  $stateColor = if ($sum.W32TimeServiceState -eq 'Running') { 'Green' } else { 'Red' }
-  $cfgColor   = if ($Result.ConfigMeta.LoadState -eq 'Loaded') { 'Green' } else { 'Yellow' }
-
-  Write-UiBlankLine -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text '=============================' -Color Cyan -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text '   TimeSync Health Summary' -Color Cyan -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text '=============================' -Color Cyan -UseWriteInformation:$UseWriteInformation
-
-  Write-UiLine -Text ("ComputerName        : {0}" -f $sum.ComputerName) -Color White -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text ("Timestamp           : {0}" -f $sum.Timestamp) -Color Gray -UseWriteInformation:$UseWriteInformation
-
-  Write-UiLine -Text "W32TimeServiceState : " -NoNewLine -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text ("{0}" -f $sum.W32TimeServiceState) -Color $stateColor -UseWriteInformation:$UseWriteInformation
-
-  Write-UiLine -Text ("Source              : {0}" -f ($(if ($sum.Source) { $sum.Source } else { '<n/a>' }))) -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text ("Type (registry)     : {0}" -f ($(if ($sum.Type) { $sum.Type } else { '<n/a>' }))) -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text ("NtpServer (registry): {0}" -f ($(if ($sum.NtpServer) { $sum.NtpServer } else { '<n/a>' }))) -UseWriteInformation:$UseWriteInformation
-
-  Write-UiLine -Text "Config load         : " -NoNewLine -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text ("{0}" -f $Result.ConfigMeta.LoadState) -Color $cfgColor -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text ("Details             : {0}" -f $Result.ConfigMeta.LoadDetail) -Color Gray -UseWriteInformation:$UseWriteInformation
-
-  Write-UiBlankLine -UseWriteInformation:$UseWriteInformation
-  Write-UiLine -Text ("Findings            : High={0} Medium={1} Low={2} Total={3}" -f $high, $medium, $low, $total) -UseWriteInformation:$UseWriteInformation
-
-  if ($high -gt 0) {
-    Write-UiLine -Text "Health              : ATTENTION REQUIRED" -Color Red -UseWriteInformation:$UseWriteInformation
-  } elseif ($medium -gt 0) {
-    Write-UiLine -Text "Health              : WARNINGS" -Color Yellow -UseWriteInformation:$UseWriteInformation
-  } else {
-    Write-UiLine -Text "Health              : OK" -Color Green -UseWriteInformation:$UseWriteInformation
-  }
-
-  if ($total -gt 0) {
-    Write-UiBlankLine -UseWriteInformation:$UseWriteInformation
-    Write-UiLine -Text 'Top findings (up to 10):' -Color Cyan -UseWriteInformation:$UseWriteInformation
-
-    $top = @(
-      $f |
-        Sort-Object @{ Expression = { Get-SeverityRank -Severity $_.Severity }; Descending = $true }, Code |
-        Select-Object -First 10 Code, Severity, Message
-    )
-
-    if ((Get-CountSafe $top) -gt 0) {
-      $top | Format-Table -AutoSize | Out-String | ForEach-Object {
-        $line = $_.TrimEnd()
-        if ($line) { Write-UiLine -Text $line -UseWriteInformation:$UseWriteInformation }
-      }
-    }
-  }
-}
+# Write-ConsoleSummary imported from lib/Console.psm1
 
 # ----------------------------
 # Main
@@ -467,7 +402,23 @@ if ($ExportPath) {
 }
 
 if (-not $NoConsoleSummary) {
-  Write-ConsoleSummary -Result $result -UseWriteInformation:([bool]$ConfigUsed.Console.UseWriteInformation)
+  $healthLabel = if (($Findings | Where-Object { $_.Severity -eq 'High' }).Count -gt 0) { 'ATTENTION REQUIRED' }
+    elseif (($Findings | Where-Object { $_.Severity -eq 'Medium' }).Count -gt 0) { 'WARNINGS' }
+    else { 'OK' }
+
+  $customFields = [ordered]@{
+    'W32Time'    = [string]$result.Summary.W32TimeServiceState
+    'Source'     = $(if ($result.Summary.Source) { $result.Summary.Source } else { '<n/a>' })
+    'Type'       = $(if ($result.Summary.Type) { $result.Summary.Type } else { '<n/a>' })
+    'NtpServer'  = $(if ($result.Summary.NtpServer) { $result.Summary.NtpServer } else { '<n/a>' })
+    'ConfigLoad' = $result.ConfigMeta.LoadState
+    'Health'     = $healthLabel
+  }
+
+  $findingsAL = [System.Collections.ArrayList]@($Findings)
+  Write-ConsoleSummary -Summary $result.Summary -Findings $findingsAL `
+    -Title 'TimeSync Health Summary' `
+    -CustomFields $customFields
 }
 
 $resultToken = if ($Strict -and $findingsCount -gt 0) { 'FAIL' } elseif ($findingsCount -gt 0) { 'WARN' } else { 'OK' }

@@ -285,89 +285,7 @@ function Get-WsbStatus {
   return $status
 }
 
-function Write-ConsoleSummary {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)] $Summary,
-    [Parameter(Mandatory)] $Indicators,
-    [Parameter(Mandatory)] $Findings,
-    [Parameter(Mandatory)] $Config
-  )
-
-  # Keep formatting off the success output stream (pipeline). [page:0]
-  Write-UiLine ''
-  Write-ColorLine -Text ('=' * 46) -Color DarkGray
-  Write-ColorLine -Text ' Backup Readiness Audit (Baseline)' -Color White
-  Write-ColorLine -Text ('=' * 46) -Color DarkGray
-
-  Write-ColorLine -Text (" Computer : {0}" -f $Summary.ComputerName) -Color Gray
-  Write-ColorLine -Text (" Time     : {0}" -f $Summary.Timestamp) -Color Gray
-
-  $badgeColor = if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' }
-  Write-ColorLine -Text (" Findings : {0}" -f $Summary.FindingsCount) -Color $badgeColor
-
-  Write-UiLine ''
-  Write-ColorLine -Text ' Indicators' -Color White
-  Write-ColorLine -Text ('-' * 46) -Color DarkGray
-
-  $osLine = if ($null -eq $Indicators.OsFreeGB -or $null -eq $Indicators.OsSizeGB) {
-    ' OS Disk  : <unavailable>'
-  } else {
-    ' OS Disk  : {0}  Free {1} GB / {2} GB (Min {3} GB)' -f $Indicators.OsDrive, $Indicators.OsFreeGB, $Indicators.OsSizeGB, $Config.MinOsFreeGB
-  }
-
-  $osColor = 'Green'
-  if ($null -eq $Indicators.OsFreeGB) { $osColor = 'Yellow' }
-  elseif ($Indicators.OsFreeGB -lt $Config.MinOsFreeGB) { $osColor = 'Red' }
-  Write-ColorLine -Text $osLine -Color $osColor
-
-  Write-ColorLine -Text (" VSS      : Writers detected = {0}" -f $Indicators.VssWritersCount) -Color Gray
-
-  $wsbColor = switch ($Indicators.WSBStatus) {
-    'Installed'   { 'Green' }
-    'NotInstalled'{ 'Yellow' }
-    default       { 'Gray' }
-  }
-  Write-ColorLine -Text (" WSB      : {0}" -f $Indicators.WSBStatus) -Color $wsbColor
-
-  $fhColor = if ($Indicators.FileHistoryKey) { 'Green' } else { 'Gray' }
-  Write-ColorLine -Text (" FileHist : {0}" -f $Indicators.FileHistoryKey) -Color $fhColor
-
-  Write-UiLine ''
-  Write-ColorLine -Text ' Findings' -Color White
-  Write-ColorLine -Text ('-' * 46) -Color DarkGray
-
-  if ($Findings.Count -eq 0) {
-    Write-ColorLine -Text ' No findings.' -Color Green
-    Write-UiLine ''
-    return
-  }
-
-  $top = $Findings |
-    Sort-Object `
-      @{ Expression = { Get-SeverityRank -Severity $_.Severity }; Descending = $true }, `
-      @{ Expression = 'Code'; Descending = $false } |
-    Select-Object -First $Config.ConsoleTopFindings
-
-  foreach ($f in $top) {
-    $c = Get-SeverityColor -Severity $f.Severity
-    Write-ColorLine -Text (" [{0}] {1} - {2}" -f $f.Severity.ToUpper(), $f.Code, $f.Message) -Color $c
-
-    if (-not [string]::IsNullOrWhiteSpace($f.Evidence)) {
-      Write-ColorLine -Text ("        Evidence   : {0}" -f $f.Evidence) -Color DarkGray
-    }
-    if (-not [string]::IsNullOrWhiteSpace($f.Remediation)) {
-      Write-ColorLine -Text ("        Remediate  : {0}" -f $f.Remediation) -Color DarkGray
-    }
-  }
-
-  if ($Findings.Count -gt $Config.ConsoleTopFindings) {
-    Write-UiLine ''
-    Write-ColorLine -Text (" Showing top {0} of {1} findings." -f $Config.ConsoleTopFindings, $Findings.Count) -Color DarkGray
-  }
-
-  Write-UiLine ''
-}
+# Write-ConsoleSummary imported from lib/Console.psm1
 
 function Invoke-Export {
   [CmdletBinding()]
@@ -512,7 +430,18 @@ if ($ExportPath) {
   $result.Findings = $script:Findings
 }
 
-Write-ConsoleSummary -Summary $summary -Indicators $indicators -Findings $script:Findings -Config $cfg
+$osDiskStr = if ($null -eq $indicators.OsFreeGB -or $null -eq $indicators.OsSizeGB) { '<unavailable>' }
+  else { "{0}  Free {1} GB / {2} GB (Min {3} GB)" -f $indicators.OsDrive, $indicators.OsFreeGB, $indicators.OsSizeGB, $cfg.MinOsFreeGB }
+$customFields = [ordered]@{
+  'OSDisk'   = $osDiskStr
+  'VSS'      = ("Writers detected = {0}" -f $indicators.VssWritersCount)
+  'WSB'      = [string]$indicators.WSBStatus
+  'FileHist' = [string]$indicators.FileHistoryKey
+}
+$findingsAL = [System.Collections.ArrayList]@($script:Findings)
+Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
+  -Title 'Backup Readiness Audit (Baseline)' `
+  -CustomFields $customFields
 
 # V2 output contract
 $resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }

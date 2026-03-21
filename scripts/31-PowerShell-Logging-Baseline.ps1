@@ -121,6 +121,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
@@ -332,86 +333,8 @@ function Format-PolicyValue {
 }
 
 
-function Severity-ToColor {
-  param([string]$Severity)
-  switch ($Severity) {
-    'High'   { 'Red' }
-    'Medium' { 'Yellow' }
-    'Low'    { 'Cyan' }
-    'Info'   { 'Gray' }
-    default  { 'Gray' }
-  }
-}
-
-function Write-ConsoleSummary {
-  param(
-    [pscustomobject]$Summary,
-    [object[]]$Findings,
-    [pscustomobject]$EffectiveAfter
-  )
-
-  Write-UiLine ''
-  Write-ColorLine '=== PowerShell Logging Baseline ===' 'White'
-  Write-ColorLine ("ComputerName : {0}" -f $Summary.ComputerName) 'Gray'
-  Write-ColorLine ("Mode         : {0}" -f $Summary.Mode) 'Gray'
-  Write-ColorLine ("Timestamp    : {0}" -f $Summary.Timestamp) 'Gray'
-  Write-UiLine ''
-
-  $statusColor = if ($Summary.FindingsCount -gt 0) { 'Yellow' } else { 'Green' }
-  Write-ColorLine ("Findings     : {0}" -f $Summary.FindingsCount) $statusColor
-  Write-UiLine ''
-
-  Write-ColorLine 'Configured (target) settings:' 'White'
-  Write-ColorLine ("- Transcription            : {0}" -f $Summary.Target_EnableTranscription) 'Gray'
-  Write-ColorLine ("- InvocationHeader         : {0}" -f $Summary.Target_EnableInvocationHeader) 'Gray'
-  Write-ColorLine ("- ScriptBlockLogging       : {0}" -f $Summary.Target_EnableScriptBlockLogging) 'Gray'
-  Write-ColorLine ("- ScriptBlockInvocationLog : {0}" -f $Summary.Target_EnableScriptBlockInvocationLogging) 'Gray'
-  Write-ColorLine ("- ModuleLogging            : {0}" -f $Summary.Target_EnableModuleLogging) 'Gray'
-  Write-ColorLine ("- TranscriptDirectory      : {0}" -f $Summary.Target_TranscriptOutputDirectory) 'Gray'
-  Write-ColorLine ("- ModuleNames              : {0}" -f ($Summary.Target_ModuleNames -join ', ')) 'Gray'
-  Write-UiLine ''
-
-  Write-ColorLine 'Effective policy (after run):' 'White'
-  $t = Format-PolicyValue $EffectiveAfter.Transcription_EnableTranscripting
-  $sb = Format-PolicyValue $EffectiveAfter.ScriptBlock_EnableScriptBlockLogging
-  $ml = Format-PolicyValue $EffectiveAfter.Module_EnableModuleLogging
-
-  Write-ColorLine ("- Transcription enabled    : {0}" -f $t) ($(if ($t -eq '1') { 'Green' } elseif ($t -eq 'NotConfigured') { 'Yellow' } else { 'Red' }))
-  Write-ColorLine ("- Transcript directory     : {0}" -f (Format-PolicyValue $EffectiveAfter.Transcription_OutputDirectory)) 'Gray'
-  Write-ColorLine ("- InvocationHeader         : {0}" -f (Format-PolicyValue $EffectiveAfter.Transcription_EnableInvocationHeader)) 'Gray'
-  Write-ColorLine ("- ScriptBlockLogging       : {0}" -f $sb) ($(if ($sb -eq '1') { 'Green' } elseif ($sb -eq 'NotConfigured') { 'Yellow' } else { 'Red' }))
-  Write-ColorLine ("- ScriptBlockInvocationLog : {0}" -f (Format-PolicyValue $EffectiveAfter.ScriptBlock_EnableScriptBlockInvocationLogging)) 'Gray'
-  Write-ColorLine ("- ModuleLogging            : {0}" -f $ml) ($(if ($ml -eq '1') { 'Green' } elseif ($ml -eq 'NotConfigured') { 'Yellow' } else { 'Red' }))
-
-  if ($EffectiveAfter.ModuleNames_Configured) {
-    $vals = @()
-    foreach ($p in $EffectiveAfter.ModuleNames_Configured.PSObject.Properties) {
-      $vals += ("{0}={1}" -f $p.Name, $p.Value)
-    }
-    Write-ColorLine ("- ModuleNames              : {0}" -f ($vals -join '; ')) 'Gray'
-  } else {
-    Write-ColorLine '- ModuleNames              : NotConfigured' 'Yellow'
-  }
-
-  Write-UiLine ''
-  if ($Findings.Count -gt 0) {
-    Write-ColorLine 'Findings (top 10):' 'White'
-    $top = $Findings | Select-Object -First 10
-    foreach ($f in $top) {
-      $c = Severity-ToColor $f.Severity
-      Write-ColorLine ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) $c
-    }
-    if ($Findings.Count -gt 10) {
-      Write-ColorLine ("(Only first 10 shown; total: {0})" -f $Findings.Count) 'Gray'
-    }
-  } else {
-    Write-ColorLine 'Findings: none' 'Green'
-  }
-
-  Write-UiLine ''
-  Write-ColorLine '================================' 'White'
-  Write-UiLine ''
-}
+# Severity-ToColor replaced by Get-SeverityColor from lib/Console.psm1
+# Write-ConsoleSummary imported from lib/Console.psm1
 
 # ---------------------------
 # Main
@@ -569,7 +492,25 @@ if ($ExportPath) {
 }
 
 if (-not $QuietConsole) {
-  Write-ConsoleSummary -Summary $summary -Findings @($Findings) -EffectiveAfter $effectiveAfter
+  $t  = Format-PolicyValue $effectiveAfter.Transcription_EnableTranscripting
+  $sb = Format-PolicyValue $effectiveAfter.ScriptBlock_EnableScriptBlockLogging
+  $ml = Format-PolicyValue $effectiveAfter.Module_EnableModuleLogging
+  $modNamesStr = if ($effectiveAfter.ModuleNames_Configured) {
+    $vals = @(); foreach ($p in $effectiveAfter.ModuleNames_Configured.PSObject.Properties) { $vals += ("{0}={1}" -f $p.Name, $p.Value) }; $vals -join '; '
+  } else { 'NotConfigured' }
+
+  $customFields = [ordered]@{
+    'Mode'          = $summary.Mode
+    'Transcript'    = ("{0} (target={1})" -f $t, $summary.Target_EnableTranscription)
+    'SBLogging'     = ("{0} (target={1})" -f $sb, $summary.Target_EnableScriptBlockLogging)
+    'ModuleLog'     = ("{0} (target={1})" -f $ml, $summary.Target_EnableModuleLogging)
+    'ModuleNames'   = $modNamesStr
+    'TranscriptDir' = Format-PolicyValue $effectiveAfter.Transcription_OutputDirectory
+  }
+  $findingsAL = [System.Collections.ArrayList]@($Findings)
+  Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
+    -Title 'PowerShell Logging Baseline' `
+    -CustomFields $customFields
 }
 
 # V2 output contract
