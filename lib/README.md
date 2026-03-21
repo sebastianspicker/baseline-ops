@@ -5,11 +5,11 @@ Shared PowerShell modules used to remove script-level duplication and standardiz
 ## Module index
 
 - `Common.psm1`
-  - caller-scope lookup, admin checks, safe directory/path helpers
+  - caller-scope lookup, admin checks, safe directory/path helpers, property existence check (`Has-Property`)
 - `Output.psm1`
   - unified console output helpers
 - `Console.psm1`
-  - severity colors, summary rendering, finding statistics
+  - severity colors, summary rendering, finding statistics, decorative rule output (`Write-DecorativeRule`)
 - `Registry.psm1`
   - registry read/write wrappers
 - `Config.psm1`
@@ -21,7 +21,7 @@ Shared PowerShell modules used to remove script-level duplication and standardiz
 - `Results.psm1`
   - finding object/list helpers
 - `JsonCatalog.psm1`
-  - safe JSON read/write helpers
+  - safe JSON reading helper (`Read-JsonFileSafe`); JSON writing moved to `Serialization.psm1`
 - `Evidence.psm1`
   - evidence copy/hash helpers
 - `Validation.psm1` (v2)
@@ -29,7 +29,7 @@ Shared PowerShell modules used to remove script-level duplication and standardiz
 - `Execution.psm1` (v2)
   - retry helpers, process execution, timed script execution
 - `Serialization.psm1` (v2)
-  - JSON/CSV writers and standardized v2 result objects
+  - JSON/CSV writers (with path-traversal protection) and standardized v2 result objects
 
 ## Recommended import pattern
 

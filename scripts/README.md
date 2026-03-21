@@ -112,7 +112,7 @@ Most scripts support these common parameters:
 
 **Pipeline output:** Scripts that document pipeline output emit exactly one structured object (e.g. `Summary`, `Findings`, `Config`) for automation (Export-Csv, ConvertTo-Json, Where-Object). Use `-PassThru` where the script gates pipeline output on that switch.
 
-**Lib usage:** Scripts should use `lib/Console.psm1` for severity colors and summary output, `lib/JsonCatalog.psm1` for JSON read/write, and `lib/Evidence.psm1` for hashing and evidence copy where applicable; see `lib/README.md`.
+**Lib usage:** Scripts should use `lib/Console.psm1` for severity colors and summary output, `lib/JsonCatalog.psm1` for safe JSON reading, `lib/Serialization.psm1` for JSON/CSV writing, and `lib/Evidence.psm1` for hashing and evidence copy where applicable; see `lib/README.md`.
 
 **Optional behaviour:** Some scripts support `-Strict` (treat warnings as errors) or reduced output; see each script’s comment-based help. Version and change history are in the repository root `CHANGELOG.md`.
 
