@@ -475,7 +475,26 @@ $Run.Effective.EventLog    = Get-ConfigValue -Config $config -Name 'EventLog'   
 $Run.Effective.EventId     = [int](Get-ConfigValue -Config $config -Name 'EventId' -Default $Defaults.EventId)
 
 $Run.Effective.RegKey      = Get-ConfigValue -Config $config -Name 'RegKey'     -Default $Defaults.RegKey
+
+# S7 fix: validate RegKey against allowlist of safe registry prefixes
+$regKeyAllowedPrefixes = @('HKLM:\SOFTWARE\', 'HKLM:\SYSTEM\')
+$regKeyValid = $false
+foreach ($prefix in $regKeyAllowedPrefixes) {
+  if ($Run.Effective.RegKey -like "$prefix*") { $regKeyValid = $true; break }
+}
+if (-not $regKeyValid) {
+  throw "RegKey '$($Run.Effective.RegKey)' is not under an allowed registry prefix ($($regKeyAllowedPrefixes -join ', ')). Aborting."
+}
+
 $Run.Effective.RulePrefix  = Get-ConfigValue -Config $config -Name 'RulePrefix' -Default $Defaults.RulePrefix
+
+# S8 fix: validate RulePrefix contains only safe characters (alphanumeric, hyphens, underscores) and reasonable length
+if ($Run.Effective.RulePrefix -notmatch '^[a-zA-Z0-9_-]+$') {
+  throw "RulePrefix '$($Run.Effective.RulePrefix)' contains invalid characters. Only alphanumeric, hyphens, and underscores are allowed."
+}
+if ($Run.Effective.RulePrefix.Length -gt 64) {
+  throw "RulePrefix '$($Run.Effective.RulePrefix)' exceeds 64 characters."
+}
 $Run.Effective.TaskName    = Get-ConfigValue -Config $config -Name 'TaskName'   -Default $Defaults.TaskName
 $Run.Effective.IncludeUserInRegistry = [bool](Get-ConfigValue -Config $config -Name 'IncludeUserInRegistry' -Default $Defaults.IncludeUserInRegistry)
 
