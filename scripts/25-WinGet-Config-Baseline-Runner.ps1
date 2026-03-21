@@ -413,6 +413,27 @@ elseif ($jsonSettings.ContainsKey('Args')) {
   elseif ($j -is [System.Collections.IEnumerable]) { $ExtraArgsEffective = @($j) }
 }
 
+# S12 fix: validate ExtraArgs against a blocklist of dangerous winget flags
+if ($ExtraArgsEffective -and $ExtraArgsEffective.Count -gt 0) {
+  $blockedFlags = @('--override', '--custom', '--ignore-security-hash', '--location',
+                     '--log', '-o', '-h', '--header', '--authentication-account',
+                     '--authentication-mode')
+  foreach ($arg in $ExtraArgsEffective) {
+    $argStr = [string]$arg
+    # Block shell metacharacters
+    if ($argStr -match '[;&|`$(){}<>]') {
+      throw "ExtraArgs contains shell metacharacters: '$argStr'. Aborting."
+    }
+    # Block dangerous flags (case-insensitive, matching the flag portion before any '=' or space)
+    $flagPart = ($argStr -split '[= ]', 2)[0]
+    foreach ($blocked in $blockedFlags) {
+      if ($flagPart -ieq $blocked) {
+        throw "ExtraArgs contains blocked flag '$argStr'. The flag '$blocked' is not allowed for safety reasons."
+      }
+    }
+  }
+}
+
 if ((-not $ExtraArgsEffective) -or ($ExtraArgsEffective.Count -eq 0)) {
   if (-not $QuietConsoleEffective) { Write-Info "Info: No extra -Args provided. Continuing without additional winget arguments." }
 }
