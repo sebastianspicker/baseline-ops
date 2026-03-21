@@ -39,6 +39,32 @@ Describe '00-Validate-Profile orchestration' {
     $LASTEXITCODE | Should -Be 0
   }
 
+  It 'Validates full-audit.json example profile successfully' {
+    $profile = (Resolve-Path (Join-Path $PSScriptRoot '../../examples/profiles/full-audit.json')).Path
+    & $script:ValidateScript -ProfilePath $profile -OutputFormat None -PassThru | Out-Null
+    $LASTEXITCODE | Should -Be 0
+  }
+
+  It 'Validates endpoint-health-check.json example profile successfully' {
+    $profile = (Resolve-Path (Join-Path $PSScriptRoot '../../examples/profiles/endpoint-health-check.json')).Path
+    & $script:ValidateScript -ProfilePath $profile -OutputFormat None -PassThru | Out-Null
+    $LASTEXITCODE | Should -Be 0
+  }
+
+  It 'Validates incident-response.json example profile with DependsOn successfully' {
+    $profile = (Resolve-Path (Join-Path $PSScriptRoot '../../examples/profiles/incident-response.json')).Path
+    $result = & $script:ValidateScript -ProfilePath $profile -OutputFormat None -PassThru
+    $LASTEXITCODE | Should -Be 0
+    $result | Should -Not -BeNullOrEmpty
+    $result.Result | Should -Be 'OK'
+  }
+
+  It 'Validates compliance-full.json example profile successfully' {
+    $profile = (Resolve-Path (Join-Path $PSScriptRoot '../../examples/profiles/compliance-full.json')).Path
+    & $script:ValidateScript -ProfilePath $profile -OutputFormat None -PassThru | Out-Null
+    $LASTEXITCODE | Should -Be 0
+  }
+
   It 'Fails when required fields are missing' {
     $temp = Join-Path $script:TempDir "missing-fields-$(Get-Random).json"
     # Only ProfileName present -- Version, Defaults, Steps, Integrity are missing
