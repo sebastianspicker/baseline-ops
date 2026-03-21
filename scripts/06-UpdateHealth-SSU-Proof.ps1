@@ -185,17 +185,7 @@ function Write-FallbackLogLine {
 
 # Test-IsAdmin imported from lib/Common.psm1
 
-function Save-Json {
-  param([object]$Obj,[string]$Path)
-  try {
-    Ensure-Directory (Split-Path -Parent $Path)
-    ($Obj | ConvertTo-Json -Depth 12) | Out-File -Encoding UTF8 -FilePath $Path
-    return $true
-  } catch {
-    Write-FallbackLogLine ("JSON write failed ({0}): {1}" -f $Path,$_.Exception.Message)
-    return $false
-  }
-}
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
 
 function Get-SafeString {
   param($Value,[string]$Default)
@@ -743,7 +733,13 @@ $proof = [pscustomobject]@{
 }
 
 # Persist JSON
-$jsonOk = Save-Json -Obj $proof -Path $outFile
+$jsonOk = $false
+try {
+  Save-Json -InputObject $proof -Path $outFile -Depth 12
+  $jsonOk = $true
+} catch {
+  Write-FallbackLogLine ("JSON write failed ({0}): {1}" -f $outFile, $_.Exception.Message)
+}
 if ($jsonOk) { Add-ArrayList $actions (New-Action -Target $outFile -Operation 'WriteJson' -Result 'Success' -Message 'Proof written') }
 else { Add-ArrayList $notes (New-Finding -Area 'Proof' -Severity 'Info' -Message 'Failed to write JSON proof file.') }
 

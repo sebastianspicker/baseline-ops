@@ -223,19 +223,7 @@ function New-ConsoleLine {
 }
 
 
-function Save-JsonUtf8NoBom {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]$Obj,
-    [Parameter(Mandatory)][string]$Path
-  )
-
-  Ensure-DirectoryForFile -FilePath $Path
-
-  $json = $Obj | ConvertTo-Json -Depth 12
-  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-  [System.IO.File]::WriteAllText($Path, $json, $utf8NoBom)
-}
+# Save-JsonUtf8NoBom: replaced by canonical Save-Json from lib/Serialization.psm1
 
 function New-DefaultFeed {
   [CmdletBinding()]
@@ -447,7 +435,7 @@ $report = [pscustomobject]([ordered]@{
 })
 
 try {
-  Save-JsonUtf8NoBom -Obj $report -Path $StatePath
+  Save-Json -InputObject $report -Path $StatePath -Depth 12 -NoBom
 } catch {
   $run.StateStatus = 'WriteFailed'
   $run.Errors += ("State write failed: " + $_.Exception.Message)

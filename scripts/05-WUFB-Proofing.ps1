@@ -331,29 +331,7 @@ function Remove-REGValue {
   }
 }
 
-function Save-JsonNoBom {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][object]$Obj,
-    [Parameter(Mandatory)][string]$Path
-  )
-
-  if ([string]::IsNullOrWhiteSpace($Path)) { throw "Proof path is empty." }
-
-  $fullPath = $Path
-  try { $fullPath = [System.IO.Path]::GetFullPath($Path) } catch { <# best-effort: path normalization may fail for UNC or invalid chars #> }
-
-  $parent = Split-Path -Parent $fullPath
-  if ([string]::IsNullOrWhiteSpace($parent)) { throw "Invalid proof path (no parent folder): $fullPath" }
-
-  Ensure-Directory -Path $parent
-
-  $json = $Obj | ConvertTo-Json -Depth 12
-  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-  [System.IO.File]::WriteAllText($fullPath, $json, $utf8NoBom)
-
-  return $fullPath
-}
+# Save-JsonNoBom: replaced by canonical Save-Json from lib/Serialization.psm1
 
 function Add-Result {
   [CmdletBinding()]
@@ -669,7 +647,8 @@ try {
   $Proof.Drift   = @($drifts.ToArray())
   $Proof.Notes   = @($notes.ToArray())
 
-  $proofWrittenPath = Save-JsonNoBom -Obj $Proof -Path $outFile
+  Save-Json -InputObject $Proof -Path $outFile -Depth 12 -NoBom
+  $proofWrittenPath = $outFile
   $changes.Add("Proof JSON: $proofWrittenPath") | Out-Null
 
   $eventId = 4980
@@ -688,7 +667,8 @@ try {
 
   try {
     $fallback = Join-Path $env:ProgramData 'WUfB-Proofing\proof-error.json'
-    $proofWrittenPath = Save-JsonNoBom -Obj $Proof -Path $fallback
+    Save-Json -InputObject $Proof -Path $fallback -Depth 12 -NoBom
+    $proofWrittenPath = $fallback
   } catch { <# best-effort: fallback proof save on fatal error #> }
 } finally {
   $hasDriftFinal = ($drifts.Count -gt 0)

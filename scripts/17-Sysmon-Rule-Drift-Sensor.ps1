@@ -344,20 +344,7 @@ function ConvertTo-Hashtable {
 
 # Read-JsonFile replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
-function Write-JsonFile {
-  param(
-    [Parameter(Mandatory)][string]$Path,
-    [Parameter(Mandatory)][object]$Object
-  )
-
-  try {
-    Ensure-Directory -Path $Path
-    ($Object | ConvertTo-Json -Depth 10) | Out-File -LiteralPath $Path -Encoding UTF8 -Force
-    return $true
-  } catch {
-    return $false
-  }
-}
+# Write-JsonFile: replaced by canonical Save-Json from lib/Serialization.psm1
 
 # -----------------------------
 # Catalog defaults
@@ -842,7 +829,11 @@ try {
     CatalogSource = $catalogSource
   }
 
-  $stateWriteOk = Write-JsonFile -Path $StatePath -Object $stateObj
+  $stateWriteOk = $false
+  try {
+    Save-Json -InputObject $stateObj -Path $StatePath -Depth 10
+    $stateWriteOk = $true
+  } catch { <# state write failed #> }
   if (-not $stateWriteOk) { $overallStatus = 'ANOMALIES_DETECTED' }
 
   # Optional remediation (trigger on any HARDZERO)

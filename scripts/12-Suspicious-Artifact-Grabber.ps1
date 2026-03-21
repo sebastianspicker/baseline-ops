@@ -211,10 +211,7 @@ $ScriptVersion = '2025.12.22-ps51'
 
 # Expand-Env imported from lib/Evidence.psm1
 
-function Save-Json([object]$Obj,[string]$Path) {
-  Ensure-Directory (Split-Path -Parent $Path)
-  ($Obj | ConvertTo-Json -Depth 30) | Out-File -FilePath $Path -Encoding UTF8
-}
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
 
 # Read-Json replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
@@ -1063,7 +1060,7 @@ try {
   }
 
   if ($errors.Count -gt 0) { $summary.Errors = @($errors) }
-  Save-Json -Obj $summary -Path (Join-Path $work 'Summary.json')
+  Save-Json -InputObject $summary -Path (Join-Path $work 'Summary.json') -Depth 30
 
   try {
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }

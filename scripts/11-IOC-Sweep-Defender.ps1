@@ -222,10 +222,7 @@ $DefaultEvidenceDir  = $null
 # -----------------------------
 
 
-function Save-Json([object]$Obj,[string]$Path){
-  Ensure-Directory (Split-Path -Parent $Path)
-  ($Obj | ConvertTo-Json -Depth 50) | Out-File -FilePath $Path -Encoding UTF8
-}
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
 
 # Expand-Env imported from lib/Evidence.psm1
 
@@ -779,7 +776,7 @@ try {
 
   if ($nFind.Count -gt 0) { $Proof.Findings.Network = $nFind }
 
-  Save-Json -Obj $Proof -Path $outFile
+  Save-Json -InputObject $Proof -Path $outFile -Depth 50
 
   if ($foundAny -or (@($Proof.Errors).Count -gt 0) -or $Strict) {
     $msg = "IOC sweep: findings/errors detected. Proof: $outFile"
@@ -794,7 +791,7 @@ try {
   $err = "IOC sweep failed: $($_.Exception.Message)"
   $Proof.Errors += $err
 
-  try { Save-Json -Obj $Proof -Path $outFile } catch { <# best-effort: attempt to save partial proof on fatal error #> }
+  try { Save-Json -InputObject $Proof -Path $outFile -Depth 50 } catch { <# best-effort: attempt to save partial proof on fatal error #> }
   Write-HealthEvent -Id 10010 -Msg $err -Level 'Error'
 }
 

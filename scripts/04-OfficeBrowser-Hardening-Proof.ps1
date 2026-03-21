@@ -283,20 +283,7 @@ function Get-ArrayStrings {
   return @($s2)
 }
 
-function Save-Json {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][object]$Obj,
-    [Parameter(Mandatory)][string]$Path
-  )
-
-  $dir = Split-Path -Parent $Path
-  Ensure-Directory -Path $dir
-
-  $json = $Obj | ConvertTo-Json -Depth 20
-  $utf8NoBOM = New-Object System.Text.UTF8Encoding($false)  # UTF-8 without BOM
-  [System.IO.File]::WriteAllText($Path, $json, $utf8NoBOM)
-}
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
 
 
 function Convert-RegValue {
@@ -1016,7 +1003,7 @@ $proof = [ordered]@{
 }
 
 try {
-  Save-Json -Obj $proof -Path $proofPath
+  Save-Json -InputObject $proof -Path $proofPath -NoBom
 } catch {
   $overallOk = $false
   $globalNotes.Add("Failed to write proof JSON: $($_.Exception.Message)") | Out-Null

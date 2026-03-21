@@ -202,17 +202,7 @@ $DefaultOutFile = "PATH/TO/PROOF/HardwareCompliance.json"
 # -----------------------------
 
 
-function Save-Json {
-  param(
-    [Parameter(Mandatory=$true)][object]$Object,
-    [Parameter(Mandatory=$true)][string]$Path
-  )
-  $dir = Split-Path -Parent $Path
-  if ($dir) { Ensure-Directory -Path $dir }
-
-  # ConvertTo-Json default depth is 2; explicitly set for nested objects.
-  ($Object | ConvertTo-Json -Depth 10) | Out-File -Encoding UTF8 -FilePath $Path -Force
-}
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
 
 function Add-ListItem {
   param([Parameter(Mandatory=$true)][ref]$List,[Parameter(Mandatory=$true)][string]$Text)
@@ -562,7 +552,7 @@ try {
   $proof.Results.Notes     = $notes.ToArray()
   $proof.Errors            = $errors.ToArray()
 
-  Save-Json -Object $proof -Path $outFile
+  Save-Json -InputObject $proof -Path $outFile -Depth 10
 
   # Event message (keep compact)
   $lines = @()

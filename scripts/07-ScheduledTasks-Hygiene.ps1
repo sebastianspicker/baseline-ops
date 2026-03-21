@@ -208,11 +208,7 @@ $DefaultProofOutFile   = $null
 
 # Test-IsAdmin imported from lib/Common.psm1
 
-function Save-Json {
-  param([object]$Obj,[string]$Path)
-  Ensure-Directory (Split-Path -Parent $Path)
-  ($Obj | ConvertTo-Json -Depth 25) | Out-File -Encoding UTF8 -FilePath $Path
-}
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
 
 # Try-LoadJsonFile replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 
@@ -840,7 +836,7 @@ try {
     QuarantineDir = $cat.QuarantineDir
   })
 
-  Save-Json -Obj $Proof -Path $proofObj.OutFile
+  Save-Json -InputObject $Proof -Path $proofObj.OutFile -Depth 25
   $changes.Add("Proof JSON: $($proofObj.OutFile)")
 
   if (@($Proof.Notes).Count -gt 0) { foreach($n in @($Proof.Notes)) { $drifts.Add($n) } }
