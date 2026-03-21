@@ -332,19 +332,26 @@ function New-ScheduledTask {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
     [string]$TaskName,
-    
+
     [Parameter(Mandatory)]
     [string]$TaskRun,
-    
+
     [string]$Schedule = 'ONCE',
-    
+
     [string]$StartTime,
-    
+
     [string]$RunLevel = 'HIGHEST',
-    
+
     [switch]$Force
   )
+
+  # S16 fix: validate TaskName to prevent path traversal in task folders and special chars.
+  # Callers are responsible for validating $TaskRun content.
+  if ($TaskName -notmatch '^[a-zA-Z0-9\-_\\]+$') {
+    throw "New-ScheduledTask: TaskName contains invalid characters. Only alphanumeric, hyphens, underscores, and backslashes (for task folders) are allowed."
+  }
 
   $taskArgs = @('/Create', '/TN', $TaskName, '/SC', $Schedule, '/TR', $TaskRun, '/RL', $RunLevel)
   if ($Force) { $taskArgs += '/F' }
