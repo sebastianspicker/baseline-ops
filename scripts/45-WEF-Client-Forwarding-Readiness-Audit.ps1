@@ -154,6 +154,8 @@ function Get-WinRmState {
   }
 
   try {
+    # S11 note: 'WinRM' is a hardcoded literal, safe from WQL injection.
+    # If refactored to a variable, apply: $escaped = $name -replace "'", "''"
     $startMode = (Get-CimInstance -ClassName Win32_Service -Filter "Name='WinRM'" -ErrorAction Stop).StartMode
     if ($startMode -eq 'Disabled') {
       Add-Finding -Code 'WEF-WinRMDisabled' -Severity 'High' -Message 'WinRM start mode is Disabled; client is not WEF-ready.'

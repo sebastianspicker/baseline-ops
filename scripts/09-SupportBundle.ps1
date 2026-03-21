@@ -131,6 +131,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 
 Set-StrictMode -Version Latest
 # v2-init
@@ -540,12 +541,11 @@ function SB_ExportEventLogEvtx {
 
   $ms    = [int64]($DaysBack * 24 * 60 * 60 * 1000)
   $xpath = "*[System[TimeCreated[timediff(@SystemTime) <= $ms]]]"
-  $qArg  = '/q:"{0}"' -f $xpath
-  $wevt  = Join-Path $env:WINDIR 'System32\wevtutil.exe'
 
   try {
-    & $wevt epl $LogName $OutFile $qArg /ow:true 2>$null
-    if ($LASTEXITCODE -ne 0) { throw "wevtutil ExitCode $LASTEXITCODE" }
+    # S13 fix: use Invoke-Wevtutil wrapper with array-based args instead of direct wevtutil call
+    $wevtArgs = @('epl', $LogName, $OutFile, "/q:$xpath", '/ow:true')
+    Invoke-Wevtutil -Arguments $wevtArgs -ThrowOnError | Out-Null
     return (SB_NewRecord -Name ("EVTX:{0}" -f $LogName) -Ok $true -ArtifactPath $OutFile -Note $null -Error $null)
   } catch {
     return (SB_NewRecord -Name ("EVTX:{0}" -f $LogName) -Ok $false -ArtifactPath $OutFile -Note $null -Error $_.Exception.Message)
