@@ -2,6 +2,65 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.2] - 2026-03-21
+
+### Fixed
+
+- **Security hardening (Phase 2.1, S6-S17)**: auditpol subcategory input validation,
+  registry key path allowlist enforcement, firewall RulePrefix validation, direct
+  wevtutil calls replaced with `Invoke-Wevtutil` wrapper, driveId CIM filter escaping,
+  dangerous winget `ExtraArgs` filtering, hardcoded WinRM CIM filter safety comment,
+  SupportBundle wevtutil refactored to wrapper, `Export-ScheduledTask` path traversal
+  check, environment variable expansion before traversal check in `Evidence.psm1`,
+  `New-ScheduledTask` TaskName input validation, Sysmon drift sensor ScriptPath validation.
+- **Static analysis fixes (Phase 2.2)**: added `Set-StrictMode -Version Latest` to
+  3 scripts missing it, fixed `$null` ordering (`$LASTEXITCODE -eq $null` to
+  `$null -eq $LASTEXITCODE`), removed unused variable assignments (`$eventLogReady`,
+  `$canEventLog`), guarded `$InformationPreference = 'Continue'` override behind
+  `$Quiet` check, removed 20 local function redefinitions replaced by lib imports.
+- **Error handling standardization (Phase 4.2)**: 94 empty catch blocks annotated
+  with `<# best-effort #>` across 19 scripts, 9 bare `throw` statements converted
+  to `Add-Finding` + v2 FAIL result + `exit 1`, 3 silent catches in IOC-Sweep
+  converted to `Write-Warning`, 4 bare re-throws replaced with v2 FAIL output.
+- **Path traversal guards (Phase 4.3)**: added `Assert-NoPathTraversal` for
+  config-driven output paths in `09-SupportBundle.ps1` and `12-Suspicious-Artifact-Grabber.ps1`.
+
+### Changed
+
+- **Convention alignment (Phase 2.3)**: `ErrorActionPreference = 'Stop'` added to
+  10 scripts (now 100%), `exit 0` added to 40 scripts (now 100%), v2 output contract
+  (`New-V2ResultObject` + `Write-ResultObject`) added to 44 scripts (94% coverage),
+  1 script converted to `New-FindingsList`/`Add-Finding` pattern.
+- **Lib deduplication (Phase 4.1)**: removed `Read-JsonConfig` from `Common.psm1`
+  (sole caller migrated to `Read-JsonFileSafe`), removed `Write-JsonToFile` from
+  `JsonCatalog.psm1` (consolidated on `Save-Json` with path-traversal guard),
+  removed 8 local function copies across scripts (`Try-LoadJsonFile`, `Load-JsonFile`,
+  `Read-Json`, `Read-JsonFile`, `Expand-Env`, `Ensure-Directory`).
+- **Hardcoded paths replaced with env variables (Phase 4.3)**: `C:\Windows\` to
+  `$env:SystemRoot`, `C:\Program Files\` to `$env:ProgramFiles`,
+  `C:\Program Files (x86)\` to `${env:ProgramFiles(x86)}` across scripts 07, 08, 16.
+- **Write-Rule name collision resolved (Phase 4.3)**: renamed `Console.psm1`'s
+  `Write-Rule` to `Write-DecorativeRule`; updated all internal and script callers.
+- **Invoke-Git collision resolved (Phase 4.3)**: renamed local `Invoke-Git` in
+  `00-Copy-Local.ps1` to `Invoke-GitCommand` to avoid collision with `External.psm1`.
+- **Has-Property extracted to `Common.psm1` (Phase 4.3)**: removed duplicate local
+  definitions from `00-Run-Profile.ps1` and `00-Validate-Profile.ps1`.
+- **Set-RegString shadow removed (Phase 4.3)**: removed local `Set-RegString` from
+  `31-PowerShell-Logging-Baseline.ps1`; lib `Registry.psm1` version already imported.
+- **Style tokens (Phase 4.3)**: replaced `DarkCyan`/`DarkYellow`/`DarkGray`
+  `-ForegroundColor` calls with semantic `-Style` tokens (`Header`, `Warning`,
+  `Muted`, `Accent`) in 6 scripts.
+
+### Added
+
+- **176 new Pester tests (329 to 505)**: 7 new test files for previously untested
+  lib modules (`Config`, `Results`, `JsonCatalog`, `Evidence`, `EventLog`,
+  `External`, `Output`), 99 tests added to 6 existing test files (`Execution`,
+  `Validation`, `Common`, `Console`, `Serialization`, `Registry`), 18 orchestration
+  integration tests for `00-Validate-Profile`, `00-Run-Batch`, `00-Report-Aggregate`.
+- **Path traversal guards** on config-driven output paths (`Assert-NoPathTraversal`).
+- **Has-Property** extracted to `lib/Common.psm1` as a shared utility.
+
 ## [2.0.1] - 2026-03-17
 
 ### Fixed

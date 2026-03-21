@@ -1,5 +1,50 @@
 # Audit Progress
 
+## Ralph Loop — 2026-03-21 (Phases 1–5)
+
+### Phase 1: Analysis (4 agents)
+
+| Sub-phase | Agent | Output |
+|-----------|-------|--------|
+| 1.1 | Static analysis | 14 Medium, 13 Low, 8 Info findings |
+| 1.2 | Security audit | 6 Medium (S6-S11), 5 Low (S12-S16), 1 Info (S17) security findings |
+| 1.3 | Test coverage | Gap analysis across all lib modules and orchestration scripts |
+| 1.4 | Convention audit | 11 conventions checked; gaps in C5, C6, C9, C10, C11 |
+
+### Phase 2: Fix (3 agents)
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 2.1 Security fixes | COMPLETE (12/12) | S6-S17: auditpol injection, registry key validation, wevtutil hardening, winget arg filtering, CIM filter escaping, path traversal in Evidence.psm1, ScheduledTask validation, Sysmon ScriptPath validation |
+| 2.2 Static analysis | COMPLETE (22/24 fixed, 2 deferred) | Missing StrictMode (3 scripts), $null ordering, unused vars, InformationPreference override, 20 local function redefinitions removed. Deferred: M1 (Write-ConsoleSummary, design-level), M8 (Get-StatusColor, domain-specific) |
+| 2.3 Convention alignment | COMPLETE | ErrorActionPreference 100%, exit codes 100%, output contract 94%, findings pattern 47% |
+
+### Phase 3: Test (3 agents)
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 3.1 Lib module tests | COMPLETE (86 tests) | 7 new test files: Config, Results, JsonCatalog, Evidence, EventLog, External, Output |
+| 3.2 Test hardening | COMPLETE (99 tests) | Coverage gaps filled in Execution, Validation, Common, Console, Serialization, Registry |
+| 3.3 Integration tests | COMPLETE (18 tests) | Orchestration tests for Validate-Profile, Run-Batch, Report-Aggregate |
+
+**Test count: 329 → 505 (+176 new tests)**
+
+### Phase 4: Polish (3 agents)
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 4.1 Lib dedup | COMPLETE | Removed Read-JsonConfig, Write-JsonToFile, 8 local function copies; consolidated on canonical lib functions |
+| 4.2 Error handling | COMPLETE | 94 empty catches annotated, 9 bare throws converted, 4 bare re-throws replaced, 3 silent catches now logging |
+| 4.3 Cleanup | COMPLETE (42/49 findings, 86%) | Hardcoded paths → env vars, Write-Rule collision resolved, Has-Property extracted, Set-RegString shadow removed, path traversal guards added, style tokens applied |
+
+### Phase 5: Documentation
+
+| Sub-phase | Status | Summary |
+|-----------|--------|---------|
+| 5.1 Changelog + progress | COMPLETE | CHANGELOG.md [2.0.2] section added, progress.md updated |
+
+---
+
 ## Iteration 1 — 2026-03-17
 
 ### Created
