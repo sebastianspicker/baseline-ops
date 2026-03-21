@@ -486,7 +486,7 @@ try {
   try {
     $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
     $result.HypervisorPresent = [bool]$cs.HypervisorPresent
-  } catch { }
+  } catch { <# best-effort: HypervisorPresent property may not be available #> }
 
   # -----------------------------
   # Compliance evaluation

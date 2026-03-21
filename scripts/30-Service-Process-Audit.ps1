@@ -191,10 +191,10 @@ function Get-SafeProcessSnapshot {
   )
 
   $startTime = $null
-  try { $startTime = $Process.StartTime } catch { }
+  try { $startTime = $Process.StartTime } catch { <# best-effort: StartTime may throw for system/idle processes #> }
 
   $path = $null
-  try { $path = $Process.Path } catch { }
+  try { $path = $Process.Path } catch { <# best-effort: Path may throw for system/protected processes #> }
 
   [pscustomobject]@{
     Name         = $Process.Name

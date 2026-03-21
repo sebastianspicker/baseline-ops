@@ -188,7 +188,7 @@ function Get-ChildItemDepthLimited {
       foreach ($f in @(Get-ChildItem -LiteralPath $Path -File -ErrorAction SilentlyContinue)) {
         $results.Add($f) | Out-Null
       }
-    } catch {}
+    } catch { <# best-effort: directory enumeration may fail due to permissions #> }
     return @($results.ToArray())
   }
 

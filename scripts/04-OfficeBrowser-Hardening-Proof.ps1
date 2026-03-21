@@ -703,7 +703,7 @@ function Ensure-Edge {
           if ($prop.Name -match '^\d+$') { $current[$prop.Name] = [string]$prop.Value }
         }
       }
-    } catch {}
+    } catch { <# best-effort: registry key may not exist #> }
 
     $want = @{}
     $i = 1

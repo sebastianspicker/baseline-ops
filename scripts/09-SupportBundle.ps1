@@ -234,7 +234,7 @@ function SB_EnsureEventSource {
     if (-not [System.Diagnostics.EventLog]::SourceExists($EventSource)) {
       New-EventLog -LogName Application -Source $EventSource -ErrorAction SilentlyContinue | Out-Null
     }
-  } catch { }
+  } catch { <# best-effort: event source registration commonly needs admin #> }
 }
 
 function SB_WriteHealthEvent {
@@ -918,7 +918,7 @@ try {
   Compress-Archive -Path (Join-Path $workDir '*') -DestinationPath $zipPath -Force
   SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:Zip' -Ok $true -ArtifactPath $zipPath -Note $null -Error $null)
 
-  try { SB_SaveJsonFile -Path ($zipPath + '.summary.json') -Object $Summary } catch { }
+  try { SB_SaveJsonFile -Path ($zipPath + '.summary.json') -Object $Summary } catch { <# best-effort: summary JSON write after zip #> }
 
   SB_AddRecord -Summary $Summary -Record (SB_ResetRegistryTrigger -KeyPath $FlagKey -ZipPath $zipPath)
 
@@ -931,7 +931,7 @@ try {
 }
 finally {
   # Must never throw: this is best-effort UI in finally.
-  try { SB_ShowSummary -Summary $Summary } catch { }
+  try { SB_ShowSummary -Summary $Summary } catch { <# best-effort: console summary in finally block #> }
 
 }
 

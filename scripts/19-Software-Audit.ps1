@@ -506,7 +506,7 @@ try {
       $dir = Split-Path -Parent $StatePath
       if ($dir) { Ensure-Directory -Path $dir | Out-Null }
       ($result | ConvertTo-Json -Depth 7) | Set-Content -Encoding UTF8 -LiteralPath $StatePath
-    } catch {}
+    } catch { <# best-effort: state file write may fail if path is inaccessible #> }
   }
 
   # Event (best effort)

@@ -675,7 +675,7 @@ function Ensure-FwRule {
     if ($wantProf.Count -gt 0 -and ((@($haveProf) -join ',') -ne (@($wantProf) -join ','))) { $need += "Profile" }
 
     $pf = $null
-    try { $pf = Get-NetFirewallRule -PolicyStore $LocalPolicyStore -Name $r.Name | Get-NetFirewallPortFilter } catch { }
+    try { $pf = Get-NetFirewallRule -PolicyStore $LocalPolicyStore -Name $r.Name | Get-NetFirewallPortFilter } catch { <# best-effort: port filter may not be available for all rule types #> }
 
     if ($pf) {
       if ($proto -and $pf.Protocol -ne $proto) { $need += "Protocol" }

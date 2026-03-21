@@ -362,7 +362,7 @@ function Schedule-AutoRollback {
   $rollbackPs = @"
 `$ErrorActionPreference = 'Stop'
 `$logPath = '$logPath'
-function Write-RollbackLog { param([string]`$Message) try { Add-Content -Path `$logPath -Value "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') `$Message" } catch {} }
+function Write-RollbackLog { param([string]`$Message) try { Add-Content -Path `$logPath -Value "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') `$Message" } catch { <# best-effort: log file may not be writable #> } }
 try {
   Write-RollbackLog 'Starting rollback...'
   Set-NetFirewallProfile -All -Enabled True -DefaultInboundAction Allow -DefaultOutboundAction Allow
