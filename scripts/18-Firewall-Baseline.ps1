@@ -865,7 +865,4 @@ if ($ConsoleSummary) {
 
 # Pipeline output: structured objects only
 $results
-
-
-
-
+exit 0

@@ -570,7 +570,4 @@ catch {
   Write-UiHeader -Title "Hardware/TPM Audit Summary"
   Write-ColorLine -Text $errMsg -Color 'ERR'
 }
-
-
-
-
+exit 0

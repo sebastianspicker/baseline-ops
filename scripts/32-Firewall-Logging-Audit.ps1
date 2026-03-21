@@ -467,7 +467,4 @@ if ($FailOnHigh) {
 $result
 
 # endregion Execution
-
-
-
-
+exit 0

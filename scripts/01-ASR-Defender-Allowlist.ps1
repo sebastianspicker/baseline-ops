@@ -682,5 +682,4 @@ catch {
 
   if ($PassThru) { $final }
 }
-
-
+exit 0

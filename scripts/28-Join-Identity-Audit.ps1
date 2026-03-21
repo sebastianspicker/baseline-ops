@@ -349,7 +349,4 @@ if (-not $NoConsoleSummary) {
 
 # Pipeline output: exactly one structured object
 $result
-
-
-
-
+exit 0

@@ -514,7 +514,4 @@ if ($cfg.SummaryToHost) {
 
 # Final pipeline output (structured object only)
 $result
-
-
-
-
+exit 0

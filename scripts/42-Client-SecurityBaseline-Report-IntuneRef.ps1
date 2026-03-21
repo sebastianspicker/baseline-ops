@@ -542,7 +542,4 @@ Write-ConsoleSummary -Summary $summary -Rows $rows.ToArray() -RefInfo $refInfo
 #$rows.ToArray()
 
 #endregion Main
-
-
-
-
+exit 0

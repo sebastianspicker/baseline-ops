@@ -532,7 +532,4 @@ Write-ConsoleSummary -Summary $summary -Findings $script:Findings -CurrentValues
   Drift         = [object[]]$script:Drift
   DesiredLoaded = $desiredLoaded
 }
-
-
-
-
+exit 0

@@ -494,7 +494,4 @@ if (-not $Quiet) {
 
 # Success output: objects only.
 #$events
-
-
-
-
+exit 0

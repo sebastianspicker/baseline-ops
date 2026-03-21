@@ -820,7 +820,4 @@ catch {
     HasDrift     = $false
   }
 }
-
-
-
-
+exit 0

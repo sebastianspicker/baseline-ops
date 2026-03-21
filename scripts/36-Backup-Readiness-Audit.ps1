@@ -490,7 +490,4 @@ Write-ConsoleSummary -Summary $summary -Indicators $indicators -Findings $script
 
 # Structured output only (success stream / pipeline). [web:63]
 $result
-
-
-
-
+exit 0

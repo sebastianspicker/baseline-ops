@@ -407,7 +407,4 @@ Write-FindingsConsole -Findings $script:Findings
   Findings       = @($script:Findings)
   ParsedPolicies = $policies
 }
-
-
-
-
+exit 0

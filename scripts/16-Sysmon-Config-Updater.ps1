@@ -824,5 +824,4 @@ finally {
     Write-PrettySummary -Summary $pretty -ChannelSizeMiB $ChannelSizeMiB -Sanitize:$false -NoColor:$NoColor
   }
 }
-
-
+exit 0

@@ -377,7 +377,4 @@ if (-not $NoConsole) {
   Services   = $svcEnriched
   Config     = [pscustomobject]$Config
 }
-
-
-
-
+exit 0

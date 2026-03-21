@@ -448,7 +448,4 @@ if (-not $NoConsoleSummary) {
 if ($PassThru) {
   $result
 }
-
-
-
-
+exit 0

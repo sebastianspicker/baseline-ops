@@ -552,7 +552,4 @@ try {
   Write-UiLine ""
   exit 2
 }
-
-
-
-
+exit 0

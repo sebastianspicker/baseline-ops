@@ -902,7 +902,4 @@ catch {
 
   throw
 }
-
-
-
-
+exit 0

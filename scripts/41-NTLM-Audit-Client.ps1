@@ -355,7 +355,4 @@ Write-ConsoleSummary -Summary $summary -Findings $findings -Config $config
 #$summary
 #$findings
 #endregion Pipeline output
-
-
-
-
+exit 0

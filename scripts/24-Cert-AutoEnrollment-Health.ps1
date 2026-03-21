@@ -484,7 +484,4 @@ if (-not $NoConsoleSummary) {
 #if (-not $Quiet) {
 #  $result
 #}
-
-
-
-
+exit 0

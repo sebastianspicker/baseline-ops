@@ -372,7 +372,4 @@ $result = [pscustomobject]@{
 
 # Pipeline output only when -PassThru
 if ($PassThru) { $result }
-
-
-
-
+exit 0

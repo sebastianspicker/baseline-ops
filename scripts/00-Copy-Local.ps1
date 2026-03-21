@@ -200,7 +200,4 @@ Copy-Item -Path $sourceScripts -Destination $DestinationRoot -Recurse -Force
 Copy-Item -Path $sourceLib -Destination $DestinationRoot -Recurse -Force
 
 Write-UiLine "Copied scripts/ and lib/ to $DestinationRoot"
-
-
-
-
+exit 0

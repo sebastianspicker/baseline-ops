@@ -878,6 +878,4 @@ try {
 
   if ($final.Status -ne 'OK') { exit 1 }
 }
-
-
-
+exit 0

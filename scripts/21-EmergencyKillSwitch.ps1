@@ -636,7 +636,4 @@ finally {
 
 # Pipeline output: one structured object, no formatting
 [pscustomobject]$Run
-
-
-
-
+exit 0

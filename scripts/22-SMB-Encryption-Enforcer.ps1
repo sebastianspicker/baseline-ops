@@ -636,6 +636,4 @@ try {
   # Pipeline output: structured object only
 #  $result
 }
-
-
-
+exit 0

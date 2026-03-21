@@ -426,7 +426,4 @@ if ($effective.ShowSummary) {
 }
 
 $result
-
-
-
-
+exit 0

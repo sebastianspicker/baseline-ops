@@ -563,7 +563,4 @@ if (-not $QuietConsole) {
     Effective = [pscustomobject]@{ Before = $effectiveBefore; After = $effectiveAfter }
   }
 }
-
-
-
-
+exit 0

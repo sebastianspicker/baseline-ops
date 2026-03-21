@@ -490,7 +490,4 @@ Write-ConsoleReport -Summary $summary -Before $before -After $after -FindingList
   Before     = $before
   After      = $after
 }
-
-
-
-
+exit 0

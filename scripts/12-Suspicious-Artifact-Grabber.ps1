@@ -1083,7 +1083,4 @@ try {
     Write-UiStatus -Label 'IR Grabber' -State 'FAIL' -Text "No summary object created."
   }
 } # end script try
-
-
-
-
+exit 0

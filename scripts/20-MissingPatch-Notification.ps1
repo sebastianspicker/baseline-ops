@@ -518,7 +518,4 @@ Write-UiLine -Message $headerLine -Style Dim
 if ($PassThru) {
   $report
 }
-
-
-
-
+exit 0

@@ -400,7 +400,4 @@ if ($PassThru) {
 }
 
 # endregion Main
-
-
-
-
+exit 0

@@ -398,7 +398,4 @@ if ($PassThru) {
 } else {
   $result
 }
-
-
-
-
+exit 0

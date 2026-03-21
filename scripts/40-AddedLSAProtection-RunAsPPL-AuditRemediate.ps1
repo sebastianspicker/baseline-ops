@@ -580,3 +580,4 @@ if ($OutputFormat -eq 'Csv' -and $OutputPath) {
 
 if ($OutputFormat -eq 'Console' -and -not $Quiet) { Write-PrettySummary -Result $result }
 if ($PassThru -or $OutputFormat -eq 'Console') { $result }
+exit 0

@@ -361,7 +361,4 @@ if (-not $NoConsoleSummary) {
 # Pipeline output
 # -------------------------
 $result
-
-
-
-
+exit 0

@@ -445,7 +445,4 @@ if (-not $NoConsoleSummary) {
 }
 
 $result
-
-
-
-
+exit 0

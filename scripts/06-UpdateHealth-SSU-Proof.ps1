@@ -821,6 +821,4 @@ if ($effectiveFindings.Count -gt 0) {
   Notes         = @($notes)
   DurationMs    = $sw.ElapsedMilliseconds
 }
-
-
-
+exit 0

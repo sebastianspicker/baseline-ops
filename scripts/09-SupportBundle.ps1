@@ -936,7 +936,4 @@ finally {
     $Summary
   }
 }
-
-
-
-
+exit 0

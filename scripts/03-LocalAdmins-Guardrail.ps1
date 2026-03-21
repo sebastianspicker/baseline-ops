@@ -705,7 +705,4 @@ try {
 if (-not $NoPipelineOutput) {
   $result
 }
-
-
-
-
+exit 0

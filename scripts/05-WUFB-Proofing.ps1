@@ -724,7 +724,4 @@ try {
   if (-not $ok) { exit 1 }
   if ($Strict -and $hasDriftFinal) { exit 2 }
 }
-
-
-
-
+exit 0
