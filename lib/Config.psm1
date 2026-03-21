@@ -1,5 +1,20 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Configuration loading and merging utilities.
+
+.DESCRIPTION
+Provides functions to read JSON configuration files, merge them with built-in
+defaults, and convert PSCustomObjects to hashtables.
+#>
+
+<#
+.SYNOPSIS
+  Converts a PSCustomObject to a hashtable.
+.PARAMETER Object
+  Object to convert. Returns an empty hashtable if null.
+#>
 function ConvertTo-Hashtable {
   [CmdletBinding()]
   param([object]$Object)
@@ -14,6 +29,22 @@ function ConvertTo-Hashtable {
   return $ht
 }
 
+<#
+.SYNOPSIS
+  Reads a JSON config file and merges with default values.
+.PARAMETER Path
+  Path to the JSON configuration file.
+.PARAMETER Defaults
+  Hashtable of default values to use when config keys are missing.
+.PARAMETER AsHashtable
+  Return the merged config as a hashtable instead of PSCustomObject.
+.PARAMETER ReturnNullWhenMissing
+  Return null Config property when the file is not found.
+.PARAMETER ReturnNullOnError
+  Return null Config property on parse errors instead of using defaults.
+.PARAMETER OnWarning
+  Scriptblock invoked with a warning message when fallback occurs.
+#>
 function Read-ConfigWithDefaults {
   [CmdletBinding()]
   param(

@@ -31,6 +31,12 @@ $script:SeverityConfig = @{
   'Skip'     = @{ Color = 'DarkGray'; Rank = -2; Prefix = '[SKIP] ' }
 }
 
+<#
+.SYNOPSIS
+  Returns the console color for a severity level.
+.PARAMETER Severity
+  Severity name (e.g. Critical, High, Medium, Low, Info, OK).
+#>
 function Get-SeverityColor {
   [CmdletBinding()]
   param(
@@ -45,6 +51,12 @@ function Get-SeverityColor {
   return 'Gray'
 }
 
+<#
+.SYNOPSIS
+  Returns the console color for a status keyword (e.g. OK, Warn, Fail).
+.PARAMETER Status
+  Status keyword to map to a color.
+#>
 function Get-StatusColor {
   [CmdletBinding()]
   param(
@@ -103,6 +115,12 @@ function Get-ConsoleColor {
   return 'Gray'
 }
 
+<#
+.SYNOPSIS
+  Returns the numeric rank for a severity level (higher = more severe).
+.PARAMETER Severity
+  Severity keyword to rank.
+#>
 function Get-SeverityRank {
   [CmdletBinding()]
   param(
@@ -250,6 +268,18 @@ function Write-FindingLine {
   Write-ColoredLine -Text $text -Color $color
 }
 
+<#
+.SYNOPSIS
+  Writes a formatted audit summary with findings to the console.
+.PARAMETER Summary
+  Summary object with ComputerName, Timestamp, etc.
+.PARAMETER Findings
+  List of finding objects to display.
+.PARAMETER Title
+  Header title for the summary section.
+.PARAMETER Width
+  Width of the decorative rule lines.
+#>
 function Write-ConsoleSummary {
   [CmdletBinding()]
   param(
@@ -313,6 +343,12 @@ function Write-PrettySummary {
   Write-ConsoleSummary -Summary $Result -Findings @() -Title $Title -Width $Width
 }
 
+<#
+.SYNOPSIS
+  Computes finding counts by severity level.
+.PARAMETER Findings
+  Collection of finding objects to aggregate.
+#>
 function Get-FindingStats {
   [CmdletBinding()]
   param(

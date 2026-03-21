@@ -47,6 +47,28 @@ Optional CSV export of the Summary object.
 .PARAMETER QuietConsole
 If set, suppresses pretty console output (no Write-UiLine summary).
 
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 Exactly one structured object to the pipeline:
 PSCustomObject with properties:

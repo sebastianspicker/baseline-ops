@@ -70,6 +70,25 @@ Has no effect when -ConsoleMode Information is used.
 .INPUTS
 None. You cannot pipe objects into this script.
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
 .OUTPUTS
 System.Management.Automation.PSCustomObject
 

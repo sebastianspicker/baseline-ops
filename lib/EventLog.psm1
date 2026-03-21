@@ -1,5 +1,26 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Windows Event Log helpers for health scripts.
+
+.DESCRIPTION
+Provides functions to ensure an event source exists and to write structured
+health events to the Windows Application Event Log.
+#>
+
+<#
+.SYNOPSIS
+  Ensures a Windows Event Log source is registered.
+.PARAMETER Source
+  Event source name to register.
+.PARAMETER SourceName
+  Alias for Source.
+.PARAMETER LogName
+  Event log name (default: Application).
+.PARAMETER OnError
+  Scriptblock invoked with error message on failure.
+#>
 function Ensure-EventSource {
   [CmdletBinding()]
   param(
@@ -34,6 +55,22 @@ function Ensure-EventSource {
   }
 }
 
+<#
+.SYNOPSIS
+  Writes a health event to the Windows Event Log.
+.PARAMETER Id
+  Event ID for the log entry.
+.PARAMETER Message
+  Event message text.
+.PARAMETER Level
+  Entry type: Information, Warning, or Error.
+.PARAMETER Source
+  Event source name. Falls back to caller-scope EventSource variable.
+.PARAMETER LogName
+  Event log name. Falls back to caller-scope EventLogName variable.
+.PARAMETER OnError
+  Scriptblock invoked with error message on failure.
+#>
 function Write-HealthEvent {
   [CmdletBinding()]
   param(

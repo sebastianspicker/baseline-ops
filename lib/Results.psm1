@@ -1,5 +1,18 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Findings list creation and management for v2 result objects.
+
+.DESCRIPTION
+Provides factory functions to create typed finding objects and manage
+ordered finding lists used by the v2 script result contract.
+#>
+
+<#
+.SYNOPSIS
+  Creates a new empty findings list.
+#>
 function New-FindingsList {
   [CmdletBinding()]
   param()
@@ -7,6 +20,20 @@ function New-FindingsList {
   return , $list
 }
 
+<#
+.SYNOPSIS
+  Creates a single finding object.
+.PARAMETER Code
+  Short identifier code for the finding.
+.PARAMETER Severity
+  Severity level string (e.g. OK, WARN, FAIL).
+.PARAMETER Message
+  Human-readable description of the finding.
+.PARAMETER TypeName
+  Optional PS type name to insert into PSTypeNames.
+.PARAMETER Extra
+  Additional properties to attach to the finding object.
+#>
 function New-FindingObject {
   [CmdletBinding()]
   param(
@@ -33,6 +60,24 @@ function New-FindingObject {
   return $obj
 }
 
+<#
+.SYNOPSIS
+  Creates a finding and appends it to a findings list.
+.PARAMETER FindingList
+  Target list. Falls back to caller-scope $Findings variable if not provided.
+.PARAMETER Code
+  Short identifier code for the finding.
+.PARAMETER Severity
+  Severity level string (e.g. OK, WARN, FAIL).
+.PARAMETER Message
+  Human-readable description of the finding.
+.PARAMETER TypeName
+  Optional PS type name to insert into PSTypeNames.
+.PARAMETER ProfileName
+  Optional profile name added as a Profile property.
+.PARAMETER Extra
+  Additional properties to attach to the finding object.
+#>
 function Add-Finding {
   [CmdletBinding()]
   param(

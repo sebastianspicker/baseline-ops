@@ -22,6 +22,28 @@ Disable the human-readable summary block at the end.
 .PARAMETER Quiet
 Suppress informational console output (still returns objects).
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 - BaselineReport.Summary
 - BaselineReport.Row

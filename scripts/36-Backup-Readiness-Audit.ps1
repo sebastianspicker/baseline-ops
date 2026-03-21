@@ -25,6 +25,31 @@ Creates: *_summary.csv, *_findings.csv, *_indicators.csv, *_vss_writers.txt
 Optional JSON configuration path (e.g. "PATH/TO/JSON\backup-audit.json").
 If missing or invalid JSON, defaults are used.
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 PSCustomObject with Summary, Findings, Indicators, VssRaw.
 .EXAMPLE

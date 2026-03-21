@@ -16,6 +16,12 @@ that are used across multiple scripts. Each wrapper:
 Provides centralized external command exit code validation for runtime scripts.
 #>
 
+<#
+.SYNOPSIS
+  Tests whether an external command exists in PATH.
+.PARAMETER Name
+  Executable name to look up.
+#>
 function Test-CommandExists {
   [CmdletBinding()]
   param(
@@ -26,6 +32,14 @@ function Test-CommandExists {
   return ($null -ne (Get-Command -Name $Name -CommandType Application -ErrorAction SilentlyContinue))
 }
 
+<#
+.SYNOPSIS
+  Throws if a required cmdlet or function is not available.
+.PARAMETER Name
+  Cmdlet or function name to check.
+.PARAMETER Message
+  Custom error message on failure.
+#>
 function Ensure-Cmdlet {
   [CmdletBinding()]
   param(
@@ -38,6 +52,14 @@ function Ensure-Cmdlet {
   throw $msg
 }
 
+<#
+.SYNOPSIS
+  Throws if a required executable is not found in PATH.
+.PARAMETER Name
+  Executable name to check.
+.PARAMETER Message
+  Custom error message on failure.
+#>
 function Ensure-Exe {
   [CmdletBinding()]
   param(
@@ -51,19 +73,33 @@ function Ensure-Exe {
   throw $msg
 }
 
+<#
+.SYNOPSIS
+  Invokes an external command with exit code validation.
+.PARAMETER Command
+  Executable name or path (single token, no spaces).
+.PARAMETER Arguments
+  Arguments to pass to the command.
+.PARAMETER ThrowOnError
+  Throw on non-zero exit code instead of writing a warning.
+.PARAMETER CaptureOutput
+  Return a structured object with Output, ExitCode, and Success.
+.PARAMETER Quiet
+  Suppress warning messages on non-zero exit codes.
+#>
 function Invoke-NativeCommand {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
     [string]$Command,
-    
+
     [Parameter(Mandatory)]
     [string[]]$Arguments,
-    
+
     [switch]$ThrowOnError,
-    
+
     [switch]$CaptureOutput,
-    
+
     [switch]$Quiet
   )
 
@@ -126,6 +162,10 @@ function Invoke-NativeCommand {
   }
 }
 
+<#
+.SYNOPSIS
+  Wrapper for schtasks.exe with exit code validation.
+#>
 function Invoke-Schtasks {
   [CmdletBinding()]
   param(
@@ -143,6 +183,10 @@ function Invoke-Schtasks {
   return $result
 }
 
+<#
+.SYNOPSIS
+  Wrapper for auditpol.exe with exit code validation.
+#>
 function Invoke-Auditpol {
   [CmdletBinding()]
   param(
@@ -160,6 +204,10 @@ function Invoke-Auditpol {
   return $result
 }
 
+<#
+.SYNOPSIS
+  Wrapper for wevtutil.exe with exit code validation.
+#>
 function Invoke-Wevtutil {
   [CmdletBinding()]
   param(
@@ -177,6 +225,10 @@ function Invoke-Wevtutil {
   return $result
 }
 
+<#
+.SYNOPSIS
+  Wrapper for wecutil.exe with exit code validation.
+#>
 function Invoke-Wecutil {
   [CmdletBinding()]
   param(
@@ -194,6 +246,10 @@ function Invoke-Wecutil {
   return $result
 }
 
+<#
+.SYNOPSIS
+  Wrapper for reg.exe with exit code validation.
+#>
 function Invoke-RegExe {
   [CmdletBinding()]
   param(
@@ -213,16 +269,28 @@ function Invoke-RegExe {
   return $result
 }
 
+<#
+.SYNOPSIS
+  Wrapper for git with optional working directory and exit code validation.
+.PARAMETER Arguments
+  Arguments to pass to git.
+.PARAMETER WorkingDirectory
+  Directory to run git in.
+.PARAMETER ThrowOnError
+  Throw on non-zero exit code.
+.PARAMETER CaptureOutput
+  Return structured output object.
+#>
 function Invoke-Git {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
     [string[]]$Arguments,
-    
+
     [string]$WorkingDirectory,
-    
+
     [switch]$ThrowOnError,
-    
+
     [switch]$CaptureOutput
   )
 
@@ -253,6 +321,10 @@ function Invoke-Git {
   }
 }
 
+<#
+.SYNOPSIS
+  Retrieves all audit policy subcategories via auditpol.exe.
+#>
 function Get-AuditPolSubcategories {
   [CmdletBinding()]
   param()
@@ -266,6 +338,12 @@ function Get-AuditPolSubcategories {
   return $null
 }
 
+<#
+.SYNOPSIS
+  Gets event log configuration via wevtutil.exe.
+.PARAMETER LogName
+  Name of the event log to query.
+#>
 function Get-EventLogInfo {
   [CmdletBinding()]
   param(
@@ -282,6 +360,12 @@ function Get-EventLogInfo {
   return $null
 }
 
+<#
+.SYNOPSIS
+  Enables a Windows event log via wevtutil.exe.
+.PARAMETER LogName
+  Name of the event log to enable.
+#>
 function Enable-EventLog {
   [CmdletBinding()]
   param(
@@ -293,12 +377,20 @@ function Enable-EventLog {
   return ($result -eq $true)
 }
 
+<#
+.SYNOPSIS
+  Sets the maximum size of a Windows event log via wevtutil.exe.
+.PARAMETER LogName
+  Name of the event log.
+.PARAMETER MaxSizeBytes
+  Maximum log size in bytes.
+#>
 function Set-EventLogMaxSize {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
     [string]$LogName,
-    
+
     [Parameter(Mandatory)]
     [int64]$MaxSizeBytes
   )
@@ -307,15 +399,25 @@ function Set-EventLogMaxSize {
   return ($result -eq $true)
 }
 
+<#
+.SYNOPSIS
+  Exports an event log to a file via wevtutil.exe.
+.PARAMETER LogName
+  Name of the event log to export.
+.PARAMETER OutputPath
+  File path for the exported .evtx file.
+.PARAMETER Query
+  Optional XPath query to filter events.
+#>
 function Export-EventLog {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
     [string]$LogName,
-    
+
     [Parameter(Mandatory)]
     [string]$OutputPath,
-    
+
     [string]$Query
   )
 
@@ -328,6 +430,22 @@ function Export-EventLog {
   return ($result -eq $true)
 }
 
+<#
+.SYNOPSIS
+  Creates a scheduled task via schtasks.exe.
+.PARAMETER TaskName
+  Name (and optional folder path) for the task.
+.PARAMETER TaskRun
+  Command or script the task will execute.
+.PARAMETER Schedule
+  Trigger schedule type (default: ONCE).
+.PARAMETER StartTime
+  Start time for the trigger.
+.PARAMETER RunLevel
+  Run level (default: HIGHEST).
+.PARAMETER Force
+  Overwrite an existing task with the same name.
+#>
 function New-ScheduledTask {
   [CmdletBinding()]
   param(
@@ -361,6 +479,12 @@ function New-ScheduledTask {
   return ($result -eq $true)
 }
 
+<#
+.SYNOPSIS
+  Removes a scheduled task via schtasks.exe.
+.PARAMETER TaskName
+  Name of the task to remove.
+#>
 function Remove-ScheduledTask {
   [CmdletBinding()]
   param(
@@ -372,12 +496,20 @@ function Remove-ScheduledTask {
   return ($result -eq $true)
 }
 
+<#
+.SYNOPSIS
+  Exports a registry key to a .reg file via reg.exe.
+.PARAMETER KeyPath
+  Registry key path to export.
+.PARAMETER OutputPath
+  File path for the exported .reg file.
+#>
 function Export-RegistryKey {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
     [string]$KeyPath,
-    
+
     [Parameter(Mandatory)]
     [string]$OutputPath
   )

@@ -1,5 +1,20 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Input validation and security guard functions.
+
+.DESCRIPTION
+Provides functions to detect path traversal, validate script names, git refs,
+URLs, and directory containment. Used across scripts to enforce input safety.
+#>
+
+<#
+.SYNOPSIS
+  Tests whether a path contains traversal segments ('..').
+.PARAMETER Path
+  Path string to check.
+#>
 function Test-PathTraversal {
   [CmdletBinding()]
   param(
@@ -17,6 +32,14 @@ function Test-PathTraversal {
   return $false
 }
 
+<#
+.SYNOPSIS
+  Throws if a path contains traversal segments.
+.PARAMETER Path
+  Path string to validate.
+.PARAMETER ParameterName
+  Name shown in the error message (default 'Path').
+#>
 function Assert-NoPathTraversal {
   [CmdletBinding()]
   param(
@@ -30,6 +53,12 @@ function Assert-NoPathTraversal {
   }
 }
 
+<#
+.SYNOPSIS
+  Validates that a script name is safe (no path separators, valid .ps1 extension).
+.PARAMETER Name
+  Script file name to validate.
+#>
 function Test-SafeScriptName {
   [CmdletBinding()]
   param(
@@ -49,6 +78,12 @@ function Test-SafeScriptName {
   return $true
 }
 
+<#
+.SYNOPSIS
+  Validates that a string is a safe git ref (branch/tag name).
+.PARAMETER Ref
+  Git ref string to validate.
+#>
 function Test-ValidGitRef {
   [CmdletBinding()]
   param(
@@ -65,6 +100,14 @@ function Test-ValidGitRef {
   return $true
 }
 
+<#
+.SYNOPSIS
+  Validates that a URL uses an allowed scheme and is well-formed.
+.PARAMETER Url
+  URL string to validate.
+.PARAMETER AllowedSchemes
+  Permitted URI schemes (default: https, http).
+#>
 function Test-SafeUrl {
   [CmdletBinding()]
   param(
@@ -88,6 +131,14 @@ function Test-SafeUrl {
   return ($AllowedSchemes -contains $uri.Scheme)
 }
 
+<#
+.SYNOPSIS
+  Tests whether a path is contained within a root directory.
+.PARAMETER Path
+  Path to check.
+.PARAMETER Root
+  Root directory that must be a prefix of Path.
+#>
 function Test-PathUnderRoot {
   [CmdletBinding()]
   param(

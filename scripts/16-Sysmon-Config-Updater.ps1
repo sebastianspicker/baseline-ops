@@ -90,6 +90,22 @@
 .INPUTS
   None. This script does not accept pipeline input.
 
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
 .OUTPUTS
   System.Management.Automation.PSCustomObject.
   The script outputs exactly one structured summary object with fields such as:

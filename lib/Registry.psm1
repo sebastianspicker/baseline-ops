@@ -1,5 +1,21 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Windows Registry read/write helpers.
+
+.DESCRIPTION
+Provides type-safe functions for reading and writing registry values (DWord,
+QWord, String, ExpandString, MultiString, Binary) with automatic key creation
+and consistent error handling.
+#>
+
+<#
+.SYNOPSIS
+  Creates a registry key if it does not exist.
+.PARAMETER Path
+  Registry key path to create.
+#>
 function Ensure-RegistryKey {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Path)
@@ -9,6 +25,14 @@ function Ensure-RegistryKey {
   }
 }
 
+<#
+.SYNOPSIS
+  Reads a registry value, returning $null if the key or value does not exist.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name to read.
+#>
 function Get-RegValue {
   [CmdletBinding()]
   param(
@@ -23,6 +47,16 @@ function Get-RegValue {
   }
 }
 
+<#
+.SYNOPSIS
+  Sets a REG_DWORD registry value, creating the key if needed.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER Value
+  Integer value to write.
+#>
 function Set-RegDword {
   [CmdletBinding()]
   param(
@@ -43,6 +77,16 @@ function Set-RegDword {
   }
 }
 
+<#
+.SYNOPSIS
+  Sets a REG_SZ registry value, creating the key if needed.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER Value
+  String value to write.
+#>
 function Set-RegString {
   [CmdletBinding()]
   param(
@@ -63,6 +107,14 @@ function Set-RegString {
   }
 }
 
+<#
+.SYNOPSIS
+  Removes a registry value if it exists. Returns $true if removed.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name to remove.
+#>
 function Remove-RegValueIfExists {
   [CmdletBinding()]
   param(
@@ -85,6 +137,16 @@ function Remove-RegValueIfExists {
   return $false
 }
 
+<#
+.SYNOPSIS
+  Sets a REG_QWORD registry value, creating the key if needed.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER Value
+  64-bit integer value to write.
+#>
 function Set-RegQword {
   [CmdletBinding()]
   param(
@@ -105,6 +167,16 @@ function Set-RegQword {
   }
 }
 
+<#
+.SYNOPSIS
+  Sets a REG_EXPAND_SZ registry value, creating the key if needed.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER Value
+  String value with expandable environment variables.
+#>
 function Set-RegExpandString {
   [CmdletBinding()]
   param(
@@ -125,6 +197,16 @@ function Set-RegExpandString {
   }
 }
 
+<#
+.SYNOPSIS
+  Sets a REG_MULTI_SZ registry value, creating the key if needed.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER Value
+  Array of strings to write.
+#>
 function Set-RegMultiString {
   [CmdletBinding()]
   param(
@@ -145,6 +227,16 @@ function Set-RegMultiString {
   }
 }
 
+<#
+.SYNOPSIS
+  Sets a REG_BINARY registry value, creating the key if needed.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER Value
+  Byte array to write.
+#>
 function Set-RegBinary {
   [CmdletBinding()]
   param(
@@ -165,6 +257,12 @@ function Set-RegBinary {
   }
 }
 
+<#
+.SYNOPSIS
+  Tests whether a registry key exists.
+.PARAMETER Path
+  Registry key path to check.
+#>
 function Get-RegKeyExists {
   [CmdletBinding()]
   param(
@@ -174,6 +272,14 @@ function Get-RegKeyExists {
   return (Test-Path -LiteralPath $Path)
 }
 
+<#
+.SYNOPSIS
+  Tests whether a registry value exists under a key.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name to check.
+#>
 function Get-RegValueExists {
   [CmdletBinding()]
   param(
@@ -191,6 +297,16 @@ function Get-RegValueExists {
   }
 }
 
+<#
+.SYNOPSIS
+  Reads a REG_DWORD value, returning a default if not found.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER DefaultValue
+  Value returned when the registry entry does not exist.
+#>
 function Get-RegDword {
   [CmdletBinding()]
   param(
@@ -209,6 +325,14 @@ function Get-RegDword {
   }
 }
 
+<#
+.SYNOPSIS
+  Reads a REG_DWORD value, returning $null if not found.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+#>
 function Get-RegDwordOrNull {
   [CmdletBinding()]
   param(
@@ -224,6 +348,16 @@ function Get-RegDwordOrNull {
   }
 }
 
+<#
+.SYNOPSIS
+  Reads a REG_SZ value, returning a default if not found.
+.PARAMETER Path
+  Registry key path.
+.PARAMETER Name
+  Value name.
+.PARAMETER DefaultValue
+  Value returned when the registry entry does not exist.
+#>
 function Get-RegString {
   [CmdletBinding()]
   param(
@@ -238,6 +372,14 @@ function Get-RegString {
   return [string]$value
 }
 
+<#
+.SYNOPSIS
+  Removes a registry key if it exists. Returns $true if removed.
+.PARAMETER Path
+  Registry key path to remove.
+.PARAMETER Recurse
+  Remove the key and all subkeys.
+#>
 function Remove-RegistryKeyIfExists {
   [CmdletBinding()]
   param(

@@ -9,6 +9,12 @@ Provides safe JSON file reading that returns $null on any error.
 For JSON writing, use Save-Json from Serialization.psm1.
 #>
 
+<#
+.SYNOPSIS
+  Reads and parses a JSON file, returning $null on any error.
+.PARAMETER Path
+  Path to the JSON file to read.
+#>
 function Read-JsonFileSafe {
   [CmdletBinding()]
   param(

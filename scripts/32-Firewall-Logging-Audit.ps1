@@ -40,6 +40,28 @@ If set, throws at the end when High findings exist.
 .PARAMETER NoConsoleSummary
 If set, do not print the console summary.
 
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 One PSCustomObject with:
 Summary, Desired, Findings, ProfilesBefore, ProfilesAfter.

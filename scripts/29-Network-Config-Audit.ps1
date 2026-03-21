@@ -29,6 +29,25 @@ Suppress console output.
 Emit structured pipeline output (object with Summary and Interfaces).
 If not set, no pipeline output is emitted (interactive-friendly).
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 With -PassThru: PSCustomObject with Summary and Interfaces.
 Without -PassThru: no pipeline output.

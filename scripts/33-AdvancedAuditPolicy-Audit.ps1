@@ -20,6 +20,33 @@ Path to JSON with desired subcategory settings (example: PATH/TO/JSON/auditpolic
 
 .PARAMETER ExportPath
 Optional base path for CSV export. Creates: *_summary.csv, *_findings.csv, *_policies.csv
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
+
+.OUTPUTS
+  None by default.
+  When -PassThru is used, emits a PSCustomObject v2 result with Script, Mode, Result, Findings, Summary, and Metadata properties.
+
 .EXAMPLE
   .\33-AdvancedAuditPolicy-Audit.ps1
 

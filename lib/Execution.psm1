@@ -1,5 +1,14 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Script execution and process invocation utilities.
+
+.DESCRIPTION
+Provides helpers for argument tokenization, retry logic, native process
+invocation with timeout support, and timed script execution.
+#>
+
 function Convert-TokenValue {
   [CmdletBinding()]
   param(
@@ -17,6 +26,16 @@ function Convert-TokenValue {
   }
 }
 
+<#
+.SYNOPSIS
+  Retries a scriptblock up to a maximum number of attempts.
+.PARAMETER Action
+  Scriptblock to execute.
+.PARAMETER MaxAttempts
+  Maximum number of attempts before re-throwing.
+.PARAMETER DelaySeconds
+  Delay in seconds between retry attempts.
+#>
 function Invoke-WithRetry {
   [CmdletBinding()]
   param(
@@ -41,6 +60,12 @@ function Invoke-WithRetry {
   }
 }
 
+<#
+.SYNOPSIS
+  Parses a string array of CLI-style arguments into named and positional tokens.
+.PARAMETER Arguments
+  Array of argument strings to tokenize.
+#>
 function Convert-ArgumentTokens {
   [CmdletBinding()]
   param(
@@ -97,6 +122,20 @@ function Convert-ArgumentTokens {
   }
 }
 
+<#
+.SYNOPSIS
+  Launches an external process and captures stdout, stderr, and exit code.
+.PARAMETER FilePath
+  Path to the executable.
+.PARAMETER Arguments
+  Arguments passed to the process.
+.PARAMETER WorkingDirectory
+  Optional working directory for the process.
+.PARAMETER TimeoutSeconds
+  Maximum seconds to wait. Zero means wait indefinitely.
+.PARAMETER ThrowOnError
+  Throw an exception if the process exits with a non-zero code.
+#>
 function Invoke-NativeProcess {
   [CmdletBinding()]
   param(
@@ -164,6 +203,14 @@ function Invoke-NativeProcess {
   return $result
 }
 
+<#
+.SYNOPSIS
+  Invokes a PowerShell script and measures its execution time.
+.PARAMETER ScriptPath
+  Path to the .ps1 script to execute.
+.PARAMETER Arguments
+  Arguments to pass to the script.
+#>
 function Invoke-ScriptWithTiming {
   [CmdletBinding()]
   param(

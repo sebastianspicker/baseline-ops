@@ -52,6 +52,22 @@
   The object includes the overall result, counts, proof path, evidence snapshot, the loaded catalog, and lists of
   drift/changes/notes.
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
   By default, this script outputs nothing to the pipeline (console output only).
 

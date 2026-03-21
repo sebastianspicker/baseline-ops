@@ -27,6 +27,22 @@ Suppress console output (still returns structured object).
 .PARAMETER NoColor
 Disable colorized console output.
 
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
 .OUTPUTS
 PSCustomObject with Summary, Findings, CurrentValues, Drift, DesiredLoaded.
 .EXAMPLE

@@ -71,6 +71,25 @@ The script still writes the event log entry (best effort) and can still emit the
 Suppresses the structured pipeline output object.
 Use this for interactive runs or scheduled executions where only console/event log output is desired.
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 LocalAdmins.Guardrail.Result (PSCustomObject)
 

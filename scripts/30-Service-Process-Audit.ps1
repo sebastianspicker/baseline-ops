@@ -24,6 +24,28 @@ Suppress all console output (only pipeline object is emitted).
 .PARAMETER NoColor
 Disable colored console output (useful for non-interactive hosts).
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
 .OUTPUTS
 ProcessServiceAudit.Record (pscustomobject) with Summary, TopCpu, TopRam, Services, Config.
 .EXAMPLE

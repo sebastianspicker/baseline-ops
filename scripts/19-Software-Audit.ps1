@@ -54,6 +54,25 @@
 .INPUTS
   None. 
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
   System.Management.Automation.PSCustomObject. 
   The script outputs exactly one object with high-level metadata, counts, status, and the full classified software lists (Whitelisted/Unknown/Blacklisted), designed to work cleanly with the pipeline. 

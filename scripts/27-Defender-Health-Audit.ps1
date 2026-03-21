@@ -34,6 +34,28 @@ Do not print the console summary.
 .PARAMETER PassThru
 Return the structured result object to the pipeline.
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER ConfigPath
+  Path to JSON configuration file.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 If -PassThru is used: PSCustomObject with Summary, Findings, EffectiveConfig.
 Otherwise: no pipeline output (console summary only).

@@ -19,6 +19,28 @@ Optional JSON configuration file path (placeholder: PATH/TO/JSON\identity-audit.
 .PARAMETER NoConsoleSummary
 Suppress the console summary output.
 
+
+.PARAMETER Mode
+  Execution mode. 'Audit' reports only; 'Remediate' applies changes.
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 PSCustomObject with:
 - Flattened top-level properties for a clean default view

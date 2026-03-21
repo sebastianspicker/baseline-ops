@@ -1,5 +1,15 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Console UI output functions for human-readable script output.
+
+.DESCRIPTION
+Provides a unified set of Write-* functions for colored console output, section
+headers, key-value displays, status lines, and bullet lists. All functions
+respect the caller-scope NoColor, Quiet, and NoConsole switches.
+#>
+
 $script:UiDefaults = [ordered]@{
   SectionWidth = 70
   KeyWidth     = 22
@@ -68,6 +78,14 @@ function Resolve-UiColor {
   }
 }
 
+<#
+.SYNOPSIS
+  Writes a styled line to the console, respecting Quiet/NoColor/NoConsole.
+.PARAMETER Message
+  Text to display.
+.PARAMETER Style
+  Color or semantic style name (e.g. 'Success', 'Warn', 'Error', 'Muted').
+#>
 function Write-UiLine {
   [CmdletBinding()]
   param(
@@ -181,6 +199,14 @@ function Write-ConsoleHeader {
   Write-UiLine -Message $line -Style 'Dim' -UseWriteInformation:$useInfo
 }
 
+<#
+.SYNOPSIS
+  Writes a section header with decorative rule lines.
+.PARAMETER Title
+  Section title text.
+.PARAMETER Width
+  Width of the decorative rule.
+#>
 function Write-Section {
   [CmdletBinding()]
   param(
@@ -268,6 +294,14 @@ function Write-Success {
   Write-UiLine -Message $text -Style 'Success'
 }
 
+<#
+.SYNOPSIS
+  Writes a status-prefixed message line (e.g. [OK], [WARN], [FAIL]).
+.PARAMETER Status
+  Status keyword that determines prefix and color.
+.PARAMETER Message
+  Message text to display after the status prefix.
+#>
 function Write-StatusLine {
   [CmdletBinding()]
   param(
@@ -333,6 +367,14 @@ function Write-UiSeparator {
   Write-UiLine -Message ($Char * $Width) -Style $Style
 }
 
+<#
+.SYNOPSIS
+  Writes a formatted key-value pair to the console.
+.PARAMETER Key
+  Label for the value.
+.PARAMETER Value
+  Value text to display next to the key.
+#>
 function Write-KeyValue {
   [CmdletBinding()]
   param(

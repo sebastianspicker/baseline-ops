@@ -1,5 +1,20 @@
 Set-StrictMode -Version Latest
 
+<#
+.SYNOPSIS
+Common utility functions shared across all scripts.
+
+.DESCRIPTION
+Provides general-purpose helpers for caller variable lookup, admin detection,
+directory creation, path sanitization, and property existence checks.
+#>
+
+<#
+.SYNOPSIS
+  Retrieves a variable value from a caller scope.
+.PARAMETER Name
+  Variable name to look up in parent scopes.
+#>
 function Get-CallerValue {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Name)
@@ -15,6 +30,10 @@ function Get-CallerValue {
   return $null
 }
 
+<#
+.SYNOPSIS
+  Tests whether the current session is running with administrative privileges.
+#>
 function Test-IsAdmin {
   [CmdletBinding()]
   param()
@@ -28,6 +47,12 @@ function Test-IsAdmin {
   }
 }
 
+<#
+.SYNOPSIS
+  Throws if the session is not elevated (Windows only).
+.PARAMETER Message
+  Error message shown when not running as admin.
+#>
 function Require-Admin {
   [CmdletBinding()]
   param(
@@ -43,6 +68,12 @@ function Require-Admin {
   }
 }
 
+<#
+.SYNOPSIS
+  Creates a directory if it does not exist.
+.PARAMETER Path
+  Directory path to ensure exists.
+#>
 function Ensure-Directory {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Path)
@@ -57,6 +88,12 @@ function Ensure-Directory {
   }
 }
 
+<#
+.SYNOPSIS
+  Creates the parent directory for a file path if it does not exist.
+.PARAMETER FilePath
+  File path whose parent directory should be ensured.
+#>
 function Ensure-DirectoryForFile {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$FilePath)
@@ -66,6 +103,14 @@ function Ensure-DirectoryForFile {
   Ensure-Directory -Path $dir
 }
 
+<#
+.SYNOPSIS
+  Expands environment variables and normalizes a path, rejecting traversal.
+.PARAMETER Path
+  Raw path string to sanitize.
+.PARAMETER MustExist
+  When set, returns $null if the resolved path does not exist on disk.
+#>
 function Sanitize-Path {
   [CmdletBinding()]
   param(
@@ -102,6 +147,14 @@ function Sanitize-Path {
   }
 }
 
+<#
+.SYNOPSIS
+  Tests whether an object has a named property.
+.PARAMETER Object
+  Object to inspect.
+.PARAMETER Name
+  Property name to check for.
+#>
 function Has-Property {
   param([object]$Object, [string]$Name)
   return $null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name

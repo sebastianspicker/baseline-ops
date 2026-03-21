@@ -9,6 +9,12 @@ Get-FileSha256, Copy-ToEvidence (with optional size/total limits), Expand-Env.
 Used by 11-IOC-Sweep-Defender, 12-Suspicious-Artifact-Grabber, 16-Sysmon-Config-Updater.
 #>
 
+<#
+.SYNOPSIS
+  Expands environment variables in a path string.
+.PARAMETER Path
+  Path string containing environment variable references.
+#>
 function Expand-Env {
   [CmdletBinding()]
   param(
@@ -23,6 +29,12 @@ function Expand-Env {
   }
 }
 
+<#
+.SYNOPSIS
+  Computes the SHA-256 hash of a file.
+.PARAMETER Path
+  Path to the file to hash.
+#>
 function Get-FileSha256 {
   [CmdletBinding()]
   param(
@@ -38,6 +50,20 @@ function Get-FileSha256 {
   }
 }
 
+<#
+.SYNOPSIS
+  Copies a file to an evidence directory with optional size limits.
+.PARAMETER SourcePath
+  Path to the source file.
+.PARAMETER EvidenceBaseDir
+  Base directory where evidence files are stored.
+.PARAMETER MaxFileSizeMB
+  Maximum allowed file size in MB (0 = unlimited).
+.PARAMETER MaxTotalMB
+  Maximum total evidence size in MB (0 = unlimited).
+.PARAMETER RunningTotalBytes
+  Reference to a running byte total for quota tracking.
+#>
 function Copy-ToEvidence {
   [CmdletBinding()]
   param(

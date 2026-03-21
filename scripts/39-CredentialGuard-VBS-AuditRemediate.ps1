@@ -41,6 +41,25 @@ Optional CSV export directory (summary.csv and findings.csv).
 .PARAMETER ShowSummary
 Write a human-friendly console summary at the end (default: $true).
 
+
+.PARAMETER OutputFormat
+  Output format: Console, Json, Csv, or None.
+
+.PARAMETER OutputPath
+  File path for Json/Csv output.
+
+.PARAMETER PassThru
+  Emit structured v2 result object to pipeline.
+
+.PARAMETER Strict
+  Treat warnings as failures.
+
+.PARAMETER Quiet
+  Suppress console output.
+
+.PARAMETER NoColor
+  Disable colored output.
+
 .OUTPUTS
 PSCustomObject with Summary, Current, After, Findings, Config.
 .EXAMPLE
