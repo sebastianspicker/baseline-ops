@@ -172,7 +172,7 @@ while ($pending.Count -gt 0) {
           DurationMs = 0
           Message    = 'Skipped due to failed dependency.'
         })
-      Write-UiLine -Text ("[SKIP] {0} (dependency failure)" -f $scriptName) -ForegroundColor DarkGray
+      Write-UiLine -Text ("[SKIP] {0} (dependency failure)" -f $scriptName) -Style Muted
       break
     }
 
@@ -224,16 +224,16 @@ while ($pending.Count -gt 0) {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     try {
       if ($PSCmdlet.ShouldProcess($scriptName, 'Execute profile step')) {
-        Write-UiLine -Text ("[RUN ] {0}" -f $scriptName) -ForegroundColor Cyan
+        Write-UiLine -Text ("[RUN ] {0}" -f $scriptName) -Style Header
         & $runLocalPath @runParams
-        $exitCode = if ($LASTEXITCODE -eq $null) { 0 } else { [int]$LASTEXITCODE }
+        $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
         $status = if ($exitCode -eq 0) { 'Success' } elseif ($exitCode -eq 2) { 'Partial' } else { 'Failed' }
         $message = "Exit code: $exitCode"
       } else {
         $exitCode = 0
         $status = 'Skipped'
         $message = 'Skipped by ShouldProcess (-WhatIf/-Confirm).'
-        Write-UiLine -Text ("[SKIP] {0} (WhatIf/Confirm)" -f $scriptName) -ForegroundColor DarkGray
+        Write-UiLine -Text ("[SKIP] {0} (WhatIf/Confirm)" -f $scriptName) -Style Muted
       }
     } catch {
       $exitCode = 1
@@ -256,7 +256,7 @@ while ($pending.Count -gt 0) {
     if ($status -eq 'Success') {
       Write-UiLine -Text ("[ OK ] {0} ({1} ms)" -f $scriptName, $sw.ElapsedMilliseconds) -Style Success
     } elseif ($status -eq 'Partial') {
-      Write-UiLine -Text ("[WARN] {0} ({1} ms)" -f $scriptName, $sw.ElapsedMilliseconds) -ForegroundColor Yellow
+      Write-UiLine -Text ("[WARN] {0} ({1} ms)" -f $scriptName, $sw.ElapsedMilliseconds) -Style Warning
     }
 
     if ($status -eq 'Failed' -and -not $continueOnError) {

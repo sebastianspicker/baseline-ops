@@ -150,7 +150,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
-
+Set-StrictMode -Version Latest
 
 # -----------------------------
 # Helper functions (PS 5.1 compatible)

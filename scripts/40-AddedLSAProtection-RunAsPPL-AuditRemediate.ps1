@@ -80,7 +80,7 @@ Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 
 
-Set-StrictMode -Version 3.0
+Set-StrictMode -Version Latest
 # v2-init
 $null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
 $script:__V2Context = @{

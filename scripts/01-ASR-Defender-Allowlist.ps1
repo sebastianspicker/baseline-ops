@@ -503,7 +503,7 @@ function Write-ConsoleSummary {
 
 # ----------------------------- Main ------------------------------------------------
 $script:Findings = New-FindingsList
-$eventLogReady = Ensure-EventSource
+$null = Ensure-EventSource
 
 try {
   if (-not (Get-Command Get-MpPreference -ErrorAction SilentlyContinue)) {

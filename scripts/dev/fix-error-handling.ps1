@@ -28,6 +28,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
 
 $scriptsPath = Join-Path $PSScriptRoot '..\scripts'
 $files = Get-ChildItem -Path $scriptsPath -Filter '*.ps1' -File

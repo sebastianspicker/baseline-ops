@@ -139,7 +139,7 @@ Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 
 
-Set-StrictMode -Version 2.0
+Set-StrictMode -Version Latest
 # v2-init
 $null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
 $script:__V2Context = @{
@@ -161,7 +161,7 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
-$InformationPreference = 'Continue'   # Information stream shown by default
+if (-not $Quiet) { $InformationPreference = 'Continue' }   # Information stream shown by default
 
 $EventSource      = 'OfficeBrowser-Hardening'
 $EventLog         = 'Application'

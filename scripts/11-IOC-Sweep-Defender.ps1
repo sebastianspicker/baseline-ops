@@ -180,8 +180,8 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 
-
 $ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
 
 # -----------------------------
 # Globals / Defaults (anonymized)

@@ -12,7 +12,6 @@ Scripts should import Common.psm1 first for Ensure-Directory/Ensure-Dir when usi
 function Read-JsonFileSafe {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory = $false)]
     [string]$Path
   )
   if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {

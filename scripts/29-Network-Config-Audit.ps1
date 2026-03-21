@@ -40,21 +40,16 @@ Without -PassThru: no pipeline output.
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-  [Parameter(Mandatory = $false)]
   [ValidateNotNullOrEmpty()]
   [string]$ExportPath,
 
-  [Parameter(Mandatory = $false)]
   [switch]$IncludeHidden,
 
-  [Parameter(Mandatory = $false)]
   [ValidateNotNullOrEmpty()]
   [string]$JsonPath = $null,
 
-  [Parameter(Mandatory = $false)]
   [switch]$Quiet,
 
-  [Parameter(Mandatory = $false)]
   [switch]$PassThru
 
 ,
@@ -70,7 +65,7 @@ param(
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 
 
-Set-StrictMode -Version 3.0
+Set-StrictMode -Version Latest
 # v2-init
 $null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
 $script:__V2Context = @{
@@ -165,7 +160,6 @@ function Get-DefaultConfig {
 function Import-JsonConfigOrDefault {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory = $false)]
     [string]$JsonPath
   )
 

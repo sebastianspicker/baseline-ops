@@ -343,7 +343,7 @@ function Get-UiStyleForLevel {
 # ----------------------------
 
 $eventSource = 'PatchReminder'
-$canEventLog = Ensure-EventSource -Source $eventSource -Log 'Application'
+$null = Ensure-EventSource -Source $eventSource -Log 'Application'
 
 $run = [ordered]@{
   Host        = $env:COMPUTERNAME

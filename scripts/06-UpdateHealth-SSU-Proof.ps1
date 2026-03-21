@@ -141,7 +141,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
-
+Set-StrictMode -Version Latest
 
 # ------------------------------------ Globals --------------------------------------
 $script:EventSource = 'UpdateHealth-SSU-Proof'
