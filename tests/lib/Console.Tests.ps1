@@ -369,17 +369,17 @@ Describe "Write-PrettyLine" {
   }
 }
 
-Describe "Write-Rule" {
+Describe "Write-DecorativeRule" {
   It "Does not throw with default parameters" {
-    { Write-Rule } | Should -Not -Throw
+    { Write-DecorativeRule } | Should -Not -Throw
   }
 
   It "Does not throw with title" {
-    { Write-Rule -Title 'Section Title' } | Should -Not -Throw
+    { Write-DecorativeRule -Title 'Section Title' } | Should -Not -Throw
   }
 
   It "Does not throw with custom char and width" {
-    { Write-Rule -Char '-' -Width 40 -Color 'Cyan' } | Should -Not -Throw
+    { Write-DecorativeRule -Char '-' -Width 40 -Color 'Cyan' } | Should -Not -Throw
   }
 }
 

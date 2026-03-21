@@ -102,10 +102,16 @@ function Sanitize-Path {
   }
 }
 
+function Has-Property {
+  param([object]$Object, [string]$Name)
+  return $null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name
+}
+
 Export-ModuleMember -Function `
   Get-CallerValue, `
   Test-IsAdmin, `
   Require-Admin, `
   Ensure-Directory, `
   Ensure-DirectoryForFile, `
-  Sanitize-Path
+  Sanitize-Path, `
+  Has-Property

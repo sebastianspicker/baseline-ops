@@ -199,7 +199,7 @@ function Write-ConsoleSummary {
 
   $sevOrder = @{ High = 1; Medium = 2; Low = 3; Info = 4 }
 
-  Write-Rule -Title "Storage Reliability Audit Summary" -Color 'Gray'
+  Write-DecorativeRule -Title "Storage Reliability Audit Summary" -Color 'Gray'
 
   Write-UiLine -Text ("ComputerName  : {0}" -f $Summary.ComputerName) -Color 'Gray'
   Write-UiLine -Text ("Timestamp     : {0}" -f $Summary.Timestamp) -Color 'Gray'
@@ -239,13 +239,13 @@ function Write-ConsoleSummary {
   try { $showDiskTable = [bool]$Config.Output.ShowDiskTable } catch { <# best-effort: config property cast #> $showDiskTable = $true }
 
   if ($showDiskTable -and $Disks -and $Disks.Count -gt 0) {
-    Write-Rule -Title "Physical disks" -Color 'Gray'
+    Write-DecorativeRule -Title "Physical disks" -Color 'Gray'
     Write-UiLine -Text ((($Disks | Select-Object FriendlyName, MediaType, BusType, HealthStatus, OperationalStatus, Size) |
         Format-Table -AutoSize | Out-String).TrimEnd()) -Color 'Gray'
   }
 
   if ($Reliability -and $Reliability.Count -gt 0) {
-    Write-Rule -Title "Reliability counters (sample fields)" -Color 'Gray'
+    Write-DecorativeRule -Title "Reliability counters (sample fields)" -Color 'Gray'
     Write-UiLine -Text ((($Reliability | Select-Object FriendlyName, Temperature, Wear, UncorrectableErrors, ReadErrorsTotal, WriteErrorsTotal, PowerOnHours |
         Format-Table -AutoSize | Out-String).TrimEnd())) -Color 'Gray'
   }

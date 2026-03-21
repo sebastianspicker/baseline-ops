@@ -184,7 +184,7 @@ function Write-PrettyLine {
   Write-ColoredLine -Text $Text -Color $Color
 }
 
-function Write-Rule {
+function Write-DecorativeRule {
   [CmdletBinding()]
   param(
     [string]$Title,
@@ -209,7 +209,7 @@ function Write-SectionHeader {
     [int]$Width = 70
   )
 
-  Write-Rule -Title $Title -Width $Width
+  Write-DecorativeRule -Title $Title -Width $Width
 }
 
 function Write-SummaryHeader {
@@ -223,7 +223,7 @@ function Write-SummaryHeader {
     [int]$Width = 70
   )
 
-  Write-Rule -Title $Title -Width $Width
+  Write-DecorativeRule -Title $Title -Width $Width
   Write-ColoredLine -Text " Computer : $ComputerName" -Color 'Gray'
   Write-ColoredLine -Text " Time     : $Timestamp" -Color 'Gray'
   
@@ -262,7 +262,7 @@ function Write-ConsoleSummary {
   )
 
   # Header
-  Write-Rule -Title $Title -Width $Width
+  Write-DecorativeRule -Title $Title -Width $Width
 
   # Summary properties
   if ($Summary.PSObject.Properties['ComputerName']) {
@@ -298,7 +298,7 @@ function Write-ConsoleSummary {
     }
   }
 
-  Write-Rule -Width $Width
+  Write-DecorativeRule -Width $Width
 }
 
 function Write-PrettySummary {
@@ -358,7 +358,7 @@ Export-ModuleMember -Function `
   Get-SeverityPrefix, `
   Write-ColoredLine, `
   Write-PrettyLine, `
-  Write-Rule, `
+  Write-DecorativeRule, `
   Write-SectionHeader, `
   Write-SummaryHeader, `
   Write-FindingLine, `

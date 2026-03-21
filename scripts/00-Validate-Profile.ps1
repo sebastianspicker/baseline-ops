@@ -41,6 +41,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Serialization.psm1') -Force
 
@@ -82,10 +83,7 @@ function Add-Issue {
     })
 }
 
-function Has-Property {
-  param([object]$Object, [string]$Name)
-  return $null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name
-}
+# Has-Property moved to lib/Common.psm1
 
 try {
   Assert-NoPathTraversal -Path $ProfilePath -ParameterName 'ProfilePath'

@@ -221,7 +221,7 @@ function Write-ConsoleSummary {
 
   $stats = Get-FindingStats -Findings $Findings
 
-  Write-Rule -Title 'Advanced Audit Policy - Summary'
+  Write-DecorativeRule -Title 'Advanced Audit Policy - Summary'
 
   Write-UiLine ("ComputerName     : {0}" -f $Summary.ComputerName)
   Write-UiLine ("Mode             : {0}" -f $Summary.Mode)
@@ -242,7 +242,7 @@ function Write-ConsoleSummary {
 function Write-FindingsConsole {
   param([Parameter(Mandatory=$true)][System.Collections.ArrayList]$Findings)
 
-  Write-Rule -Title ("Findings ({0})" -f $Findings.Count)
+  Write-DecorativeRule -Title ("Findings ({0})" -f $Findings.Count)
 
   if ($Findings.Count -eq 0) {
     Write-UiLine 'No findings.' -ForegroundColor Green
