@@ -251,6 +251,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
+$ErrorActionPreference = 'Stop'
 # -----------------------------
 # Constants (ASCII only)
 # -----------------------------

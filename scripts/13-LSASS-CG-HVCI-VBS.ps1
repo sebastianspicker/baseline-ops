@@ -151,6 +151,7 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
 # -----------------------------
 # Helper functions (PS 5.1 compatible)

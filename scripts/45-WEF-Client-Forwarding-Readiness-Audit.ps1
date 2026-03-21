@@ -90,7 +90,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
-$ErrorActionPreference = 'Continue'
+$ErrorActionPreference = 'Stop'
 
 # ----------------------------
 # Defaults (used if JSON is missing/invalid)

@@ -142,6 +142,7 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
 # ------------------------------------ Globals --------------------------------------
 $script:EventSource = 'UpdateHealth-SSU-Proof'

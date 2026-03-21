@@ -170,6 +170,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
+$ErrorActionPreference = 'Stop'
 
 # Anonymized defaults
 $EventLogName   = 'Application'

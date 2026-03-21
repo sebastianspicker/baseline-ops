@@ -203,6 +203,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
+$ErrorActionPreference = 'Stop'
 # -----------------------------
 # Helper functions (EN comments for GitHub)
 # -----------------------------

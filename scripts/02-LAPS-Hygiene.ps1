@@ -149,6 +149,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
+$ErrorActionPreference = 'Stop'
 
 # --------------------------- Defaults / Config -------------------------------------
 

@@ -145,6 +145,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
+$ErrorActionPreference = 'Stop'
 
 # -------------------- Settings --------------------
 $Script:EventLogName     = 'Application'

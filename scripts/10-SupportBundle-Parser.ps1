@@ -232,6 +232,7 @@ if ($Quiet) {
 if ($NoColor) {
   $script:NoColor = $true
 }
+$ErrorActionPreference = 'Stop'
 # -------------------- Console helpers (no pipeline output) --------------------
 
 function Get-ConsoleColor {
