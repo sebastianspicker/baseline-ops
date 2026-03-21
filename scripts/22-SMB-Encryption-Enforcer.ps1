@@ -475,17 +475,29 @@ $clientCfgProbe = Get-SmbClientConfiguration
 $hasRejectUnencryptedAccess = ($serverCfgProbe.PSObject.Properties.Name -contains 'RejectUnencryptedAccess')
 $hasClientRequireEncryption = ($clientCfgProbe.PSObject.Properties.Name -contains 'RequireEncryption')
 
-if ($EnableRejectUnencryptedAccess -and -not $hasRejectUnencryptedAccess) {
-  throw 'RejectUnencryptedAccess is not available on this OS/build. Cannot enable it.'
-}
-if ($ApplyClientRequireEncryption -and -not $hasClientRequireEncryption) {
-  throw 'Client RequireEncryption is not available on this OS/build. Cannot enable it.'
-}
-
 # -------------------------
 # Main
 # -------------------------
 $script:Findings = New-FindingsList
+
+if ($EnableRejectUnencryptedAccess -and -not $hasRejectUnencryptedAccess) {
+  $msg = 'RejectUnencryptedAccess is not available on this OS/build. Cannot enable it.'
+  Write-Warning $msg
+  Add-Finding -FindingList $script:Findings -Code 'SMB-UnsupportedFeature' -Severity 'Critical' -Message $msg
+  $v2Result = New-V2ResultObject -ScriptName '22-SMB-Encryption-Enforcer.ps1' -Mode $Mode -Result 'FAIL' -Findings @($script:Findings) -Summary @{ Error = $msg } -Metadata @{}
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
+  exit 1
+}
+if ($ApplyClientRequireEncryption -and -not $hasClientRequireEncryption) {
+  $msg = 'Client RequireEncryption is not available on this OS/build. Cannot enable it.'
+  Write-Warning $msg
+  Add-Finding -FindingList $script:Findings -Code 'SMB-UnsupportedFeature' -Severity 'Critical' -Message $msg
+  $v2Result = New-V2ResultObject -ScriptName '22-SMB-Encryption-Enforcer.ps1' -Mode $Mode -Result 'FAIL' -Findings @($script:Findings) -Summary @{ Error = $msg } -Metadata @{}
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
+  exit 1
+}
 
 $start = Get-Date
 

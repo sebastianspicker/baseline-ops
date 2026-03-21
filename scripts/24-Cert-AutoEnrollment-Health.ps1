@@ -367,7 +367,12 @@ $logName = Get-ConfigValueString -ConfigObject $configObj -Name 'LogName' -Defau
 Require-Admin
 
 if (-not (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
-  throw "Cert: drive is not available. The Microsoft.PowerShell.Security provider/module may be missing."
+  $msg = "Cert: drive is not available. The Microsoft.PowerShell.Security provider/module may be missing."
+  Write-Warning $msg
+  $v2Result = New-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result 'FAIL' -Findings @() -Summary @{ Error = $msg } -Metadata @{}
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
+  exit 1
 }
 
 # 1) Trigger autoenrollment (optional)

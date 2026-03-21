@@ -357,7 +357,12 @@ if ($PSBoundParameters.ContainsKey('SettingsJsonPath'))     { $effective.Setting
 
 # ----- Preconditions
 if (-not $effective.SkipAdminCheck -and -not (Test-IsAdmin)) {
-  throw 'Administrative rights required. Use -SkipAdminCheck if your environment allows it.'
+  $msg = 'Administrative rights required. Use -SkipAdminCheck if your environment allows it.'
+  Write-Warning $msg
+  $v2Result = New-V2ResultObject -ScriptName '27-Defender-Health-Audit.ps1' -Mode $Mode -Result 'FAIL' -Findings @() -Summary @{ Error = $msg } -Metadata @{}
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
+  exit 1
 }
 
 Ensure-Cmdlet -Name 'Get-MpComputerStatus'  # Defender status cmdlet. [page:1]

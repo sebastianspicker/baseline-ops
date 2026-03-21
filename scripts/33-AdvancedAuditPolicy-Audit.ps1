@@ -336,7 +336,13 @@ foreach ($catProp in $desired.PSObject.Properties) {
 # Remediation: only with valid JSON (never with defaults).
 if ($Mode -eq 'Remediate') {
   if ($desiredInfo.Source -ne 'Json') {
-    throw "Mode=Remediate requires a valid -DesiredPolicyJson (not defaults). Example: PATH/TO/JSON/auditpolicy.json"
+    $msg = "Mode=Remediate requires a valid -DesiredPolicyJson (not defaults). Example: PATH/TO/JSON/auditpolicy.json"
+    Write-Warning $msg
+    Add-Finding -Code 'AuditPol-NoDesiredPolicy' -Severity 'Critical' -Message $msg
+    $v2Result = New-V2ResultObject -ScriptName '33-AdvancedAuditPolicy-Audit.ps1' -Mode $Mode -Result 'FAIL' -Findings @($script:Findings) -Summary @{ Error = $msg } -Metadata @{}
+    Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+    if ($PassThru) { $v2Result }
+    exit 1
   }
 
   foreach ($catProp in $desired.PSObject.Properties) {
