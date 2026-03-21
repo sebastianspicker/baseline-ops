@@ -156,6 +156,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -182,6 +183,9 @@ if ($NoColor) {
 }
 $ErrorActionPreference = 'Stop'
 if (-not $Quiet) { $InformationPreference = 'Continue' }   # Information stream shown by default
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 $EventSource      = 'OfficeBrowser-Hardening'
 $EventLog         = 'Application'
@@ -1027,9 +1031,20 @@ try {
 
 Write-ConsoleSummary -AllItems @($allSafe) -CatalogInfo $catalogInfo -ProofPath $proofPath -IsAdmin $isAdmin -Remediate ([bool]$Remediate) -Strict ([bool]$Strict) -Notes @($globalNotes)
 
+# C10: populate canonical findings from non-compliant items
+foreach ($nc in @($nonCompliant)) {
+  $prod = if ($nc.PSObject.Properties['Product']) { $nc.Product } else { 'Unknown' }
+  $area = if ($nc.PSObject.Properties['Area']) { $nc.Area } else { '' }
+  $name = if ($nc.PSObject.Properties['Name']) { $nc.Name } else { '' }
+  $msg  = if ($nc.PSObject.Properties['Message']) { $nc.Message } else { ("{0}/{1}/{2} not compliant" -f $prod, $area, $name) }
+  $code = "OB-{0}" -f ($prod -replace '\s','')
+  Add-Finding -FindingList $script:Findings -Code $code -Severity 'Medium' -Message $msg `
+    -Extra @{ Product = $prod; Area = $area; Name = $name }
+}
+
 # V2 output contract
-$resultToken = if (-not $overallOk) { 'FAIL' } elseif ($globalNotes.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = New-V2ResultObject -ScriptName '04-OfficeBrowser-Hardening-Proof.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; OverallOk = $overallOk; Timestamp = Get-Date }) -Metadata @{ Notes = @($globalNotes) }
+$resultToken = if (-not $overallOk) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '04-OfficeBrowser-Hardening-Proof.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; OverallOk = $overallOk; Timestamp = Get-Date }) -Metadata @{ Notes = @($globalNotes) }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 

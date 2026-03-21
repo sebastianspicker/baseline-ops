@@ -161,6 +161,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -186,6 +187,9 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 # =========================
 # Defaults (anonymized)
@@ -906,14 +910,26 @@ catch {
   Write-UiHeader "Scheduled Tasks Hygiene Summary"
   Write-UiStatus -Label "FAIL" -State FAIL -Text $errMsg
 
-  $v2Result = New-V2ResultObject -ScriptName '07-ScheduledTasks-Hygiene.ps1' -Mode $Mode -Result 'FAIL' -Findings @() -Summary @{ Error = $errMsg } -Metadata @{}
+  Add-Finding -FindingList $script:Findings -Code 'TASK-Error' -Severity 'High' -Message $errMsg
+  $v2Result = New-V2ResultObject -ScriptName '07-ScheduledTasks-Hygiene.ps1' -Mode $Mode -Result 'FAIL' -Findings @($script:Findings) -Summary @{ Error = $errMsg } -Metadata @{}
   Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $v2Result }
   exit 1
 }
 
+# C10: populate canonical findings from drifts
+foreach ($d in @($drifts)) {
+  $code = 'TASK-Drift'
+  $sev = 'Medium'
+  if ($d -match 'Critical missing') { $code = 'TASK-CriticalMissing'; $sev = 'High' }
+  if ($d -match 'Suspicious')       { $code = 'TASK-Suspicious'; $sev = 'High' }
+  if ($d -match 'quarantine')        { $code = 'TASK-QuarantineIssue'; $sev = 'Medium' }
+  Add-Finding -FindingList $script:Findings -Code $code -Severity $sev -Message $d
+}
+
 # V2 output contract
-$v2Result = New-V2ResultObject -ScriptName '07-ScheduledTasks-Hygiene.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
+$resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '07-ScheduledTasks-Hygiene.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

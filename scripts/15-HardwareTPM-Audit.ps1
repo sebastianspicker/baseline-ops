@@ -162,6 +162,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -191,6 +192,9 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 # Anonymized defaults
 $EventLogName   = 'Application'
@@ -581,8 +585,22 @@ catch {
   Write-ColorLine -Text $errMsg -Color 'ERR'
 }
 
+# C10: populate canonical findings from drifts and errors
+foreach ($d in @($drifts)) {
+  # Map drift strings to finding codes based on content keywords
+  $code = 'HW-Drift'
+  if ($d -match 'TPM')       { $code = 'HW-TPMDrift' }
+  if ($d -match 'Secure')    { $code = 'HW-SecureBootDrift' }
+  if ($d -match 'BitLocker') { $code = 'HW-BitLockerDrift' }
+  Add-Finding -FindingList $script:Findings -Code $code -Severity 'High' -Message $d
+}
+foreach ($e in @($errors)) {
+  Add-Finding -FindingList $script:Findings -Code 'HW-Error' -Severity 'High' -Message $e
+}
+
 # V2 output contract
-$v2Result = New-V2ResultObject -ScriptName '15-HardwareTPM-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
+$resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '15-HardwareTPM-Audit.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

@@ -163,6 +163,7 @@ Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -188,6 +189,9 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 # ----------------------------
 # Constants / defaults
@@ -841,8 +845,24 @@ catch {
   }
 }
 
+# C10: populate canonical findings from drifts
+foreach ($d in @($drifts)) {
+  $code = 'RDP-Drift'
+  $sev = 'Medium'
+  if ($d -match 'fDenyTSConnections|UserAuthentication|NLA')            { $code = 'RDP-ConfigDrift' }
+  if ($d -match 'SecurityLayer|MinEncryption')                          { $code = 'RDP-EncryptionDrift' }
+  if ($d -match 'DisableRestrictedAdmin|DisablePasswordSaving')         { $code = 'RDP-SecurityDrift' }
+  if ($d -match 'PortNumber')                                           { $code = 'RDP-PortDrift' }
+  if ($d -match 'Failed|Missing|Unexpected')                            { $sev = 'High' }
+  if ($d -match 'RemoteAssistance')                                     { $code = 'RDP-RemoteAssistDrift' }
+  if ($d -match 'rule|firewall' -or $d -match 'TCP|UDP')               { $code = 'RDP-FirewallDrift' }
+  if ($d -match 'member')                                               { $code = 'RDP-GroupDrift' }
+  Add-Finding -FindingList $script:Findings -Code $code -Severity $sev -Message $d
+}
+
 # V2 output contract
-$v2Result = New-V2ResultObject -ScriptName '14-SecureRemoteAccessGuardrails.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
+$resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '14-SecureRemoteAccessGuardrails.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

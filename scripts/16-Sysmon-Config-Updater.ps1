@@ -195,6 +195,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -221,6 +222,10 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
+
 # -----------------------------
 # Helper functions (EN comments for GitHub)
 # -----------------------------
@@ -840,8 +845,22 @@ finally {
   }
 }
 
+# C10: populate canonical findings from warnings
+foreach ($w in @($warns)) {
+  $code = 'SYSMON-Warning'
+  $sev = 'Medium'
+  if ($w -match 'allowlist')     { $code = 'SYSMON-AllowlistFail'; $sev = 'High' }
+  if ($w -match 'Engine below')  { $code = 'SYSMON-EngineOld'; $sev = 'High' }
+  if ($w -match 'drift')         { $code = 'SYSMON-Drift'; $sev = 'Medium' }
+  if ($w -match 'Install|Update'){ $code = 'SYSMON-ApplyFail'; $sev = 'High' }
+  if ($w -match 'Channel')       { $code = 'SYSMON-Channel'; $sev = 'Low' }
+  if ($w -match 'not elevated')  { $code = 'SYSMON-NoAdmin'; $sev = 'Medium' }
+  Add-Finding -FindingList $script:Findings -Code $code -Severity $sev -Message $w
+}
+
 # V2 output contract
-$v2Result = New-V2ResultObject -ScriptName '16-Sysmon-Config-Updater.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
+$resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+$v2Result = New-V2ResultObject -ScriptName '16-Sysmon-Config-Updater.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

@@ -139,6 +139,7 @@ Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -164,6 +165,9 @@ if ($NoColor) {
   $script:NoColor = $true
 }
 $ErrorActionPreference = 'Stop'
+
+# C10: canonical findings list
+$script:Findings = New-FindingsList
 
 # -----------------------------
 # Console helpers (no pipeline)
@@ -722,9 +726,21 @@ try {
   if ($Strict -and $hasDriftFinal) { exit 2 }
 }
 
+# C10: populate canonical findings from drifts
+foreach ($d in @($drifts)) {
+  $code = 'WUFB-Drift'
+  $sev = 'Medium'
+  if ($d -match 'WSUS')           { $code = 'WUFB-WsusDrift' }
+  if ($d -match 'Deferral')       { $code = 'WUFB-DeferralDrift' }
+  if ($d -match 'TargetRelease')  { $code = 'WUFB-TargetReleaseDrift' }
+  if ($d -match 'DeliveryOpt')    { $code = 'WUFB-DeliveryOptDrift' }
+  if ($d -match 'Failed')         { $sev = 'High' }
+  Add-Finding -FindingList $script:Findings -Code $code -Severity $sev -Message $d
+}
+
 # V2 output contract
 $resultToken = if (-not $ok) { 'FAIL' } elseif ($hasDriftFinal) { 'WARN' } else { 'OK' }
-$v2Result = New-V2ResultObject -ScriptName '05-WUFB-Proofing.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Ok = $ok; HasDrift = $hasDriftFinal; Timestamp = Get-Date }) -Metadata @{}
+$v2Result = New-V2ResultObject -ScriptName '05-WUFB-Proofing.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Ok = $ok; HasDrift = $hasDriftFinal; Timestamp = Get-Date }) -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0
