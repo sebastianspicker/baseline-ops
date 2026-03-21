@@ -933,6 +933,7 @@ try {
   $base = $null
   try { $base = [string]$cat.OutputBase } catch { $base = $null }
   if (-not $base) { $base = [string]$DefaultCatalog.OutputBase }
+  Assert-NoPathTraversal -Path $base -ParameterName 'Catalog.OutputBase'
 
   $work = Join-Path $base $ts
   $zip  = Join-Path $base ("Grabber-{0}-{1}.zip" -f $env:COMPUTERNAME,$ts)

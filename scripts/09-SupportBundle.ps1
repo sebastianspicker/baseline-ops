@@ -132,6 +132,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 Set-StrictMode -Version Latest
@@ -831,6 +832,7 @@ try {
   $ConfigPath    = $DefaultConfigPath
   $Config        = SB_LoadJsonConfig -Path $ConfigPath -DefaultConfig $DefaultConfig
   $ProofDir      = [string]$Config.Paths.ProofDir
+  Assert-NoPathTraversal -Path $ProofDir -ParameterName 'Config.Paths.ProofDir'
 
   $Summary.ConfigPath = $ConfigPath
   $Summary.ProofDir   = $ProofDir
@@ -860,6 +862,7 @@ try {
   ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 
   foreach ($p in $proofCandidates) {
+    Assert-NoPathTraversal -Path $p -ParameterName 'Config.ProofOutFiles'
     SB_AddRecord -Summary $Summary -Record (SB_CopyIfExists -Path $p -DestDir $proofDest)
   }
 
