@@ -97,7 +97,8 @@ if ($destRootFull -eq $destRootRoot -or [string]::IsNullOrWhiteSpace($destRootRo
   throw 'DestinationRoot must be a subdirectory, not a volume root (e.g. use C:\install\mdm\ps1 not C:\).'
 }
 
-function Invoke-Git {
+function Invoke-GitCommand {
+  [CmdletBinding()]
   param([Parameter(Mandatory)][string[]]$GitArgs)
   & git.exe @GitArgs
   if ($LASTEXITCODE -ne 0) {
@@ -106,11 +107,13 @@ function Invoke-Git {
 }
 
 function Get-FullPath {
+  [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Path)
   try { return [System.IO.Path]::GetFullPath($Path) } catch { return $Path }
 }
 
 function Test-RepoPathSafe {
+  [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$RepoPath,
     [Parameter(Mandatory)][string]$DestinationRoot,
@@ -160,11 +163,11 @@ if (Test-Path -LiteralPath (Join-Path $RepoPath '.git')) {
     if ($_.Exception.Message -match 'does not match') { throw }
     # git remote get-url can fail if no origin; continue
   }
-  Invoke-Git -GitArgs @('-C', $RepoPath, 'fetch', '--all', '--prune', '--tags')
+  Invoke-GitCommand -GitArgs @('-C', $RepoPath, 'fetch', '--all', '--prune', '--tags')
   if ($RepoRef) {
-    Invoke-Git -GitArgs @('-C', $RepoPath, 'checkout', $RepoRef)
+    Invoke-GitCommand -GitArgs @('-C', $RepoPath, 'checkout', $RepoRef)
   } else {
-    Invoke-Git -GitArgs @('-C', $RepoPath, 'pull', '--ff-only')
+    Invoke-GitCommand -GitArgs @('-C', $RepoPath, 'pull', '--ff-only')
   }
 } else {
   if (Test-Path -LiteralPath $RepoPath) {
@@ -180,9 +183,9 @@ if (Test-Path -LiteralPath (Join-Path $RepoPath '.git')) {
   $cloneArgs = @('clone')
   if (-not $RepoRef) { $cloneArgs += @('--depth','1') }
   $cloneArgs += @($RepoUrl, $RepoPath)
-  Invoke-Git -GitArgs $cloneArgs
+  Invoke-GitCommand -GitArgs $cloneArgs
   if ($RepoRef) {
-    Invoke-Git -GitArgs @('-C', $RepoPath, 'checkout', $RepoRef)
+    Invoke-GitCommand -GitArgs @('-C', $RepoPath, 'checkout', $RepoRef)
   }
 }
 
