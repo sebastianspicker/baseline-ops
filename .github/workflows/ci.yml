@@ -30,12 +30,12 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
 
       - name: Cache PowerShell modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~\Documents\WindowsPowerShell\Modules
@@ -79,12 +79,12 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
 
       - name: Cache PowerShell modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~\Documents\WindowsPowerShell\Modules
@@ -107,7 +107,29 @@ jobs:
         run: |
           Invoke-Pester -Path .\tests -Output Detailed -CI
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results
+          path: testResults.xml
+          if-no-files-found: warn
+
+      - name: Test summary
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path testResults.xml) {
+            $xml = [xml](Get-Content testResults.xml)
+            $total = $xml.'test-results'.total
+            $passed = $xml.'test-results'.passed
+            $failed = $xml.'test-results'.failures
+            "## Test Results`n| Metric | Count |`n|--------|-------|`n| Passed | $passed |`n| Failed | $failed |`n| Total | $total |" >> $env:GITHUB_STEP_SUMMARY
+          }
+
   test-smoke-linux:
+    # Smoke test on Linux: runs parse-only checks (no PSScriptAnalyzer) to
+    # verify scripts are syntactically valid cross-platform.
     name: Smoke (Linux)
     runs-on: ubuntu-latest
     permissions:
@@ -121,7 +143,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
 
