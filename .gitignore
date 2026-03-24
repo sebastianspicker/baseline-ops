@@ -60,14 +60,17 @@ REFACTOR_PLAN.md
 PHYSICS_AUDIT.md
 validation.md
 HANDOFF.md
+progress.md
 
 # Development artifacts
 ralph-loop/
 plans/
+.claude/
 
 # CI/test artifacts
 coverage/
 test-results/
+testResults.xml
 junit.xml
 *.trx
 *.coverage

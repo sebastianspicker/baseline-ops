@@ -166,8 +166,8 @@ $result | ConvertTo-Json -Depth 6
 - `Config.psm1` - Configuration loading
 - `EventLog.psm1` - Event log operations
 - `Results.psm1` - Findings management
-- `Console.psm1` - Console formatting (NEW)
-- `External.psm1` - External command wrappers (NEW)
+- `Console.psm1` - Console formatting
+- `External.psm1` - External command wrappers
 
 ### Required Features
 - Windows 10/11 or Windows Server 2016+
