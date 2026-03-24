@@ -514,6 +514,13 @@ function Export-RegistryKey {
     [string]$OutputPath
   )
 
+  if ($OutputPath -match '\.\.') {
+    throw "Path traversal not allowed in OutputPath"
+  }
+  if ($KeyPath -match '\\(SAM|SECURITY)\\') {
+    throw "Export of sensitive registry hives is blocked"
+  }
+
   $result = Invoke-RegExe -Arguments @('export', $KeyPath, $OutputPath, '/y') -ThrowOnError
   return ($result -eq $true)
 }

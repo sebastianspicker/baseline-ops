@@ -378,6 +378,10 @@ function Schedule-AutoRollback {
       Add-RunError "Schedule-AutoRollback: RuleNames entry '$rn' contains a single quote, which is not allowed"
       return $false
     }
+    if ($rn -match '[`$;{}]') {
+      Add-RunError "Schedule-AutoRollback: RuleNames entry '$rn' contains invalid characters (backtick, dollar, semicolon, or braces)"
+      return $false
+    }
   }
 
   $runAt = (Get-Date).AddMinutes($Minutes)

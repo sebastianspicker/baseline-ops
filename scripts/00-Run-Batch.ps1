@@ -123,7 +123,7 @@ foreach ($scriptName in $selected) {
   }
 }
 
-$tempProfile = Join-Path ([System.IO.Path]::GetTempPath()) ("batch-profile-{0}.json" -f [guid]::NewGuid().ToString('N'))
+$tempProfile = [System.IO.Path]::GetTempFileName()
 $batchProfile | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $tempProfile -Encoding UTF8
 
 try {

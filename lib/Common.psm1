@@ -59,8 +59,10 @@ function Require-Admin {
     [string]$Message = 'Administrative privileges are required. Run the script elevated.'
   )
   if (-not (Test-IsAdmin)) {
-    # We only throw if on Windows, otherwise we just warn for Mac testing.
-    if ($IsWindows) {
+    # $IsWindows automatic variable only exists in PS Core (6+).
+    # PS Desktop (5.1) runs exclusively on Windows, so treat it as always-Windows.
+    $isWindowsPlatform = if ($PSVersionTable.PSEdition -eq 'Core') { $IsWindows } else { $true }
+    if ($isWindowsPlatform) {
       throw $Message
     } else {
       Write-Warning "Non-Windows OS detected; skipping administrative check for testing: $Message"
