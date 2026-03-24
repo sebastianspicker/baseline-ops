@@ -91,7 +91,7 @@ Describe 'Read-ConfigWithDefaults' {
   }
 
   It 'Loads valid JSON and merges with defaults' {
-    $defaults = @{ Timeout = 30; Enabled = $true }
+    $defaults = @{ Timeout = 30; Enabled = $true; Custom = $null }
     $json = '{"Timeout": 60, "Custom": "value"}'
     $json | Out-File -FilePath $script:TestConfigFile -Encoding UTF8
 
@@ -128,7 +128,7 @@ Describe 'Read-ConfigWithDefaults' {
     $json = '{"Key": "Value"}'
     $json | Out-File -FilePath $script:TestConfigFile -Encoding UTF8
 
-    $result = Read-ConfigWithDefaults -Path $script:TestConfigFile
+    $result = Read-ConfigWithDefaults -Path $script:TestConfigFile -Defaults @{ Key = $null }
     $result.Config | Should -BeOfType [pscustomobject]
     $result.Config.Key | Should -Be 'Value'
   }
@@ -137,7 +137,7 @@ Describe 'Read-ConfigWithDefaults' {
     $json = '{"Key": "Value"}'
     $json | Out-File -FilePath $script:TestConfigFile -Encoding UTF8
 
-    $result = Read-ConfigWithDefaults -Path $script:TestConfigFile -AsHashtable
+    $result = Read-ConfigWithDefaults -Path $script:TestConfigFile -Defaults @{ Key = $null } -AsHashtable
     $result.Config | Should -BeOfType [hashtable]
     $result.Config.Key | Should -Be 'Value'
   }

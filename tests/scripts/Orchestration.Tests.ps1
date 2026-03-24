@@ -258,15 +258,19 @@ Describe '00-Report-Aggregate orchestration' {
     { & $script:AggregateScript -InputPath $noJsonDir -OutputFormat None -PassThru } | Should -Throw '*No JSON result files*'
   }
 
-  It 'Handles malformed JSON gracefully by treating it as FAIL' {
+  It 'Handles malformed JSON gracefully by skipping the file' {
     $badDir = Join-Path $script:TempDir "badjson-$(Get-Random)"
     New-Item -Path $badDir -ItemType Directory -Force | Out-Null
 
     Set-Content -LiteralPath (Join-Path $badDir 'corrupt.json') -Value '{{{invalid json' -Encoding UTF8
 
-    $result = & $script:AggregateScript -InputPath $badDir -OutputFormat None -PassThru
-    $result.Result | Should -Be 'FAIL'
-    $result.Summary.FAIL | Should -Be 1
+    # Schema validation now skips malformed files with a warning instead of
+    # including them as FAIL. With no valid results the aggregate is OK with
+    # zero files counted.
+    $result = & $script:AggregateScript -InputPath $badDir -OutputFormat None -PassThru 3>&1
+    $resultObj = $result | Where-Object { $_ -isnot [System.Management.Automation.WarningRecord] }
+    $resultObj.Result | Should -Be 'OK'
+    $resultObj.Summary.Files | Should -Be 0
   }
 
   It 'Accepts a single JSON file path as InputPath' {

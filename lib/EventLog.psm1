@@ -13,9 +13,7 @@ health events to the Windows Application Event Log.
 .SYNOPSIS
   Ensures a Windows Event Log source is registered.
 .PARAMETER Source
-  Event source name to register.
-.PARAMETER SourceName
-  Alias for Source.
+  Event source name to register (alias: SourceName).
 .PARAMETER LogName
   Event log name (default: Application).
 .PARAMETER OnErrorMessage
@@ -24,12 +22,10 @@ health events to the Windows Application Event Log.
 function Ensure-EventSource {
   [CmdletBinding()]
   param(
-    [string]$Source,
-    [Alias('SourceName')][string]$SourceName,
+    [Alias('SourceName')][string]$Source,
     [Alias('Log')][string]$LogName,
     [string]$OnErrorMessage
   )
-  if (-not $Source -and $SourceName) { $Source = $SourceName }
   if ([string]::IsNullOrWhiteSpace($Source)) {
     $Source = Get-CallerValue -Name 'EventSource'
     if (-not $Source) { $Source = Get-CallerValue -Name 'EventSourceName' }

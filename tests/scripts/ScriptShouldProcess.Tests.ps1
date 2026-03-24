@@ -7,32 +7,42 @@
 
 .DESCRIPTION
   Reads the raw text of each script that declares SupportsShouldProcess=$true
-  and scans for Set-RegDword, Set-RegString, Remove-RegValueIfExists, and
-  Remove-RegistryKeyIfExists calls. Each such call must appear inside an
-  if ($PSCmdlet.ShouldProcess(...)) { ... } block.
+  AND contains at least one Set-Reg* or Remove-Reg* call, then scans for
+  unguarded registry-write calls. Scripts that declare ShouldProcess but do
+  not directly invoke registry-write functions are skipped.
 
   The detection is heuristic (text-based), not AST-based, but catches the
   common pattern where a registry-write call sits outside any ShouldProcess
   guard within the same remediation block.
 #>
 
-Describe 'ShouldProcess guards for registry-write calls' {
-
+BeforeDiscovery {
   $scriptsDir = Join-Path $PSScriptRoot '../../scripts'
   $scriptFiles = Get-ChildItem -LiteralPath $scriptsDir -Filter '*.ps1' -File |
     Where-Object { $_.Name -match '^\d{2}-' }
 
-  # Filter to scripts that declare SupportsShouldProcess
-  $shouldProcessScripts = @()
+  # Registry-modifying function patterns to look for
+  $regWritePatternDisc = '(Set-RegDword|Set-RegString|Set-RegQword|Set-RegExpandString|Set-RegMultiString|Set-RegBinary|Remove-RegValueIfExists|Remove-RegistryKeyIfExists)\s'
+
+  # Filter to scripts that BOTH declare SupportsShouldProcess AND contain
+  # registry-write calls. Scripts that only declare ShouldProcess for
+  # non-registry operations (e.g., file copies, profile orchestration) are
+  # excluded because this meta-test is specifically about registry guards.
+  $script:shouldProcessScripts = @()
   foreach ($file in $scriptFiles) {
     $content = Get-Content -LiteralPath $file.FullName -Raw
-    if ($content -match 'SupportsShouldProcess\s*=\s*\$true') {
-      $shouldProcessScripts += [pscustomobject]@{ Name = $file.Name; FullName = $file.FullName; Content = $content }
+    if ($content -match 'SupportsShouldProcess\s*=\s*\$true' -and $content -match $regWritePatternDisc) {
+      $script:shouldProcessScripts += [pscustomobject]@{ Name = $file.Name; FullName = $file.FullName; Content = $content }
     }
   }
+}
+
+Describe 'ShouldProcess guards for registry-write calls' {
 
   # Registry-modifying function patterns to look for
-  $regWritePattern = '(Set-RegDword|Set-RegString|Set-RegQword|Set-RegExpandString|Set-RegMultiString|Set-RegBinary|Remove-RegValueIfExists|Remove-RegistryKeyIfExists)\s'
+  BeforeAll {
+    $script:regWritePattern = '(Set-RegDword|Set-RegString|Set-RegQword|Set-RegExpandString|Set-RegMultiString|Set-RegBinary|Remove-RegValueIfExists|Remove-RegistryKeyIfExists)\s'
+  }
 
   It '<_.Name> wraps all registry-write calls in ShouldProcess guards' -ForEach $shouldProcessScripts {
     $file = $_
@@ -46,7 +56,7 @@ Describe 'ShouldProcess guards for registry-write calls' {
       if ($line -match '^\s*#') { continue }
 
       # Check if this line contains a registry-write call
-      if ($line -match $regWritePattern) {
+      if ($line -match $script:regWritePattern) {
         # Look backwards from this line to find the nearest enclosing
         # ShouldProcess guard. We check a window of preceding lines
         # for an open if-ShouldProcess block (brace counting).
