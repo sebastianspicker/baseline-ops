@@ -179,6 +179,17 @@ while ($pending.Count -gt 0) {
       $stepArgs += @($step.Args)
     }
 
+    # Validate that profile step args don't attempt to override security-sensitive parameters
+    $blockedOverrides = @('-RootPath', '-ConfigPath', '-ExpectedHash')
+    foreach ($argVal in @($stepArgs)) {
+      foreach ($blocked in $blockedOverrides) {
+        if ([string]$argVal -ieq $blocked -or [string]$argVal -imatch "^$([regex]::Escape($blocked)):") {
+          Write-Warning "Profile step '$scriptName' contains blocked argument override '$argVal'. Removing it."
+          $stepArgs = @($stepArgs | Where-Object { [string]$_ -ine $argVal })
+        }
+      }
+    }
+
     # Legacy profile compatibility: normalize removed v1 token "-Remediate" to v2 mode.
     if (@($stepArgs | Where-Object { [string]$_ -ieq '-Remediate' }).Count -gt 0) {
       $stepArgs = @($stepArgs | Where-Object { [string]$_ -ine '-Remediate' })

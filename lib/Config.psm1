@@ -118,7 +118,10 @@ function Read-ConfigWithDefaults {
     $meta.UsedDefaultsBecause = $null
 
     $objHash = ConvertTo-Hashtable -Object $obj
-    foreach ($k in $objHash.Keys) { $config[$k] = $objHash[$k] }
+    # Only accept keys that exist in $Defaults to prevent config key injection
+    foreach ($k in $objHash.Keys) {
+      if ($Defaults.ContainsKey($k)) { $config[$k] = $objHash[$k] }
+    }
 
     $resultConfig = if ($AsHashtable) { $config } else { [pscustomobject]$config }
     return [pscustomobject]@{ Config = $resultConfig; Meta = $meta }

@@ -87,6 +87,9 @@ function Ensure-Exe {
 .PARAMETER Quiet
   Suppress warning messages on non-zero exit codes.
 #>
+  # NOTE: Callers are responsible for sanitizing $Arguments before passing them to this function.
+  # This is by design for flexibility - the function intentionally does not validate argument content
+  # because valid arguments vary widely across different external commands.
 function Invoke-NativeCommand {
   [CmdletBinding()]
   param(
@@ -304,21 +307,16 @@ function Invoke-Git {
     return $null
   }
 
-  $originalLocation = $null
-  if ($WorkingDirectory) {
-    $originalLocation = Get-Location
-    Set-Location -LiteralPath $WorkingDirectory
+  # Use git -C instead of Set-Location to avoid changing process working directory
+  $gitArgs = if ($WorkingDirectory) {
+    @('-C', $WorkingDirectory) + $Arguments
+  } else {
+    $Arguments
   }
 
-  try {
-    $result = Invoke-NativeCommand -Command 'git' -Arguments $Arguments `
-      -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput
-    return $result
-  } finally {
-    if ($originalLocation) {
-      Set-Location -LiteralPath $originalLocation
-    }
-  }
+  $result = Invoke-NativeCommand -Command 'git' -Arguments $gitArgs `
+    -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput
+  return $result
 }
 
 <#
@@ -421,6 +419,11 @@ function Export-EventLog {
     [string]$Query
   )
 
+  # Validate XPath query contains only safe characters to prevent injection
+  if ($Query -and $Query -notmatch '^[a-zA-Z0-9\s\[\]/\x27"=*@\.\-_(),]+$') {
+    throw "Export-EventLog: Query contains unsafe characters. Only letters, digits, spaces, brackets, slashes, quotes, equals, stars, at-signs, dots, hyphens, underscores, parentheses, and commas are allowed."
+  }
+
   $wevtArgs = @('epl', $LogName, $OutputPath, '/ow:true')
   if ($Query) {
     $wevtArgs += "/q:`"$Query`""
@@ -466,7 +469,13 @@ function New-ScheduledTask {
   )
 
   # S16 fix: validate TaskName to prevent path traversal in task folders and special chars.
-  # Callers are responsible for validating $TaskRun content.
+  # Callers are responsible for validating $TaskRun content beyond these basic guards.
+  if ($TaskRun -match '^-') {
+    throw "New-ScheduledTask: TaskRun must not start with '-' (option injection prevention)."
+  }
+  if ($TaskRun -match '\.\.') {
+    throw "New-ScheduledTask: TaskRun must not contain '..' (path traversal prevention)."
+  }
   if ($TaskName -notmatch '^[a-zA-Z0-9\-_\\]+$') {
     throw "New-ScheduledTask: TaskName contains invalid characters. Only alphanumeric, hyphens, underscores, and backslashes (for task folders) are allowed."
   }

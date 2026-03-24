@@ -312,8 +312,8 @@ $btnRunScript.Add_Click({
 
   $mode = [string]$cmbMode.SelectedItem
   $scriptArgs = Parse-ArgumentString -ArgString $txtArgs.Text
-  if ($mode -eq 'Remediate' -and $scriptArgs -notcontains '-Remediate') {
-    $scriptArgs += '-Remediate'
+  if ($mode -eq 'Remediate' -and $scriptArgs -notcontains '-Mode') {
+    $scriptArgs += @('-Mode', 'Remediate')
   }
 
   $txtOutput.AppendText("[RUN] Script: $($selected.Name)`r`n")

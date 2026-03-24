@@ -18,8 +18,8 @@ health events to the Windows Application Event Log.
   Alias for Source.
 .PARAMETER LogName
   Event log name (default: Application).
-.PARAMETER OnError
-  Scriptblock invoked with error message on failure.
+.PARAMETER OnErrorMessage
+  Warning message string to emit on failure (replaces former scriptblock parameter).
 #>
 function Ensure-EventSource {
   [CmdletBinding()]
@@ -27,7 +27,7 @@ function Ensure-EventSource {
     [string]$Source,
     [Alias('SourceName')][string]$SourceName,
     [Alias('Log')][string]$LogName,
-    [scriptblock]$OnError
+    [string]$OnErrorMessage
   )
   if (-not $Source -and $SourceName) { $Source = $SourceName }
   if ([string]::IsNullOrWhiteSpace($Source)) {
@@ -40,7 +40,7 @@ function Ensure-EventSource {
     if ([string]::IsNullOrWhiteSpace($LogName)) { $LogName = 'Application' }
   }
   if ([string]::IsNullOrWhiteSpace($Source)) {
-    if ($OnError) { & $OnError 'Ensure-EventSource: -Source or -SourceName is required, or set EventSource/EventSourceName in caller scope.' }
+    if ($OnErrorMessage) { Write-Warning $OnErrorMessage } else { Write-Warning 'Ensure-EventSource: -Source or -SourceName is required, or set EventSource/EventSourceName in caller scope.' }
     return $false
   }
 
@@ -50,7 +50,7 @@ function Ensure-EventSource {
     }
     return $true
   } catch {
-    if ($OnError) { & $OnError ($_.Exception.Message) }
+    if ($OnErrorMessage) { Write-Warning $OnErrorMessage } else { Write-Warning $_.Exception.Message }
     return $false
   }
 }
@@ -68,8 +68,8 @@ function Ensure-EventSource {
   Event source name. Falls back to caller-scope EventSource variable.
 .PARAMETER LogName
   Event log name. Falls back to caller-scope EventLogName variable.
-.PARAMETER OnError
-  Scriptblock invoked with error message on failure.
+.PARAMETER OnErrorMessage
+  Warning message string to emit on failure (replaces former scriptblock parameter).
 #>
 function Write-HealthEvent {
   [CmdletBinding()]
@@ -79,7 +79,7 @@ function Write-HealthEvent {
     [ValidateSet('Information','Warning','Error')][string]$Level = 'Information',
     [string]$Source,
     [Alias('Log')][string]$LogName,
-    [scriptblock]$OnError
+    [string]$OnErrorMessage
   )
 
   if (-not $Source) {
@@ -93,7 +93,7 @@ function Write-HealthEvent {
 
   if ([string]::IsNullOrWhiteSpace($Source) -or [string]::IsNullOrWhiteSpace($LogName)) {
     $msg = 'Write-HealthEvent: Source or LogName is missing. Set EventSource/EventSourceName and EventLogName/EventLog in caller scope or pass -Source and -LogName.'
-    if ($OnError) { & $OnError $msg }
+    if ($OnErrorMessage) { Write-Warning $OnErrorMessage } else { Write-Warning $msg }
     return $false
   }
 
@@ -101,7 +101,7 @@ function Write-HealthEvent {
     Write-EventLog -LogName $LogName -Source $Source -EntryType $Level -EventId $Id -Message $Message -ErrorAction Stop
     return $true
   } catch {
-    if ($OnError) { & $OnError ($_.Exception.Message) }
+    if ($OnErrorMessage) { Write-Warning $OnErrorMessage } else { Write-Warning $_.Exception.Message }
     return $false
   }
 }

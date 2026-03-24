@@ -70,6 +70,10 @@ function Save-Csv {
     [string]$Path
   )
 
+  if ($Path -match '\.\.') {
+    throw 'Save-Csv: Path must not contain ".." (path traversal not allowed).'
+  }
+
   $dir = Split-Path -Path $Path -Parent
   if (-not [string]::IsNullOrWhiteSpace($dir) -and -not (Test-Path -LiteralPath $dir)) {
     New-Item -Path $dir -ItemType Directory -Force | Out-Null

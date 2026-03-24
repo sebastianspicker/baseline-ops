@@ -19,6 +19,10 @@ function Get-CallerValue {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Name)
 
+  # Search scopes 1 through 3 (immediate caller up to 3 levels up).
+  # Scope 1 = direct caller, 2 = caller's caller, 3 = one more level up.
+  # Limitation: variables defined more than 3 scopes above will not be found.
+  # This covers the common patterns: script -> module function -> helper.
   foreach ($scope in 1..3) {
     try {
       $var = Get-Variable -Name $Name -Scope $scope -ErrorAction Stop

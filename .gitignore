@@ -61,6 +61,10 @@ PHYSICS_AUDIT.md
 validation.md
 HANDOFF.md
 
+# Development artifacts
+ralph-loop/
+plans/
+
 # CI/test artifacts
 coverage/
 test-results/

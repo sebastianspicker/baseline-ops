@@ -20,18 +20,9 @@ if (-not [string]::IsNullOrWhiteSpace($scriptDir) -and (Test-Path -LiteralPath $
     Pop-Location
   }
 } else {
-  # When PSScriptRoot is null/empty (e.g. dot-sourced from host), try to resolve LibPath from current location
-  $cwd = Get-Location
-  if ($cwd -and $cwd.Provider.Name -eq 'FileSystem') {
-    try {
-      $resolved = Resolve-Path -LiteralPath $script:LibPath -ErrorAction Stop
-      if ($resolved -and (Test-Path -LiteralPath $resolved.Path -PathType Container)) {
-        $script:LibPath = $resolved.Path
-      }
-    } catch {
-      # Keep relative LibPath if resolution fails
-    }
-  }
+  # PSScriptRoot is null/empty - this means Bootstrap.ps1 was invoked interactively
+  # (e.g. dot-sourced from the console), which is not a supported execution path.
+  throw "Bootstrap must be invoked from a script file, not interactively. `$PSScriptRoot is empty."
 }
 
 <#

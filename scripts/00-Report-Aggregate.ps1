@@ -69,6 +69,12 @@ $items = New-Object System.Collections.ArrayList
 foreach ($file in $files) {
   try {
     $obj = Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+    # Validate that parsed JSON has required v2 result properties before including
+    $props = if ($null -ne $obj) { @($obj.PSObject.Properties.Name) } else { @() }
+    if ($props -notcontains 'ScriptName' -or $props -notcontains 'Result' -or $props -notcontains 'Mode') {
+      Write-Warning "Skipping '$file': missing required properties (ScriptName, Result, Mode)."
+      continue
+    }
     [void]$items.Add([pscustomobject]@{
         File   = $file
         Result = [string]$obj.Result
@@ -76,12 +82,7 @@ foreach ($file in $files) {
         Mode   = [string]$obj.Mode
       })
   } catch {
-    [void]$items.Add([pscustomobject]@{
-        File   = $file
-        Result = 'FAIL'
-        Script = 'UNKNOWN'
-        Mode   = 'Audit'
-      })
+    Write-Warning "Skipping '$file': failed to parse JSON - $($_.Exception.Message)"
   }
 }
 

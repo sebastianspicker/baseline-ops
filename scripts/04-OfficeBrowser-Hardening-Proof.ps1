@@ -1,3 +1,5 @@
+# TODO: This script exceeds 800 lines (1055 lines). Decompose into smaller modules
+# (e.g., separate Office, Edge, and Firefox checks into dedicated files).
 #requires -version 5.1
 <#
 .SYNOPSIS
