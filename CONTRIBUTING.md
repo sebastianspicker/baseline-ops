@@ -40,7 +40,7 @@ Root docs are intentionally minimal:
 - `SECURITY.md`
 - `CHANGELOG.md`
 
-Move implementation plans and experiments to `plans/` or PR descriptions.
+Move implementation plans and experiments to PR descriptions.
 
 ## Dev-only maintenance scripts
 

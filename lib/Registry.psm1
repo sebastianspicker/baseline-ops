@@ -62,10 +62,14 @@ function Set-RegDword {
   param(
     [Parameter(Mandatory)][string]$Path,
     [Parameter(Mandatory)][string]$Name,
-    [Parameter(Mandatory)][int]$Value
+    [Parameter(Mandatory)][int]$Value,
+    [string[]]$AllowedPrefixes
   )
 
   if ([string]::IsNullOrWhiteSpace($Name)) { throw "Registry value name cannot be empty." }
+  if ($AllowedPrefixes -and -not ($AllowedPrefixes | Where-Object { $Path.StartsWith($_, 'OrdinalIgnoreCase') })) {
+    throw "Registry path not in allowed prefixes"
+  }
 
   try {
     Ensure-RegistryKey -Path $Path
@@ -92,10 +96,14 @@ function Set-RegString {
   param(
     [Parameter(Mandatory)][string]$Path,
     [Parameter(Mandatory)][string]$Name,
-    [Parameter(Mandatory)][string]$Value
+    [Parameter(Mandatory)][string]$Value,
+    [string[]]$AllowedPrefixes
   )
 
   if ([string]::IsNullOrWhiteSpace($Name)) { throw "Registry value name cannot be empty." }
+  if ($AllowedPrefixes -and -not ($AllowedPrefixes | Where-Object { $Path.StartsWith($_, 'OrdinalIgnoreCase') })) {
+    throw "Registry path not in allowed prefixes"
+  }
 
   try {
     Ensure-RegistryKey -Path $Path

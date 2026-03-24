@@ -30,7 +30,7 @@ Example: "SHA256:ABC123..." or just "ABC123..."
 
 .PARAMETER HashAlgorithm
 Hash algorithm to use for verification (default: SHA256).
-Valid values: SHA256, SHA384, SHA512, MD5, SHA1
+Valid values: SHA256, SHA384, SHA512
 
 .EXAMPLE
 .\00-Run-Local.ps1 -ScriptName 18-Firewall-Baseline.ps1
@@ -65,13 +65,15 @@ param(
 
   [string[]]$ScriptArgs,
 
+  # Default deployment path. Override with -RootPath to use a different location
+  # (e.g., -RootPath 'D:\mdm\ps1' or via environment variable in your deployment pipeline).
   [string]$RootPath = 'C:\install\mdm\ps1',
 
   [switch]$RequireSigned,
 
   [string]$ExpectedHash,
 
-  [ValidateSet('SHA256','SHA384','SHA512','MD5','SHA1')]
+  [ValidateSet('SHA256','SHA384','SHA512')]
   [string]$HashAlgorithm = 'SHA256'
 
 ,

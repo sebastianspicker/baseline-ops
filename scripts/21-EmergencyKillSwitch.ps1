@@ -378,6 +378,10 @@ function Schedule-AutoRollback {
       Add-RunError "Schedule-AutoRollback: RuleNames entry '$rn' contains a single quote, which is not allowed"
       return $false
     }
+    if ($rn -match '[`$;{}]') {
+      Add-RunError "Schedule-AutoRollback: RuleNames entry '$rn' contains invalid characters (backtick, dollar, semicolon, or braces)"
+      return $false
+    }
   }
 
   $runAt = (Get-Date).AddMinutes($Minutes)
@@ -390,8 +394,19 @@ function Schedule-AutoRollback {
 function Write-RollbackLog { param([string]`$Message) try { Add-Content -Path `$logPath -Value "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') `$Message" } catch { <# best-effort: log file may not be writable #> } }
 try {
   Write-RollbackLog 'Starting rollback...'
-  Set-NetFirewallProfile -All -Enabled True -DefaultInboundAction Allow -DefaultOutboundAction Allow
-  Write-RollbackLog 'Firewall profiles reset to Allow'
+  `$fwStatePath = Join-Path `$env:TEMP 'KillSwitch-PreFirewallState.json'
+  if (Test-Path -LiteralPath `$fwStatePath) {
+    `$saved = Get-Content -LiteralPath `$fwStatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach (`$profileName in `$saved.PSObject.Properties.Name) {
+      `$s = `$saved.`$profileName
+      Set-NetFirewallProfile -Name `$profileName -Enabled `$s.Enabled -DefaultInboundAction `$s.DefaultInboundAction -DefaultOutboundAction `$s.DefaultOutboundAction
+    }
+    Write-RollbackLog 'Firewall profiles restored from saved pre-kill-switch state'
+    Remove-Item -LiteralPath `$fwStatePath -Force -ErrorAction SilentlyContinue
+  } else {
+    Set-NetFirewallProfile -All -Enabled True -DefaultInboundAction Allow -DefaultOutboundAction Allow
+    Write-RollbackLog 'No saved firewall state found; firewall profiles reset to Allow (fallback)'
+  }
   try {
     Get-NetFirewallRule -Name '$($RuleNames -join "','")' | Remove-NetFirewallRule -ErrorAction Stop
     Write-RollbackLog 'Kill switch rules removed'
@@ -571,6 +586,23 @@ try {
 
   if ($Run.Effective.AutoRollbackMinutes -gt 0) {
     $Run.Actions.RollbackScheduled = Schedule-AutoRollback -Minutes $Run.Effective.AutoRollbackMinutes -TaskName $Run.Effective.TaskName -RuleNames $RuleNames
+  }
+
+  # Capture current firewall profile settings before applying kill switch so rollback can restore them
+  $preKillSwitchFirewallState = @{}
+  try {
+    foreach ($fwProfile in Get-NetFirewallProfile) {
+      $preKillSwitchFirewallState[$fwProfile.Name] = @{
+        Enabled              = [string]$fwProfile.Enabled
+        DefaultInboundAction = [string]$fwProfile.DefaultInboundAction
+        DefaultOutboundAction = [string]$fwProfile.DefaultOutboundAction
+      }
+    }
+    $fwStateJson = $preKillSwitchFirewallState | ConvertTo-Json -Depth 4 -Compress
+    $fwStatePath = Join-Path $env:TEMP 'KillSwitch-PreFirewallState.json'
+    Set-Content -LiteralPath $fwStatePath -Value $fwStateJson -Encoding UTF8 -Force
+  } catch {
+    Add-RunError "Failed to capture pre-kill-switch firewall state: $($_.Exception.Message)"
   }
 
   if ($PSCmdlet.ShouldProcess("Windows Firewall Profiles", "Enable firewall + set DefaultInboundAction=Block, DefaultOutboundAction=Block")) {

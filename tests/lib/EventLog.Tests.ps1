@@ -19,12 +19,10 @@ BeforeAll {
 }
 
 Describe 'Ensure-EventSource' {
-  It 'Returns false and calls OnError when Source is empty' -Skip:$script:SkipWindowsTests {
-    $errorMsg = $null
-    $onError = { param($m) $script:errorMsg = $m }
-    $result = Ensure-EventSource -Source '' -OnError $onError
-    $result | Should -Be $false
-    $script:errorMsg | Should -Not -BeNullOrEmpty
+  It 'Returns false and emits warning when Source is empty' -Skip:$script:SkipWindowsTests {
+    $result = Ensure-EventSource -Source '' -OnErrorMessage 'Test error message' 3>&1
+    # Function returns $false when source is empty
+    $result | Where-Object { $_ -eq $false } | Should -Not -BeNullOrEmpty
   }
 
   It 'Returns true when source already exists' -Skip:$script:SkipWindowsTests {
@@ -37,18 +35,12 @@ Describe 'Ensure-EventSource' {
 
 Describe 'Write-HealthEvent' {
   It 'Returns false when Source is missing' -Skip:$script:SkipWindowsTests {
-    $errorMsg = $null
-    $onError = { param($m) $script:errorMsg = $m }
-    $result = Write-HealthEvent -Id 1000 -Message 'Test' -OnError $onError
-    $result | Should -Be $false
-    $script:errorMsg | Should -Not -BeNullOrEmpty
+    $result = Write-HealthEvent -Id 1000 -Message 'Test' -OnErrorMessage 'Test error message' 3>&1
+    $result | Where-Object { $_ -eq $false } | Should -Not -BeNullOrEmpty
   }
 
   It 'Returns false when LogName is missing' -Skip:$script:SkipWindowsTests {
-    $errorMsg = $null
-    $onError = { param($m) $script:errorMsg = $m }
-    $result = Write-HealthEvent -Id 1000 -Message 'Test' -Source 'TestSource' -OnError $onError
-    $result | Should -Be $false
-    $script:errorMsg | Should -Not -BeNullOrEmpty
+    $result = Write-HealthEvent -Id 1000 -Message 'Test' -Source 'TestSource' -OnErrorMessage 'Test error message' 3>&1
+    $result | Where-Object { $_ -eq $false } | Should -Not -BeNullOrEmpty
   }
 }

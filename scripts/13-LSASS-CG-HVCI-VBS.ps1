@@ -240,6 +240,16 @@ function Try-LoadJsonConfig {
       }
     }
 
+    # Warn if any Baseline_* value has been set to 0 or disabled by the config file
+    foreach ($k in $cfg.Keys) {
+      if ($k -like 'Baseline_*') {
+        $val = $cfg[$k]
+        if ($val -eq 0 -or $val -eq $false) {
+          Write-Warning "Configuration weakens security: $k set to $val"
+        }
+      }
+    }
+
     return [pscustomobject]@{ Config=$cfg; Loaded=$true; Reason='Config loaded' }
   } catch {
     return [pscustomobject]@{ Config=$cfg; Loaded=$false; Reason=('Invalid JSON (using defaults): ' + $_.Exception.Message) }

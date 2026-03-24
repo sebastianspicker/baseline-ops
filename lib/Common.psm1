@@ -19,6 +19,10 @@ function Get-CallerValue {
   [CmdletBinding()]
   param([Parameter(Mandatory)][string]$Name)
 
+  # Search scopes 1 through 3 (immediate caller up to 3 levels up).
+  # Scope 1 = direct caller, 2 = caller's caller, 3 = one more level up.
+  # Limitation: variables defined more than 3 scopes above will not be found.
+  # This covers the common patterns: script -> module function -> helper.
   foreach ($scope in 1..3) {
     try {
       $var = Get-Variable -Name $Name -Scope $scope -ErrorAction Stop
@@ -59,8 +63,10 @@ function Require-Admin {
     [string]$Message = 'Administrative privileges are required. Run the script elevated.'
   )
   if (-not (Test-IsAdmin)) {
-    # We only throw if on Windows, otherwise we just warn for Mac testing.
-    if ($IsWindows) {
+    # $IsWindows automatic variable only exists in PS Core (6+).
+    # PS Desktop (5.1) runs exclusively on Windows, so treat it as always-Windows.
+    $isWindowsPlatform = if ($PSVersionTable.PSEdition -eq 'Core') { $IsWindows } else { $true }
+    if ($isWindowsPlatform) {
       throw $Message
     } else {
       Write-Warning "Non-Windows OS detected; skipping administrative check for testing: $Message"

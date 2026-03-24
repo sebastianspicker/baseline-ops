@@ -53,6 +53,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 
 Set-StrictMode -Version Latest
 # v2-init
@@ -90,6 +91,9 @@ if (-not [string]::IsNullOrWhiteSpace($RepoPath) -and $RepoPath -match '^\s*-') 
 }
 if (-not [string]::IsNullOrWhiteSpace($RepoRef) -and $RepoRef -match '^\s*-') {
   throw 'RepoRef must not start with "-" or leading whitespace (option injection prevention).'
+}
+if (-not [string]::IsNullOrWhiteSpace($RepoRef) -and -not (Test-ValidGitRef -Ref $RepoRef)) {
+  throw "RepoRef '$RepoRef' is not a valid git ref (contains invalid characters or patterns)."
 }
 $destRootFull = [System.IO.Path]::GetFullPath($DestinationRoot)
 $destRootRoot = [System.IO.Path]::GetPathRoot($destRootFull).TrimEnd([System.IO.Path]::DirectorySeparatorChar)

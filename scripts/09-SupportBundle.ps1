@@ -1,3 +1,5 @@
+# TODO: This script exceeds 800 lines (970 lines). Decompose into smaller modules
+# (e.g., separate diagnostics collection, event log export, and ZIP packaging into dedicated files).
 #requires -version 5.1
 <#
 .SYNOPSIS

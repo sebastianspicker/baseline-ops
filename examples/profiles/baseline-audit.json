@@ -1,4 +1,5 @@
 {
+  "_NOTE": "PRODUCTION: Set Integrity.RequireSigned to true and populate Integrity.ExpectedHashes with per-script SHA256 hashes before deploying to production environments.",
   "ProfileName": "baseline-audit",
   "Version": "2.0",
   "Defaults": {

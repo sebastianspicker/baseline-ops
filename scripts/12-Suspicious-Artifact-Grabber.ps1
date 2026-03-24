@@ -1,3 +1,5 @@
+# TODO: This script exceeds 800 lines (1102 lines). Decompose into smaller modules
+# (e.g., separate artifact collectors, packaging logic, and reporting into dedicated files).
 #requires -version 5.1
 <#
 .SYNOPSIS

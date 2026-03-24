@@ -341,21 +341,51 @@ function Apply-ArgsOverlay {
 
   if ($null -eq $ArgsList -or $ArgsList.Count -eq 0) { return $Config }
 
-  if ($ArgsList.Count -ge 1 -and $ArgsList[0]) { $Config['Mode'] = [string]$ArgsList[0] }
-  if ($ArgsList.Count -ge 2 -and $ArgsList[1]) { $Config['TargetRunAsPPL'] = [int]$ArgsList[1] }
-
-  if ($ArgsList.Count -ge 3 -and $ArgsList[2]) { if ([string]$ArgsList[2] -ieq 'Boot') { $Config['ManageRunAsPPLBoot'] = $true } }
-  if ($ArgsList.Count -ge 4 -and $ArgsList[3]) { if ([string]$ArgsList[3] -ieq 'Verify') { $Config['Verify'] = $true } }
-  if ($ArgsList.Count -ge 5 -and $ArgsList[4]) { $Config['VerifyLookbackHours'] = [int]$ArgsList[4] }
-  if ($ArgsList.Count -ge 6 -and $ArgsList[5]) { if ([string]$ArgsList[5] -ieq 'CI') { $Config['CollectCodeIntegrity'] = $true } }
-  if ($ArgsList.Count -ge 7 -and $ArgsList[6]) { $Config['CILookbackHours'] = [int]$ArgsList[6] }
-  if ($ArgsList.Count -ge 8 -and $ArgsList[7]) { $Config['DisableMethod'] = [string]$ArgsList[7] }
-
-  if ($ArgsList.Count -ge 10 -and $ArgsList[8] -and $ArgsList[9]) {
-    if ([string]$ArgsList[8] -ieq 'Export') { $Config['ExportPath'] = [string]$ArgsList[9] }
+  if ($ArgsList.Count -ge 1 -and $ArgsList[0]) {
+    Write-Warning "LegacyArgs overriding parameter 'Mode' to value '$([string]$ArgsList[0])'"
+    $Config['Mode'] = [string]$ArgsList[0]
+  }
+  if ($ArgsList.Count -ge 2 -and $ArgsList[1]) {
+    Write-Warning "LegacyArgs overriding parameter 'TargetRunAsPPL' to value '$([int]$ArgsList[1])'"
+    $Config['TargetRunAsPPL'] = [int]$ArgsList[1]
   }
 
-  if (Has-Token -ArgsList $ArgsList -Token 'Quiet') { $Config['Quiet'] = $true }
+  if ($ArgsList.Count -ge 3 -and $ArgsList[2]) { if ([string]$ArgsList[2] -ieq 'Boot') {
+    Write-Warning "LegacyArgs overriding parameter 'ManageRunAsPPLBoot' to value 'True'"
+    $Config['ManageRunAsPPLBoot'] = $true
+  } }
+  if ($ArgsList.Count -ge 4 -and $ArgsList[3]) { if ([string]$ArgsList[3] -ieq 'Verify') {
+    Write-Warning "LegacyArgs overriding parameter 'Verify' to value 'True'"
+    $Config['Verify'] = $true
+  } }
+  if ($ArgsList.Count -ge 5 -and $ArgsList[4]) {
+    Write-Warning "LegacyArgs overriding parameter 'VerifyLookbackHours' to value '$([int]$ArgsList[4])'"
+    $Config['VerifyLookbackHours'] = [int]$ArgsList[4]
+  }
+  if ($ArgsList.Count -ge 6 -and $ArgsList[5]) { if ([string]$ArgsList[5] -ieq 'CI') {
+    Write-Warning "LegacyArgs overriding parameter 'CollectCodeIntegrity' to value 'True'"
+    $Config['CollectCodeIntegrity'] = $true
+  } }
+  if ($ArgsList.Count -ge 7 -and $ArgsList[6]) {
+    Write-Warning "LegacyArgs overriding parameter 'CILookbackHours' to value '$([int]$ArgsList[6])'"
+    $Config['CILookbackHours'] = [int]$ArgsList[6]
+  }
+  if ($ArgsList.Count -ge 8 -and $ArgsList[7]) {
+    Write-Warning "LegacyArgs overriding parameter 'DisableMethod' to value '$([string]$ArgsList[7])'"
+    $Config['DisableMethod'] = [string]$ArgsList[7]
+  }
+
+  if ($ArgsList.Count -ge 10 -and $ArgsList[8] -and $ArgsList[9]) {
+    if ([string]$ArgsList[8] -ieq 'Export') {
+      Write-Warning "LegacyArgs overriding parameter 'ExportPath' to value '$([string]$ArgsList[9])'"
+      $Config['ExportPath'] = [string]$ArgsList[9]
+    }
+  }
+
+  if (Has-Token -ArgsList $ArgsList -Token 'Quiet') {
+    Write-Warning "LegacyArgs overriding parameter 'Quiet' to value 'True'"
+    $Config['Quiet'] = $true
+  }
   return $Config
 }
 
@@ -527,40 +557,50 @@ if ($Mode -eq 'Remediate') {
 
     if ($DisableMethod -ieq 'DeleteValue') {
       if ($null -ne $current.RunAsPPL) {
-        if (Remove-RegValueIfExists -Path $lsaPath -Name 'RunAsPPL') {
-          $rebootRequired = $true
-          $Changes.Add(("RunAsPPL: {0} -> <deleted>" -f (Format-Nullable $current.RunAsPPL))) | Out-Null
+        if ($PSCmdlet.ShouldProcess("$lsaPath\RunAsPPL", "Remove registry value")) {
+          if (Remove-RegValueIfExists -Path $lsaPath -Name 'RunAsPPL') {
+            $rebootRequired = $true
+            $Changes.Add(("RunAsPPL: {0} -> <deleted>" -f (Format-Nullable $current.RunAsPPL))) | Out-Null
+          }
         }
       }
     } else {
       if ($current.RunAsPPL -ne 0) {
-        Set-RegDword -Path $lsaPath -Name 'RunAsPPL' -Value 0
-        $rebootRequired = $true
-        $Changes.Add(("RunAsPPL: {0} -> 0" -f (Format-Nullable $current.RunAsPPL))) | Out-Null
+        if ($PSCmdlet.ShouldProcess("$lsaPath\RunAsPPL", "Set registry value to 0")) {
+          Set-RegDword -Path $lsaPath -Name 'RunAsPPL' -Value 0
+          $rebootRequired = $true
+          $Changes.Add(("RunAsPPL: {0} -> 0" -f (Format-Nullable $current.RunAsPPL))) | Out-Null
+        }
       }
     }
 
     if ($ManageBoot) {
       if ($current.RunAsPPLBoot -ne 0) {
-        Set-RegDword -Path $lsaPath -Name 'RunAsPPLBoot' -Value 0
-        $rebootRequired = $true
-        $Changes.Add(("RunAsPPLBoot: {0} -> 0" -f (Format-Nullable $current.RunAsPPLBoot))) | Out-Null
+        if ($PSCmdlet.ShouldProcess("$lsaPath\RunAsPPLBoot", "Set registry value to 0")) {
+          Set-RegDword -Path $lsaPath -Name 'RunAsPPLBoot' -Value 0
+          $rebootRequired = $true
+          $Changes.Add(("RunAsPPLBoot: {0} -> 0" -f (Format-Nullable $current.RunAsPPLBoot))) | Out-Null
+        }
       }
     }
 
   } else {
 
     if ($current.RunAsPPL -ne $TargetRunAsPPL) {
-      Set-RegDword -Path $lsaPath -Name 'RunAsPPL' -Value $TargetRunAsPPL
-      $rebootRequired = $true
-      $Changes.Add(("RunAsPPL: {0} -> {1}" -f (Format-Nullable $current.RunAsPPL), $TargetRunAsPPL)) | Out-Null
+      if ($PSCmdlet.ShouldProcess("$lsaPath\RunAsPPL", "Set registry value to $TargetRunAsPPL")) {
+        Set-RegDword -Path $lsaPath -Name 'RunAsPPL' -Value $TargetRunAsPPL
+        $rebootRequired = $true
+        $Changes.Add(("RunAsPPL: {0} -> {1}" -f (Format-Nullable $current.RunAsPPL), $TargetRunAsPPL)) | Out-Null
+      }
     }
 
     if ($ManageBoot) {
       if ($current.RunAsPPLBoot -ne $TargetRunAsPPL) {
-        Set-RegDword -Path $lsaPath -Name 'RunAsPPLBoot' -Value $TargetRunAsPPL
-        $rebootRequired = $true
-        $Changes.Add(("RunAsPPLBoot: {0} -> {1}" -f (Format-Nullable $current.RunAsPPLBoot), $TargetRunAsPPL)) | Out-Null
+        if ($PSCmdlet.ShouldProcess("$lsaPath\RunAsPPLBoot", "Set registry value to $TargetRunAsPPL")) {
+          Set-RegDword -Path $lsaPath -Name 'RunAsPPLBoot' -Value $TargetRunAsPPL
+          $rebootRequired = $true
+          $Changes.Add(("RunAsPPLBoot: {0} -> {1}" -f (Format-Nullable $current.RunAsPPLBoot), $TargetRunAsPPL)) | Out-Null
+        }
       }
     }
 
