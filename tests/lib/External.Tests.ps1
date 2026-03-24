@@ -117,12 +117,12 @@ Describe 'Invoke-Git' {
   }
 }
 
-Describe 'New-ScheduledTask' -Skip:$script:SkipWindowsTests {
+Describe 'New-MdmScheduledTask' -Skip:$script:SkipWindowsTests {
   It 'Rejects TaskName with invalid characters' {
-    { New-ScheduledTask -TaskName 'bad;task' -TaskRun 'cmd.exe' } | Should -Throw '*invalid characters*'
+    { New-MdmScheduledTask -TaskName 'bad;task' -TaskRun 'cmd.exe' } | Should -Throw '*invalid characters*'
   }
 
   It 'Rejects TaskName with special characters' {
-    { New-ScheduledTask -TaskName 'task$(evil)' -TaskRun 'cmd.exe' } | Should -Throw '*invalid characters*'
+    { New-MdmScheduledTask -TaskName 'task$(evil)' -TaskRun 'cmd.exe' } | Should -Throw '*invalid characters*'
   }
 }

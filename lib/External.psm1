@@ -449,7 +449,7 @@ function Export-EventLog {
 .PARAMETER Force
   Overwrite an existing task with the same name.
 #>
-function New-ScheduledTask {
+function New-MdmScheduledTask {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
@@ -471,13 +471,13 @@ function New-ScheduledTask {
   # S16 fix: validate TaskName to prevent path traversal in task folders and special chars.
   # Callers are responsible for validating $TaskRun content beyond these basic guards.
   if ($TaskRun -match '^-') {
-    throw "New-ScheduledTask: TaskRun must not start with '-' (option injection prevention)."
+    throw "New-MdmScheduledTask: TaskRun must not start with '-' (option injection prevention)."
   }
   if ($TaskRun -match '\.\.') {
-    throw "New-ScheduledTask: TaskRun must not contain '..' (path traversal prevention)."
+    throw "New-MdmScheduledTask: TaskRun must not contain '..' (path traversal prevention)."
   }
   if ($TaskName -notmatch '^[a-zA-Z0-9\-_\\]+$') {
-    throw "New-ScheduledTask: TaskName contains invalid characters. Only alphanumeric, hyphens, underscores, and backslashes (for task folders) are allowed."
+    throw "New-MdmScheduledTask: TaskName contains invalid characters. Only alphanumeric, hyphens, underscores, and backslashes (for task folders) are allowed."
   }
 
   $taskArgs = @('/Create', '/TN', $TaskName, '/SC', $Schedule, '/TR', $TaskRun, '/RL', $RunLevel)
@@ -550,6 +550,6 @@ Export-ModuleMember -Function `
   Enable-EventLog, `
   Set-EventLogMaxSize, `
   Export-EventLog, `
-  New-ScheduledTask, `
+  New-MdmScheduledTask, `
   Remove-ScheduledTask, `
   Export-RegistryKey

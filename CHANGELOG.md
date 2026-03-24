@@ -55,7 +55,7 @@ All notable changes to this project are documented in this file.
   dangerous winget `ExtraArgs` filtering, hardcoded WinRM CIM filter safety comment,
   SupportBundle wevtutil refactored to wrapper, `Export-ScheduledTask` path traversal
   check, environment variable expansion before traversal check in `Evidence.psm1`,
-  `New-ScheduledTask` TaskName input validation, Sysmon drift sensor ScriptPath validation.
+  `New-MdmScheduledTask` TaskName input validation, Sysmon drift sensor ScriptPath validation.
 - **Static analysis fixes (Phase 2.2)**: added `Set-StrictMode -Version Latest` to
   3 scripts missing it, fixed `$null` ordering (`$LASTEXITCODE -eq $null` to
   `$null -eq $LASTEXITCODE`), removed unused variable assignments (`$eventLogReady`,
