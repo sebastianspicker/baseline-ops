@@ -249,7 +249,7 @@ function Get-REG {
   try { (Get-ItemProperty -Path $Path -ErrorAction Stop).$Name } catch { $null }
 }
 
-function Set-REGDWORD {
+function Set-WufbDword {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$Path,
@@ -533,7 +533,7 @@ try {
   $doPol = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization'
 
   if (([string]$cat.UpdateSource) -eq 'WSUS') {
-    $r = Set-REGDWORD -Path $auPol -Name 'UseWUServer' -Value 1 -Remediate:$Remediate
+    $r = Set-WufbDword -Path $auPol -Name 'UseWUServer' -Value 1 -Remediate:$Remediate
     Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
     if ([string]::IsNullOrWhiteSpace([string]$cat.WSUS.WUServer)) {
@@ -552,7 +552,7 @@ try {
       Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
     }
   } else {
-    $r = Set-REGDWORD -Path $auPol -Name 'UseWUServer' -Value 0 -Remediate:$Remediate
+    $r = Set-WufbDword -Path $auPol -Name 'UseWUServer' -Value 0 -Remediate:$Remediate
     Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
     $r = Remove-REGValue -Path $wuPol -Name 'WUServer' -Remediate:$Remediate
@@ -571,16 +571,16 @@ try {
   if ($featureDays -lt 0 -or $featureDays -gt 365) { $notes.Add("Deferrals.FeatureDays out of range (0-365). Using default 30.") | Out-Null; $featureDays = 30 }
   if ($qualityDays -lt 0 -or $qualityDays -gt 35) { $notes.Add("Deferrals.QualityDays out of range (0-35). Using default 7.") | Out-Null; $qualityDays = 7 }
 
-  $r = Set-REGDWORD -Path $wuPol -Name 'DeferFeatureUpdates' -Value 1 -Remediate:$Remediate
+  $r = Set-WufbDword -Path $wuPol -Name 'DeferFeatureUpdates' -Value 1 -Remediate:$Remediate
   Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
-  $r = Set-REGDWORD -Path $wuPol -Name 'DeferFeatureUpdatesPeriodInDays' -Value $featureDays -Remediate:$Remediate
+  $r = Set-WufbDword -Path $wuPol -Name 'DeferFeatureUpdatesPeriodInDays' -Value $featureDays -Remediate:$Remediate
   Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
-  $r = Set-REGDWORD -Path $wuPol -Name 'DeferQualityUpdates' -Value 1 -Remediate:$Remediate
+  $r = Set-WufbDword -Path $wuPol -Name 'DeferQualityUpdates' -Value 1 -Remediate:$Remediate
   Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
-  $r = Set-REGDWORD -Path $wuPol -Name 'DeferQualityUpdatesPeriodInDays' -Value $qualityDays -Remediate:$Remediate
+  $r = Set-WufbDword -Path $wuPol -Name 'DeferQualityUpdatesPeriodInDays' -Value $qualityDays -Remediate:$Remediate
   Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
   $trEnable = $false
@@ -594,7 +594,7 @@ try {
       $notes.Add("TargetRelease enabled but missing ProductVersion/TargetReleaseVersionInfo. Disabling pinning.") | Out-Null
       $trEnable = $false
     } else {
-      $r = Set-REGDWORD -Path $wuPol -Name 'TargetReleaseVersion' -Value 1 -Remediate:$Remediate
+      $r = Set-WufbDword -Path $wuPol -Name 'TargetReleaseVersion' -Value 1 -Remediate:$Remediate
       Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
       $r = Set-REGSZ -Path $wuPol -Name 'ProductVersion' -Value $prod -Remediate:$Remediate
@@ -606,7 +606,7 @@ try {
   }
 
   if (-not $trEnable) {
-    $r = Set-REGDWORD -Path $wuPol -Name 'TargetReleaseVersion' -Value 0 -Remediate:$Remediate
+    $r = Set-WufbDword -Path $wuPol -Name 'TargetReleaseVersion' -Value 0 -Remediate:$Remediate
     Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
 
     $r = Remove-REGValue -Path $wuPol -Name 'ProductVersion' -Remediate:$Remediate
@@ -618,7 +618,7 @@ try {
 
   if ($null -ne $cat.DeliveryOptimization -and $null -ne $cat.DeliveryOptimization.DownloadMode) {
     try {
-      $r = Set-REGDWORD -Path $doPol -Name 'DODownloadMode' -Value ([int]$cat.DeliveryOptimization.DownloadMode) -Remediate:$Remediate
+      $r = Set-WufbDword -Path $doPol -Name 'DODownloadMode' -Value ([int]$cat.DeliveryOptimization.DownloadMode) -Remediate:$Remediate
       Add-Result -Result $r -Changes $changes -Drifts $drifts -Ok ([ref]$ok) -Ops $ops
     } catch {
       $notes.Add("DeliveryOptimization.DownloadMode invalid. Skipped.") | Out-Null

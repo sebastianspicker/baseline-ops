@@ -566,65 +566,83 @@ try {
 
     # LSASS PPL
     if ($result.Lsa_RunAsPPL -ne [int]$cfg.Baseline_LsaPpl_RunAsPPL) {
-      if (Set-RegDword -Path $lsaKey -Name 'RunAsPPL' -Value ([int]$cfg.Baseline_LsaPpl_RunAsPPL)) {
-        $result.RemediationActions += ("Set RunAsPPL={0}" -f [int]$cfg.Baseline_LsaPpl_RunAsPPL)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($lsaKey, "Set RunAsPPL=$([int]$cfg.Baseline_LsaPpl_RunAsPPL)")) {
+        if (Set-RegDword -Path $lsaKey -Name 'RunAsPPL' -Value ([int]$cfg.Baseline_LsaPpl_RunAsPPL)) {
+          $result.RemediationActions += ("Set RunAsPPL={0}" -f [int]$cfg.Baseline_LsaPpl_RunAsPPL)
+          $result.RebootRequired = $true
+        }
       }
     }
     if ($result.Lsa_RunAsPPLBoot -ne [int]$cfg.Baseline_LsaPpl_RunAsPPLBoot) {
-      if (Set-RegDword -Path $lsaKey -Name 'RunAsPPLBoot' -Value ([int]$cfg.Baseline_LsaPpl_RunAsPPLBoot)) {
-        $result.RemediationActions += ("Set RunAsPPLBoot={0}" -f [int]$cfg.Baseline_LsaPpl_RunAsPPLBoot)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($lsaKey, "Set RunAsPPLBoot=$([int]$cfg.Baseline_LsaPpl_RunAsPPLBoot)")) {
+        if (Set-RegDword -Path $lsaKey -Name 'RunAsPPLBoot' -Value ([int]$cfg.Baseline_LsaPpl_RunAsPPLBoot)) {
+          $result.RemediationActions += ("Set RunAsPPLBoot={0}" -f [int]$cfg.Baseline_LsaPpl_RunAsPPLBoot)
+          $result.RebootRequired = $true
+        }
       }
     }
 
     # VBS
     if ($result.Dg_EnableVbs -ne [int]$cfg.Baseline_Vbs_EnableVbs) {
-      if (Set-RegDword -Path $dgRoot -Name 'EnableVirtualizationBasedSecurity' -Value ([int]$cfg.Baseline_Vbs_EnableVbs)) {
-        $result.RemediationActions += ("Set EnableVirtualizationBasedSecurity={0}" -f [int]$cfg.Baseline_Vbs_EnableVbs)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($dgRoot, "Set EnableVirtualizationBasedSecurity=$([int]$cfg.Baseline_Vbs_EnableVbs)")) {
+        if (Set-RegDword -Path $dgRoot -Name 'EnableVirtualizationBasedSecurity' -Value ([int]$cfg.Baseline_Vbs_EnableVbs)) {
+          $result.RemediationActions += ("Set EnableVirtualizationBasedSecurity={0}" -f [int]$cfg.Baseline_Vbs_EnableVbs)
+          $result.RebootRequired = $true
+        }
       }
     }
     if (($null -eq $result.Dg_RequirePlatformSec) -or ($result.Dg_RequirePlatformSec -eq 0) -or ($result.Dg_RequirePlatformSec -ne [int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)) {
-      if (Set-RegDword -Path $dgRoot -Name 'RequirePlatformSecurityFeatures' -Value ([int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)) {
-        $result.RemediationActions += ("Set RequirePlatformSecurityFeatures={0}" -f [int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($dgRoot, "Set RequirePlatformSecurityFeatures=$([int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)")) {
+        if (Set-RegDword -Path $dgRoot -Name 'RequirePlatformSecurityFeatures' -Value ([int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)) {
+          $result.RemediationActions += ("Set RequirePlatformSecurityFeatures={0}" -f [int]$cfg.Baseline_Vbs_RequirePlatformSecurityFeatures)
+          $result.RebootRequired = $true
+        }
       }
     }
     if (($null -eq $result.Dg_Locked) -or ($result.Dg_Locked -ne [int]$cfg.Baseline_Vbs_Locked)) {
-      if (Set-RegDword -Path $dgRoot -Name 'Locked' -Value ([int]$cfg.Baseline_Vbs_Locked)) {
-        $result.RemediationActions += ("Set DeviceGuard Locked={0}" -f [int]$cfg.Baseline_Vbs_Locked)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($dgRoot, "Set DeviceGuard Locked=$([int]$cfg.Baseline_Vbs_Locked)")) {
+        if (Set-RegDword -Path $dgRoot -Name 'Locked' -Value ([int]$cfg.Baseline_Vbs_Locked)) {
+          $result.RemediationActions += ("Set DeviceGuard Locked={0}" -f [int]$cfg.Baseline_Vbs_Locked)
+          $result.RebootRequired = $true
+        }
       }
     }
 
     # Credential Guard (LsaCfgFlags 1/2)
     if ($result.Lsa_LsaCfgFlags -notin 1,2) {
-      if (Set-RegDword -Path $lsaKey -Name 'LsaCfgFlags' -Value ([int]$cfg.Baseline_CredentialGuard_LsaCfgFlags)) {
-        $result.RemediationActions += ("Set LsaCfgFlags={0}" -f [int]$cfg.Baseline_CredentialGuard_LsaCfgFlags)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($lsaKey, "Set LsaCfgFlags=$([int]$cfg.Baseline_CredentialGuard_LsaCfgFlags)")) {
+        if (Set-RegDword -Path $lsaKey -Name 'LsaCfgFlags' -Value ([int]$cfg.Baseline_CredentialGuard_LsaCfgFlags)) {
+          $result.RemediationActions += ("Set LsaCfgFlags={0}" -f [int]$cfg.Baseline_CredentialGuard_LsaCfgFlags)
+          $result.RebootRequired = $true
+        }
       }
     }
 
     # HVCI
     if ($result.Hvci_Enabled -ne [int]$cfg.Baseline_Hvci_Enabled) {
-      if (Set-RegDword -Path $scHVCI -Name 'Enabled' -Value ([int]$cfg.Baseline_Hvci_Enabled)) {
-        $result.RemediationActions += ("Set HVCI Enabled={0}" -f [int]$cfg.Baseline_Hvci_Enabled)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($scHVCI, "Set HVCI Enabled=$([int]$cfg.Baseline_Hvci_Enabled)")) {
+        if (Set-RegDword -Path $scHVCI -Name 'Enabled' -Value ([int]$cfg.Baseline_Hvci_Enabled)) {
+          $result.RemediationActions += ("Set HVCI Enabled={0}" -f [int]$cfg.Baseline_Hvci_Enabled)
+          $result.RebootRequired = $true
+        }
       }
     }
     if (($null -eq $result.Hvci_Locked) -or ($result.Hvci_Locked -ne [int]$cfg.Baseline_Hvci_Locked)) {
-      if (Set-RegDword -Path $scHVCI -Name 'Locked' -Value ([int]$cfg.Baseline_Hvci_Locked)) {
-        $result.RemediationActions += ("Set HVCI Locked={0}" -f [int]$cfg.Baseline_Hvci_Locked)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($scHVCI, "Set HVCI Locked=$([int]$cfg.Baseline_Hvci_Locked)")) {
+        if (Set-RegDword -Path $scHVCI -Name 'Locked' -Value ([int]$cfg.Baseline_Hvci_Locked)) {
+          $result.RemediationActions += ("Set HVCI Locked={0}" -f [int]$cfg.Baseline_Hvci_Locked)
+          $result.RebootRequired = $true
+        }
       }
     }
 
     # Vulnerable Driver Blocklist
     if (-not $result.Ci_Blocklist_Active) {
-      if (Set-RegDword -Path $ciCfg -Name 'VulnerableDriverBlocklistEnable' -Value ([int]$cfg.Baseline_Blocklist_Enable)) {
-        $result.RemediationActions += ("Set VulnerableDriverBlocklistEnable={0}" -f [int]$cfg.Baseline_Blocklist_Enable)
-        $result.RebootRequired = $true
+      if ($PSCmdlet.ShouldProcess($ciCfg, "Set VulnerableDriverBlocklistEnable=$([int]$cfg.Baseline_Blocklist_Enable)")) {
+        if (Set-RegDword -Path $ciCfg -Name 'VulnerableDriverBlocklistEnable' -Value ([int]$cfg.Baseline_Blocklist_Enable)) {
+          $result.RemediationActions += ("Set VulnerableDriverBlocklistEnable={0}" -f [int]$cfg.Baseline_Blocklist_Enable)
+          $result.RebootRequired = $true
+        }
       }
     }
   }
