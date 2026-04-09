@@ -694,6 +694,7 @@ function Ensure-Edge {
 
       if ($PSCmdlet.ShouldProcess("$urlsKey\$name", 'Set Edge startup URL')) {
         try {
+          Ensure-RegistryKey -Path $urlsKey
           New-ItemProperty -Path $urlsKey -Name $name -PropertyType String -Value $expected -Force -ErrorAction Stop | Out-Null
           $changed = $true
         } catch {
@@ -1056,4 +1057,3 @@ Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPa
 if ($PassThru) { $v2Result }
 
 if (-not $overallOk -or $Strict) { exit 1 } else { exit 0 }
-
