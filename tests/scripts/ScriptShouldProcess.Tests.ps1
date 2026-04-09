@@ -90,3 +90,41 @@ Describe 'ShouldProcess guards for registry-write calls' {
     $unguarded | Should -BeNullOrEmpty -Because "All Set-Reg*/Remove-Reg* calls must be wrapped in `$PSCmdlet.ShouldProcess() guards"
   }
 }
+
+Describe 'Direct registry-write paths in audited scripts' {
+  It '05-WUFB-Proofing helper writes are protected by ShouldProcess' {
+    $path = Join-Path $PSScriptRoot '../../scripts/05-WUFB-Proofing.ps1'
+    $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+
+    $content | Should -Match 'function Set-WufbDword'
+    $content | Should -Match 'function Set-REGSZ'
+    $content | Should -Match 'function Remove-REGValue'
+    $content | Should -Match '\$PSCmdlet\.ShouldProcess\("\$Path\\\$Name", "Set DWORD'
+    $content | Should -Match '\$PSCmdlet\.ShouldProcess\("\$Path\\\$Name", "Set string'
+    $content | Should -Match '\$PSCmdlet\.ShouldProcess\("\$Path\\\$Name", "Remove registry value"\)'
+  }
+
+  It '04-OfficeBrowser-Hardening-Proof remediation writes are protected by ShouldProcess' {
+    $path = Join-Path $PSScriptRoot '../../scripts/04-OfficeBrowser-Hardening-Proof.ps1'
+    $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+
+    $content | Should -Match 'function Set-RegValueProof'
+    $content | Should -Match '\$PSCmdlet\.ShouldProcess\("\$Path\\\$Name", "Set \$Type value"\)'
+    $content | Should -Match '\$PSCmdlet\.ShouldProcess\(\$urlsKey, ''Reset Edge startup URLs''\)'
+    $content | Should -Match '\$PSCmdlet\.ShouldProcess\("\$urlsKey\\\$name", ''Set Edge startup URL''\)'
+  }
+
+  It '21-EmergencyKillSwitch confirms quarantine-flag writes before touching the registry' {
+    $path = Join-Path $PSScriptRoot '../../scripts/21-EmergencyKillSwitch.ps1'
+    $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+
+    $content | Should -Match 'ShouldProcess\(\$Run\.Effective\.RegKey, "Write quarantine registry flag"\)'
+  }
+
+  It '38-SecurityOptions-Drift keeps registry writes behind a call-site ShouldProcess guard' {
+    $path = Join-Path $PSScriptRoot '../../scripts/38-SecurityOptions-Drift.ps1'
+    $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+
+    $content | Should -Match 'if \(\$PSCmdlet\.ShouldProcess\("\$path\\\$name", "Set to ''\$want'' \(\$type\)"\)\)'
+  }
+}
