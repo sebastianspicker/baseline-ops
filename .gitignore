@@ -68,6 +68,18 @@ ralph-loop/
 plans/
 .claude/
 
+# Local harness and audit workspace state
+.agents/
+.github/codex/
+.github/workflows/codex.yml
+AGENTS.md
+AUDIT.md
+HARNESS_PRINCIPLES.md
+code_review.md
+docs/agent/
+docs/source-audit/
+scripts/topology_inventory.sh
+
 # CI/test artifacts
 coverage/
 test-results/
