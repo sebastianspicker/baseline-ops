@@ -9,7 +9,7 @@
   This script validates a set of security-relevant configuration items for Office, Edge, and Firefox against an expected baseline ("catalog").
   It can run in two modes:
   - Audit mode (default): Detects drift and reports compliance without changing the system.
-  - Remediation mode (-Remediate): Applies the baseline settings (idempotent) and then re-checks compliance.
+  - Remediation mode (-Mode Remediate): Applies the baseline settings (idempotent) and then re-checks compliance.
 
   The script produces two kinds of output:
   - Human-readable console output (status blocks, warnings, and a final summary).
@@ -41,10 +41,6 @@
   If present, the script looks for:
     { "OfficeBrowser": { "CatalogPath": "PATH/TO/CATALOG.json" } }
   If the config file is missing or invalid, it is ignored and embedded defaults are used.
-
-.PARAMETER Remediate
-  Switch. When specified, the script attempts to enforce the desired baseline settings.
-  Without this switch, the script only detects drift (no changes are made).
 
 .PARAMETER Strict
   Switch. When specified, the script returns exit code 1 whenever drift is detected,
@@ -113,13 +109,13 @@
   Runs audit mode using the specified catalog JSON as the baseline source.
 
 .EXAMPLE
-  .\04-OfficeBrowser-Hardening-Proof.ps1 -Remediate
+  .\04-OfficeBrowser-Hardening-Proof.ps1 -Mode Remediate
 
   Runs remediation mode: applies the baseline settings and re-checks compliance.
   Returns exit code 1 only if drift remains (unless -Strict is also used).
 
 .EXAMPLE
-  .\04-OfficeBrowser-Hardening-Proof.ps1 -Remediate -Strict; exit $LASTEXITCODE
+  .\04-OfficeBrowser-Hardening-Proof.ps1 -Mode Remediate -Strict; exit $LASTEXITCODE
 
   Runs remediation mode, but forces exit code 1 if any drift was detected at any point.
   Useful for CI-style compliance enforcement.
@@ -360,7 +356,12 @@ function Set-RegValueProof {
 
   if (-not $compliant) {
     if ($Remediate) {
+      if (-not $PSCmdlet.ShouldProcess("$Path\$Name", "Set $Type value")) {
+        return (New-ProofItem -Product $Product -Area $Area -Policy $Policy -Target $Path -Name $Name -Type $Type -Expected $expected -Actual $cur -Compliant $false -Changed $false -Message 'Set skipped by confirmation/WhatIf')
+      }
+
       try {
+        Ensure-RegistryKey -Path $Path
         New-ItemProperty -Path $Path -Name $Name -PropertyType $Type -Value $expected -Force -ErrorAction Stop | Out-Null
         $changed = $true
       } catch {
@@ -665,23 +666,25 @@ function Ensure-Edge {
   $desiredUrls = Get-ArrayStrings $EdgeCfg.StartupURLs
 
   if ($Remediate) {
-    Ensure-RegistryKey -Path $urlsKey
+    if ($PSCmdlet.ShouldProcess($urlsKey, 'Reset Edge startup URLs')) {
+      Ensure-RegistryKey -Path $urlsKey
 
-    try {
-      $p = Get-ItemProperty -Path $urlsKey -ErrorAction SilentlyContinue
-      if ($p) {
-        foreach ($prop in $p.PSObject.Properties) {
-          if ($prop.Name -match '^\d+$') {
-            try {
-              Remove-ItemProperty -Path $urlsKey -Name $prop.Name -ErrorAction Stop
-            } catch {
-              Write-Warning "Could not remove URL property $($prop.Name): $($_.Exception.Message)"
+      try {
+        $p = Get-ItemProperty -Path $urlsKey -ErrorAction SilentlyContinue
+        if ($p) {
+          foreach ($prop in $p.PSObject.Properties) {
+            if ($prop.Name -match '^\d+$') {
+              try {
+                Remove-ItemProperty -Path $urlsKey -Name $prop.Name -ErrorAction Stop
+              } catch {
+                Write-Warning "Could not remove URL property $($prop.Name): $($_.Exception.Message)"
+              }
             }
           }
         }
+      } catch {
+        Write-Warning "Could not clear Edge startup URLs for remediation: $($_.Exception.Message)"
       }
-    } catch {
-      Write-Warning "Could not clear Edge startup URLs for remediation: $($_.Exception.Message)"
     }
 
     $i = 1
@@ -691,11 +694,15 @@ function Ensure-Edge {
       $changed  = $false
       $msg      = $null
 
-      try {
-        New-ItemProperty -Path $urlsKey -Name $name -PropertyType String -Value $expected -Force -ErrorAction Stop | Out-Null
-        $changed = $true
-      } catch {
-        $msg = "Write failed: $($_.Exception.Message)"
+      if ($PSCmdlet.ShouldProcess("$urlsKey\$name", 'Set Edge startup URL')) {
+        try {
+          New-ItemProperty -Path $urlsKey -Name $name -PropertyType String -Value $expected -Force -ErrorAction Stop | Out-Null
+          $changed = $true
+        } catch {
+          $msg = "Write failed: $($_.Exception.Message)"
+        }
+      } else {
+        $msg = 'Set skipped by confirmation/WhatIf'
       }
 
       $cur = Get-RegValue -Path $urlsKey -Name $name
@@ -1051,7 +1058,5 @@ Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPa
 if ($PassThru) { $v2Result }
 
 if (-not $overallOk -or $Strict) { exit 1 } else { exit 0 }
-
-
 
 

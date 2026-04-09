@@ -53,6 +53,28 @@ Describe 'v2 parameter contract' {
     ($null -eq $modeValidateSet -or (@($modeValidateSet.PositionalArguments.Value) -notcontains 'AuditOnly')) | Should -BeTrue
   }
 
+  It '<_.Name> does not define parameter names that collide with parameter aliases' -ForEach $cases {
+    $file = $_
+    $errors = $null
+    $tokens = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+    $errors | Should -BeNullOrEmpty
+
+    $params = @($ast.ParamBlock.Parameters)
+    $paramNames = @($params | ForEach-Object { $_.Name.VariablePath.UserPath })
+    $aliases = @(
+      foreach ($param in $params) {
+        foreach ($attr in @($param.Attributes | Where-Object { $_.TypeName.FullName -eq 'Alias' })) {
+          foreach ($arg in @($attr.PositionalArguments)) {
+            [string]$arg.SafeGetValue()
+          }
+        }
+      }
+    )
+
+    @($paramNames | Where-Object { $aliases -contains $_ }) | Should -BeNullOrEmpty
+  }
+
   It '<_.Name> enforces ShouldProcess when Mode supports Remediate' -ForEach $cases {
     $file = $_
     $errors = $null
@@ -82,5 +104,25 @@ Describe 'v2 parameter contract' {
 
     $content = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
     ($content -match 'SupportsShouldProcess\s*=\s*\$true') | Should -BeTrue
+  }
+
+  It 'Audited scripts do not expose stale legacy Remediate help text in the top comment block' {
+    $legacyHelpCases = @(
+      '01-ASR-Defender-Allowlist.ps1',
+      '03-LocalAdmins-Guardrail.ps1',
+      '04-OfficeBrowser-Hardening-Proof.ps1',
+      '05-WUFB-Proofing.ps1',
+      '14-SecureRemoteAccessGuardrails.ps1'
+    )
+
+    foreach ($name in $legacyHelpCases) {
+      $path = Join-Path (Join-Path $PSScriptRoot '../../scripts') $name
+      $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+      $helpBlock = [regex]::Match($content, '(?s)<#.*?#>').Value
+
+      $helpBlock | Should -Not -Match '\.PARAMETER\s+Remediate'
+      $helpBlock | Should -Not -Match '(?m)^\s*\..*?-Remediate\b'
+      $helpBlock | Should -Not -Match '(?m)^\s*[^#\r\n]*-Remediate\b'
+    }
   }
 }

@@ -147,6 +147,12 @@ Deployment helpers:
 From repository root:
 
 ```powershell
+# Validate an orchestration profile before execution
+pwsh -NoProfile -File .\scripts\00-Validate-Profile.ps1 -ProfilePath .\examples\profiles\baseline-audit.json
+
+# Smoke the documented baseline audit profile
+pwsh -NoProfile -File .\scripts\00-Run-Profile.ps1 -ProfilePath .\examples\profiles\baseline-audit.json -Mode Audit -OutputFormat None -Confirm:$false
+
 # Parse checks only
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer
 
@@ -165,6 +171,8 @@ Cross-platform local CI wrapper:
 ```bash
 ./scripts/ci-local.sh
 ```
+
+On non-Windows developer hosts, orchestration-level verification is supported with PowerShell 7. Windows-only numbered scripts that cannot execute meaningfully on the host should return a structured unsupported-host result rather than failing profile startup.
 
 ## Launcher GUI
 

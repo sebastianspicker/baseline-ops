@@ -18,10 +18,6 @@
   - Desired state: JSON allowlist file (primary) or a baseline mode (fallback).
   - Current state: local Defender preferences retrieved at runtime.
 
-.PARAMETER Remediate
-  If specified, applies the calculated diff to the local system.
-  If omitted, the script runs in audit-only mode and performs no changes.
-
 .PARAMETER ConfigPath
   Path to an optional configuration JSON file that can contain the path to the allowlist JSON.
   This is a convenience input for centralized deployments.
@@ -91,7 +87,7 @@
 
 .EXAMPLE
   # Remediate: apply the diff to match the JSON allowlist
-  .\Defender-Allowlist-Sync.ps1 -ExceptionsPath "PATH/TO/JSON" -Remediate
+  .\Defender-Allowlist-Sync.ps1 -ExceptionsPath "PATH/TO/JSON" -Mode Remediate
 
 .EXAMPLE
   # Use a config file that contains the allowlist path (ExceptionsPath not specified)
@@ -259,10 +255,10 @@ function New-MinimumBaselineDesiredConfig {
 
 function Get-Config {
   [CmdletBinding()]
-  param([Parameter(Mandatory=$true)][string]$Path)
+  param([AllowEmptyString()][string]$Path)
 
   try {
-    $sanitized = Sanitize-Path -Path $Path -MustExist
+    $sanitized = if ([string]::IsNullOrWhiteSpace($Path)) { $null } else { Sanitize-Path -Path $Path -MustExist }
     if ($sanitized) {
       return Get-Content -Raw -LiteralPath $sanitized -Encoding UTF8 | ConvertFrom-Json
     }
@@ -284,7 +280,7 @@ function Get-Config {
 function Write-AuditJson {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory=$true)][string]$Path,
+    [Parameter(Mandatory=$true)][AllowEmptyString()][string]$Path,
     [Parameter(Mandatory=$true)][object]$Object
   )
 
@@ -477,23 +473,23 @@ function Write-ConsoleSummary {
   Write-UiLine "Defender / ASR / CFA Allowlist Sync" -ForegroundColor White
   Write-UiLine "============================================================" -ForegroundColor DarkGray
 
-  Write-KeyValue "Mode"       ($(if ($Result.Remediate) { "Remediate" } else { "Audit" })) DarkGray $modeColor
-  Write-KeyValue "Baseline"   $Result.BaselineUsed DarkGray ($(if ($Result.BaselineUsed -eq 'None') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
-  Write-KeyValue "Computer"   $Result.ComputerName
-  Write-KeyValue "Timestamp"  $Result.Timestamp
-  Write-KeyValue "JSON"       $Result.SourceJson
-  Write-KeyValue "Audit"      $Result.AuditPath
+  Write-KeyValue -Key "Mode" -Value ($(if ($Result.Remediate) { "Remediate" } else { "Audit" })) -KeyStyle DarkGray -ValueStyle $modeColor
+  Write-KeyValue -Key "Baseline" -Value $Result.BaselineUsed -KeyStyle DarkGray -ValueStyle ($(if ($Result.BaselineUsed -eq 'None') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
+  Write-KeyValue -Key "Computer" -Value $Result.ComputerName
+  Write-KeyValue -Key "Timestamp" -Value $Result.Timestamp
+  Write-KeyValue -Key "JSON" -Value $Result.SourceJson
+  Write-KeyValue -Key "Audit" -Value $Result.AuditPath
 
   Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-  Write-KeyValue "JsonLoaded" ([string]$Result.JsonLoaded) DarkGray ($(if ($Result.JsonLoaded) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
-  if ($Result.JsonError) { Write-KeyValue "JsonError" $Result.JsonError DarkGray Yellow }
+  Write-KeyValue -Key "JsonLoaded" -Value ([string]$Result.JsonLoaded) -KeyStyle DarkGray -ValueStyle ($(if ($Result.JsonLoaded) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
+  if ($Result.JsonError) { Write-KeyValue -Key "JsonError" -Value $Result.JsonError -KeyStyle DarkGray -ValueStyle Yellow }
 
   Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-  Write-KeyValue "Add"        ([string]$Result.TotalAdd)      DarkGray ($(if ($Result.TotalAdd -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
-  Write-KeyValue "Remove"     ([string]$Result.TotalRemove)   DarkGray ($(if ($Result.TotalRemove -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
-  Write-KeyValue "Rejected"   ([string]$Result.TotalRejected) DarkGray ($(if ($Result.TotalRejected -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::DarkGray }))
-  Write-KeyValue "Errors"     ([string]$Result.TotalErrors)   DarkGray ($(if ($Result.TotalErrors -gt 0) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkGray }))
-  Write-KeyValue "Result"     $Result.Result                 DarkGray $resColor
+  Write-KeyValue -Key "Add" -Value ([string]$Result.TotalAdd) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalAdd -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
+  Write-KeyValue -Key "Remove" -Value ([string]$Result.TotalRemove) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalRemove -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
+  Write-KeyValue -Key "Rejected" -Value ([string]$Result.TotalRejected) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalRejected -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::DarkGray }))
+  Write-KeyValue -Key "Errors" -Value ([string]$Result.TotalErrors) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalErrors -gt 0) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkGray }))
+  Write-KeyValue -Key "Result" -Value $Result.Result -KeyStyle DarkGray -ValueStyle $resColor
 
   if ($Result.Notes -and $Result.Notes.Count -gt 0) {
     Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
@@ -524,6 +520,38 @@ function Write-ConsoleSummary {
 # ----------------------------- Main ------------------------------------------------
 $script:Findings = New-FindingsList
 $null = Ensure-EventSource
+
+$isWindowsHost = ($env:OS -eq 'Windows_NT')
+if (-not $isWindowsHost) {
+  $final = [pscustomobject]@{
+    Timestamp     = (Get-Date).ToString("o")
+    ComputerName  = $env:COMPUTERNAME
+    Remediate     = [bool]$Remediate
+    SourceJson    = $(if ($ExceptionsPath) { $ExceptionsPath } else { "(not provided)" })
+    AuditPath     = $AuditPath
+    JsonLoaded    = $false
+    JsonError     = $null
+    BaselineUsed  = 'UnsupportedHost'
+    Notes         = @('Skipped: Microsoft Defender allowlist auditing is only supported on Windows hosts.')
+    TotalAdd      = 0
+    TotalRemove   = 0
+    TotalRejected = 0
+    TotalErrors   = 0
+    Result        = 'OK_NO_DRIFT'
+    Diffs         = @()
+    Results       = @()
+    ErrorsFlat    = @()
+    PerCategory   = @()
+  }
+
+  Write-AuditJson -Path $AuditPath -Object $final
+  Write-ConsoleSummary -Result $final
+
+  $v2Result = New-V2ResultObject -ScriptName '01-ASR-Defender-Allowlist.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $final -Metadata @{ UnsupportedHost = $true }
+  Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $v2Result }
+  exit 0
+}
 
 try {
   if (-not (Get-Command Get-MpPreference -ErrorAction SilentlyContinue)) {
