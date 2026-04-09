@@ -582,7 +582,11 @@ if (-not $Run.IsAdmin) {
 }
 
 try {
-  Set-QuarantineFlag -RegKey $Run.Effective.RegKey -ReasonText $Run.Effective.Reason -IncludeUser $Run.Effective.IncludeUserInRegistry
+  if ($PSCmdlet.ShouldProcess($Run.Effective.RegKey, "Write quarantine registry flag")) {
+    Set-QuarantineFlag -RegKey $Run.Effective.RegKey -ReasonText $Run.Effective.Reason -IncludeUser $Run.Effective.IncludeUserInRegistry
+  } else {
+    $Run.Actions.ConfirmDeclined = $true
+  }
 
   if ($Run.Effective.AutoRollbackMinutes -gt 0) {
     $Run.Actions.RollbackScheduled = Schedule-AutoRollback -Minutes $Run.Effective.AutoRollbackMinutes -TaskName $Run.Effective.TaskName -RuleNames $RuleNames

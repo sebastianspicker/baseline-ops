@@ -20,7 +20,7 @@
   - Local group “Remote Desktop Users”: enforces an allowlist (optionally exact membership), always keeping BUILTIN\Administrators.
   - Remote Assistance (policy registry): enable/disable solicited/unsolicited assistance and ticket lifetime.
 
-  Running without -Remediate performs an audit only (no changes). With -Remediate, the script attempts to apply changes to reach the desired state.
+  Running with the default `-Mode Audit` performs an audit only (no changes). With `-Mode Remediate`, the script attempts to apply changes to reach the desired state.
 
 .PARAMETER CatalogPath
   Optional path to a policy catalog JSON file.
@@ -40,12 +40,6 @@
 
   The proof file contains a structured object that mirrors the pipeline output (timestamp, host identity, drift, changes, notes, etc.).
   The parent directory is created if it does not exist.
-
-.PARAMETER Remediate
-  When set, the script applies remediation actions to fix detected drift.
-
-  If not set, the script only reports drift (audit mode).
-  Supports -WhatIf and -Confirm due to CmdletBinding(SupportsShouldProcess).
 
 .PARAMETER Strict
   Controls event severity rules.
@@ -112,17 +106,17 @@
   Runs an audit using an explicit policy catalog file.
 
 .EXAMPLE
-  .\14-SecureRemoteAccessGuardrails.ps1 -Remediate -WhatIf
+  .\14-SecureRemoteAccessGuardrails.ps1 -Mode Remediate -WhatIf
 
   Shows which changes would be applied to enforce the desired state, without making changes.
 
 .EXAMPLE
-  .\14-SecureRemoteAccessGuardrails.ps1 -Remediate -Confirm
+  .\14-SecureRemoteAccessGuardrails.ps1 -Mode Remediate -Confirm
 
   Prompts before applying enforcement changes.
 
 .EXAMPLE
-  $r = .\14-SecureRemoteAccessGuardrails.ps1 -Remediate
+  $r = .\14-SecureRemoteAccessGuardrails.ps1 -Mode Remediate
   $r | Where-Object HasError -eq $true
 
   Runs remediation and filters results in an automation-friendly way using the pipeline output.
