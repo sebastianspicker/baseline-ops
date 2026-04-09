@@ -242,8 +242,8 @@ while ($pending.Count -gt 0) {
       if ($WhatIfPreference) {
         $exitCode = 0
         $status = 'Skipped'
-        $message = 'Skipped by ShouldProcess (-WhatIf).'
-        Write-UiLine -Text ("[SKIP] {0} (WhatIf/Confirm)" -f $scriptName) -Style Muted
+        $message = 'Skipped (-WhatIf).'
+        Write-UiLine -Text ("[SKIP] {0} (-WhatIf)" -f $scriptName) -Style Muted
       } else {
         Write-UiLine -Text ("[RUN ] {0}" -f $scriptName) -Style Header
         & $runLocalPath @runParams

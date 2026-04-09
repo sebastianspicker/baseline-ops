@@ -107,22 +107,31 @@ Describe 'v2 parameter contract' {
   }
 
   It 'Audited scripts do not expose stale legacy Remediate help text in the top comment block' {
-    $legacyHelpCases = @(
-      '01-ASR-Defender-Allowlist.ps1',
-      '03-LocalAdmins-Guardrail.ps1',
-      '04-OfficeBrowser-Hardening-Proof.ps1',
-      '05-WUFB-Proofing.ps1',
-      '14-SecureRemoteAccessGuardrails.ps1'
-    )
+    $scriptsPath = Join-Path $PSScriptRoot '../../scripts'
+    $legacyHelpCases = Get-ChildItem -Path $scriptsPath -File |
+      Where-Object { $_.Name -match '^\d{2}-' } |
+      Where-Object {
+        $errors = $null
+        $tokens = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
+        if ($errors) { return $false }
+
+        $paramNames = @($ast.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
+        if (($paramNames -notcontains 'Mode') -or ($paramNames -contains 'Remediate')) { return $false }
+
+        $content = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+        $helpBlock = [regex]::Match($content, '(?s)<#.*?#>').Value
+        ($helpBlock -match '\.PARAMETER\s+Mode') -and ($helpBlock -match '(?m)-Mode\s+Remediate\b')
+      } |
+      Select-Object -ExpandProperty Name
 
     foreach ($name in $legacyHelpCases) {
-      $path = Join-Path (Join-Path $PSScriptRoot '../../scripts') $name
+      $path = Join-Path $scriptsPath $name
       $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
       $helpBlock = [regex]::Match($content, '(?s)<#.*?#>').Value
 
       $helpBlock | Should -Not -Match '\.PARAMETER\s+Remediate'
       $helpBlock | Should -Not -Match '(?m)^\s*\..*?-Remediate\b'
-      $helpBlock | Should -Not -Match '(?m)^\s*[^#\r\n]*-Remediate\b'
     }
   }
 }

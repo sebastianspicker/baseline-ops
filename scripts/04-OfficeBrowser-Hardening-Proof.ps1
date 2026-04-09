@@ -345,8 +345,6 @@ function Set-RegValueProof {
   )
 
   # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-RegistryKey -Path $Path }
-
   $expected = Convert-RegValue -Type $Type -Value $Value
   $cur      = Get-RegValue -Path $Path -Name $Name
 
@@ -1058,5 +1056,4 @@ Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPa
 if ($PassThru) { $v2Result }
 
 if (-not $overallOk -or $Strict) { exit 1 } else { exit 0 }
-
 

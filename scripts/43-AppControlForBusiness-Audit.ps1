@@ -176,7 +176,7 @@ if (-not $isWindowsHost) {
   $resultObject = New-V2ResultObject `
     -ScriptName '43-AppControlForBusiness-Audit.ps1' `
     -Mode 'Audit' `
-    -Result 'OK' `
+    -Result 'WARN' `
     -Findings @() `
     -Summary $summary `
     -Metadata @{ UnsupportedHost = $true; Indicators = $null; PolicyFiles = @(); RecentEvents = @() }
