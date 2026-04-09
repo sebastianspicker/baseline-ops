@@ -26,14 +26,6 @@ Operational behavior:
 - Always prints a human-friendly console summary (unless -Quiet).
 - Emits a single structured result object to the pipeline (unless -NoPipelineOutput).
 
-.PARAMETER Remediate
-When specified, the script performs idempotent remediation:
-- Adds allowed principals that are missing from the Administrators group.
-- Removes disallowed principals from the Administrators group (only if removal is permitted by the safety rules).
-
-Without -Remediate, the script runs in report-only mode:
-- Drift is detected and reported, but no group membership changes are made.
-
 .PARAMETER AllowDomainRemediation
 When specified, the script is allowed to remove domain-like principals (for example AD / Entra / Microsoft Account) from the Administrators group if they are not in the allow-list.
 
@@ -116,15 +108,15 @@ All nested properties are structured to support filtering and exporting.
 
 .EXAMPLE
 # Remediate using allow-list (adds missing allowed members; removes disallowed local members when safe)
-.\LocalAdmins-Guardrail.ps1 -Remediate
+.\LocalAdmins-Guardrail.ps1 -Mode Remediate
 
 .EXAMPLE
 # Remediate and allow removal of domain-like members (use with extreme caution)
-.\LocalAdmins-Guardrail.ps1 -Remediate -AllowDomainRemediation -Confirm
+.\LocalAdmins-Guardrail.ps1 -Mode Remediate -AllowDomainRemediation -Confirm
 
 .EXAMPLE
 # Dry-run to see what would change without applying changes
-.\LocalAdmins-Guardrail.ps1 -Remediate -WhatIf
+.\LocalAdmins-Guardrail.ps1 -Mode Remediate -WhatIf
 
 .EXAMPLE
 # Automation: export the structured result to JSON

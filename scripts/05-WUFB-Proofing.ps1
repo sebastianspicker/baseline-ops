@@ -11,7 +11,7 @@
 
   It can run in two modes:
   - Audit mode (default): Detects drift only and produces a DRIFT result when differences are found.
-  - Remediation mode (-Remediate): Applies idempotent registry changes to match the catalog and reports changes.
+  - Remediation mode (-Mode Remediate): Applies idempotent registry changes to match the catalog and reports changes.
 
   The script always:
   - Collects evidence (selected registry values and basic OS information).
@@ -36,11 +36,6 @@
   The config may reference a catalog file path (for example: config.WUfB.CatalogPath).
   If the config doesn't exist or cannot be parsed, the script falls back to built-in defaults unless -CatalogPath
   was provided.
-
-.PARAMETER Remediate
-  Enables remediation mode.
-  When set, the script applies registry changes to match the desired state from the catalog.
-  Without this switch, the script runs in audit-only mode and never modifies policy values.
 
 .PARAMETER Strict
   Changes result handling when drift is detected.
@@ -93,7 +88,7 @@
 
 .EXAMPLE
   # Remediate and show structured output for further processing
-  .\05-WUFB-Proofing.ps1 -CatalogPath "PATH/TO/CATALOG.json" -Remediate -PassThru
+  .\05-WUFB-Proofing.ps1 -CatalogPath "PATH/TO/CATALOG.json" -Mode Remediate -PassThru
 
 .EXAMPLE
   # Integrate in reporting pipelines (one object only)
@@ -258,8 +253,6 @@ function Set-WufbDword {
     [switch]$Remediate
   )
 
-  # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-RegistryKey -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($cur -eq $Value) {
@@ -270,7 +263,12 @@ function Set-WufbDword {
     return [pscustomobject]@{ Ok=$true; Changed=$false; Drift=$true; Message="$Path\$Name drift ($cur != $Value)"; Path=$Path; Name=$Name; Current=$cur; Desired=$Value; Action='Detect' }
   }
 
+  if (-not $PSCmdlet.ShouldProcess("$Path\$Name", "Set DWORD value")) {
+    return [pscustomobject]@{ Ok=$true; Changed=$false; Drift=$true; Message="Skipped setting $Path\$Name due to confirmation/WhatIf."; Path=$Path; Name=$Name; Current=$cur; Desired=$Value; Action='Skipped' }
+  }
+
   try {
+    Ensure-RegistryKey -Path $Path
     New-ItemProperty -Path $Path -Name $Name -PropertyType DWord -Value $Value -Force | Out-Null
     return [pscustomobject]@{ Ok=$true; Changed=$true; Drift=$false; Message="Set $Path\$Name=$Value"; Path=$Path; Name=$Name; Current=$cur; Desired=$Value; Action='SetDword' }
   } catch {
@@ -287,8 +285,6 @@ function Set-REGSZ {
     [switch]$Remediate
   )
 
-  # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-RegistryKey -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($cur -eq $Value) {
@@ -299,7 +295,12 @@ function Set-REGSZ {
     return [pscustomobject]@{ Ok=$true; Changed=$false; Drift=$true; Message="$Path\$Name drift ($cur != '$Value')"; Path=$Path; Name=$Name; Current=$cur; Desired=$Value; Action='Detect' }
   }
 
+  if (-not $PSCmdlet.ShouldProcess("$Path\$Name", "Set string value")) {
+    return [pscustomobject]@{ Ok=$true; Changed=$false; Drift=$true; Message="Skipped setting $Path\$Name due to confirmation/WhatIf."; Path=$Path; Name=$Name; Current=$cur; Desired=$Value; Action='Skipped' }
+  }
+
   try {
+    Ensure-RegistryKey -Path $Path
     New-ItemProperty -Path $Path -Name $Name -PropertyType String -Value $Value -Force | Out-Null
     return [pscustomobject]@{ Ok=$true; Changed=$true; Drift=$false; Message="Set $Path\$Name='$Value'"; Path=$Path; Name=$Name; Current=$cur; Desired=$Value; Action='SetString' }
   } catch {
@@ -315,8 +316,6 @@ function Remove-REGValue {
     [switch]$Remediate
   )
 
-  # Only ensure key exists when remediating (§2/§17)
-  if ($Remediate) { Ensure-RegistryKey -Path $Path }
   $cur = Get-REG -Path $Path -Name $Name
 
   if ($null -eq $cur) {
@@ -325,6 +324,10 @@ function Remove-REGValue {
 
   if (-not $Remediate) {
     return [pscustomobject]@{ Ok=$true; Changed=$false; Drift=$true; Message="$Path\$Name should be absent, but is present ($cur)"; Path=$Path; Name=$Name; Current=$cur; Desired=$null; Action='Detect' }
+  }
+
+  if (-not $PSCmdlet.ShouldProcess("$Path\$Name", "Remove registry value")) {
+    return [pscustomobject]@{ Ok=$true; Changed=$false; Drift=$true; Message="Skipped removing $Path\$Name due to confirmation/WhatIf."; Path=$Path; Name=$Name; Current=$cur; Desired=$null; Action='Skipped' }
   }
 
   try {
