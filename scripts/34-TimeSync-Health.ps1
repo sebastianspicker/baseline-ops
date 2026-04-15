@@ -277,13 +277,15 @@ if ($svc.Status -ne 'Running') {
 
   if ($AutoStartService) {
     try {
-      Start-Service -Name 'w32time' -ErrorAction Stop
-      $svc = Get-Service -Name 'w32time' -ErrorAction Stop
+      if ($PSCmdlet.ShouldProcess('w32time', 'Start service')) {
+        Start-Service -Name 'w32time' -ErrorAction Stop
+        $svc = Get-Service -Name 'w32time' -ErrorAction Stop
 
-      if ($svc.Status -eq 'Running') {
-        Add-Finding -FindingList $script:Findings -Code 'TIME-ServiceAutoStarted' -Severity 'Low' -Message 'w32time service was started automatically (AutoStartService).'
-      } else {
-        Add-Finding -FindingList $script:Findings -Code 'TIME-ServiceStartFailed' -Severity 'High' -Message ("Start-Service executed but service is still {0}." -f $svc.Status)
+        if ($svc.Status -eq 'Running') {
+          Add-Finding -FindingList $script:Findings -Code 'TIME-ServiceAutoStarted' -Severity 'Low' -Message 'w32time service was started automatically (AutoStartService).'
+        } else {
+          Add-Finding -FindingList $script:Findings -Code 'TIME-ServiceStartFailed' -Severity 'High' -Message ("Start-Service executed but service is still {0}." -f $svc.Status)
+        }
       }
     } catch {
       Add-Finding -FindingList $script:Findings -Code 'TIME-ServiceStartException' -Severity 'High' -Message ("Start-Service w32time failed: {0}" -f $_.Exception.Message)

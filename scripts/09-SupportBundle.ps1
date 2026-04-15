@@ -258,9 +258,13 @@ function SB_WriteSection {
 
 # -------------------- Event log (best effort) --------------------
 function SB_EnsureEventSource {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  param()
   try {
     if (-not [System.Diagnostics.EventLog]::SourceExists($EventSource)) {
-      New-EventLog -LogName Application -Source $EventSource -ErrorAction SilentlyContinue | Out-Null
+      if ($PSCmdlet.ShouldProcess($EventSource, 'Register SupportBundle event source')) {
+        New-EventLog -LogName Application -Source $EventSource -ErrorAction SilentlyContinue | Out-Null
+      }
     }
   } catch { <# best-effort: event source registration commonly needs admin #> }
 }
@@ -533,12 +537,16 @@ function SB_GetRegistryTrigger {
 }
 
 function SB_ResetRegistryTrigger {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param(
     [Parameter(Mandatory)][string]$KeyPath,
     [Parameter(Mandatory)][string]$ZipPath
   )
 
   try {
+    if (-not $PSCmdlet.ShouldProcess($KeyPath, 'Reset support bundle trigger registry values')) {
+      return (SB_NewRecord -Name 'RegistryReset' -Ok $true -ArtifactPath $null -Note 'Skipped by ShouldProcess' -Error $null)
+    }
     New-Item -Path $KeyPath -Force | Out-Null
     New-ItemProperty -Path $KeyPath -Name 'Request'        -PropertyType DWord  -Value 0 -Force | Out-Null
     New-ItemProperty -Path $KeyPath -Name 'LastBundlePath' -PropertyType String -Value $ZipPath -Force | Out-Null

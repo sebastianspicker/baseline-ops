@@ -265,6 +265,7 @@ function Add-ArrayListMany {
 
 # -------------------------------- Service/Tasks helpers -----------------------------
 function Set-ServiceStartType {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param(
     [string]$Name,
     [ValidateSet('Disabled','Manual','Automatic','AutomaticDelayedStart')]
@@ -275,12 +276,20 @@ function Set-ServiceStartType {
 
   try {
     if ($StartType -eq 'AutomaticDelayedStart') {
-      $p = Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList @("config",$Name,"start=","delayed-auto") -NoNewWindow -Wait -PassThru -ErrorAction Stop
-      if ($p.ExitCode -ne 0) { throw ("sc.exe exit code {0}" -f $p.ExitCode) }
-      Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetStartupType' -Result 'Success' -Message 'AutomaticDelayedStart (sc.exe delayed-auto)')
+      if ($PSCmdlet.ShouldProcess($Name, 'Set startup type to AutomaticDelayedStart')) {
+        $p = Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList @("config",$Name,"start=","delayed-auto") -NoNewWindow -Wait -PassThru -ErrorAction Stop
+        if ($p.ExitCode -ne 0) { throw ("sc.exe exit code {0}" -f $p.ExitCode) }
+        Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetStartupType' -Result 'Success' -Message 'AutomaticDelayedStart (sc.exe delayed-auto)')
+      } else {
+        Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetStartupType' -Result 'Skipped' -Message 'ShouldProcess declined')
+      }
     } else {
-      Set-Service -Name $Name -StartupType $StartType -ErrorAction Stop
-      Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetStartupType' -Result 'Success' -Message $StartType)
+      if ($PSCmdlet.ShouldProcess($Name, "Set startup type to $StartType")) {
+        Set-Service -Name $Name -StartupType $StartType -ErrorAction Stop
+        Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetStartupType' -Result 'Success' -Message $StartType)
+      } else {
+        Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetStartupType' -Result 'Skipped' -Message 'ShouldProcess declined')
+      }
     }
   } catch {
     Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetStartupType' -Result 'Failed' -Message $_.Exception.Message)
@@ -319,9 +328,13 @@ function Ensure-ServiceState {
       Add-ArrayList $drift (New-Finding -Area ("Service:{0}" -f $Name) -Severity 'Warning' -Message ("State={0} expected={1}" -f $actualState,$State))
       if ($Remediate) {
         try {
-          if ($State -eq 'Running') { Start-Service -Name $Name -ErrorAction Stop }
-          else { Stop-Service -Name $Name -Force -ErrorAction Stop }
-          Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetState' -Result 'Success' -Message $State)
+          if ($PSCmdlet.ShouldProcess($Name, "Set service state to $State")) {
+            if ($State -eq 'Running') { Start-Service -Name $Name -ErrorAction Stop }
+            else { Stop-Service -Name $Name -Force -ErrorAction Stop }
+            Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetState' -Result 'Success' -Message $State)
+          } else {
+            Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetState' -Result 'Skipped' -Message 'ShouldProcess declined')
+          }
         } catch {
           Add-ArrayList $actions (New-Action -Target $Name -Operation 'SetState' -Result 'Failed' -Message $_.Exception.Message)
         }

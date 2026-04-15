@@ -512,7 +512,7 @@ function Test-VcRedistInstalled {
 }
 
 function Install-VcRedist {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param(
     [Parameter(Mandatory)][string]$Path,
     [string]$InstallArgs = "/install /quiet /norestart"
@@ -521,6 +521,9 @@ function Install-VcRedist {
   if (-not (Test-Path -LiteralPath $Path)) { return $false, "Installer not found: $Path" }
 
   try {
+    if (-not $PSCmdlet.ShouldProcess($Path, 'Install VC++ redistributable')) {
+      return $false, 'Skipped by ShouldProcess'
+    }
     $p = Start-Process -FilePath $Path -ArgumentList $InstallArgs -Wait -PassThru -WindowStyle Hidden
     if ($p.ExitCode -eq 0) { return $true, "OK" }
     return $false, "ExitCode=$($p.ExitCode)"
@@ -678,7 +681,8 @@ try {
         $r = $false; $m = $null
         $r, $m = Install-VcRedist -Path $vcX64Path -InstallArgs $vcArgs
         $st = 'Error'; $ms = 'Install failed.'
-        if ($r) { $st = 'OK'; $ms = 'Installed.' }
+        if ($m -eq 'Skipped by ShouldProcess') { $st = 'Skipped'; $ms = $m }
+        elseif ($r) { $st = 'OK'; $ms = 'Installed.' }
         Add-Record -List $records -Record (New-CheckRecord -Name 'VcRedistX64Remediation' -Status $st -Message $ms -Data @{
           Detail = $m; InstallerPath = $vcX64Path
         })
@@ -700,7 +704,8 @@ try {
       $r = $false; $m = $null
       $r, $m = Install-VcRedist -Path $vcX86Path -InstallArgs $vcArgs
       $st = 'Error'; $ms = 'Install failed.'
-      if ($r) { $st = 'OK'; $ms = 'Installed.' }
+      if ($m -eq 'Skipped by ShouldProcess') { $st = 'Skipped'; $ms = $m }
+      elseif ($r) { $st = 'OK'; $ms = 'Installed.' }
       Add-Record -List $records -Record (New-CheckRecord -Name 'VcRedistX86Remediation' -Status $st -Message $ms -Data @{
         Detail = $m; InstallerPath = $vcX86Path
       })
@@ -805,7 +810,5 @@ try {
 
   if ($overallOk) { exit 0 } else { exit 1 }
 }
-
-
 
 

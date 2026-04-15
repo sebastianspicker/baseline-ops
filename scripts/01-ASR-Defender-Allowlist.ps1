@@ -399,7 +399,7 @@ function Diff-Lists {
 }
 
 function Apply-Diff {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param(
     [Parameter(Mandatory=$true)][pscustomobject]$Diff,
     [switch]$Remediate
@@ -411,14 +411,16 @@ function Apply-Diff {
   if ($Remediate) {
     try {
       if ($Diff.ToAdd.Count -gt 0) {
-        switch ($name) {
-          'ExclusionPath'        { Add-MpPreference -ExclusionPath $Diff.ToAdd }
-          'ExclusionProcess'     { Add-MpPreference -ExclusionProcess $Diff.ToAdd }
-          'ExclusionExtension'   { Add-MpPreference -ExclusionExtension $Diff.ToAdd }
-          'AttackSurfaceReductionOnlyExclusions' { Add-MpPreference -AttackSurfaceReductionOnlyExclusions $Diff.ToAdd }
-          'ControlledFolderAccessAllowedApplications' { Add-MpPreference -ControlledFolderAccessAllowedApplications $Diff.ToAdd }
-          'ControlledFolderAccessProtectedFolders'   { Add-MpPreference -ControlledFolderAccessProtectedFolders $Diff.ToAdd }
-          default { }
+        if ($PSCmdlet.ShouldProcess($name, "Add Defender allowlist entries")) {
+          switch ($name) {
+            'ExclusionPath'        { Add-MpPreference -ExclusionPath $Diff.ToAdd }
+            'ExclusionProcess'     { Add-MpPreference -ExclusionProcess $Diff.ToAdd }
+            'ExclusionExtension'   { Add-MpPreference -ExclusionExtension $Diff.ToAdd }
+            'AttackSurfaceReductionOnlyExclusions' { Add-MpPreference -AttackSurfaceReductionOnlyExclusions $Diff.ToAdd }
+            'ControlledFolderAccessAllowedApplications' { Add-MpPreference -ControlledFolderAccessAllowedApplications $Diff.ToAdd }
+            'ControlledFolderAccessProtectedFolders'   { Add-MpPreference -ControlledFolderAccessProtectedFolders $Diff.ToAdd }
+            default { }
+          }
         }
       }
     } catch {
@@ -427,14 +429,16 @@ function Apply-Diff {
 
     try {
       if ($Diff.ToRemove.Count -gt 0) {
-        switch ($name) {
-          'ExclusionPath'        { Remove-MpPreference -ExclusionPath $Diff.ToRemove }
-          'ExclusionProcess'     { Remove-MpPreference -ExclusionProcess $Diff.ToRemove }
-          'ExclusionExtension'   { Remove-MpPreference -ExclusionExtension $Diff.ToRemove }
-          'AttackSurfaceReductionOnlyExclusions' { Remove-MpPreference -AttackSurfaceReductionOnlyExclusions $Diff.ToRemove }
-          'ControlledFolderAccessAllowedApplications' { Remove-MpPreference -ControlledFolderAccessAllowedApplications $Diff.ToRemove }
-          'ControlledFolderAccessProtectedFolders'   { Remove-MpPreference -ControlledFolderAccessProtectedFolders $Diff.ToRemove }
-          default { }
+        if ($PSCmdlet.ShouldProcess($name, "Remove Defender allowlist entries")) {
+          switch ($name) {
+            'ExclusionPath'        { Remove-MpPreference -ExclusionPath $Diff.ToRemove }
+            'ExclusionProcess'     { Remove-MpPreference -ExclusionProcess $Diff.ToRemove }
+            'ExclusionExtension'   { Remove-MpPreference -ExclusionExtension $Diff.ToRemove }
+            'AttackSurfaceReductionOnlyExclusions' { Remove-MpPreference -AttackSurfaceReductionOnlyExclusions $Diff.ToRemove }
+            'ControlledFolderAccessAllowedApplications' { Remove-MpPreference -ControlledFolderAccessAllowedApplications $Diff.ToRemove }
+            'ControlledFolderAccessProtectedFolders'   { Remove-MpPreference -ControlledFolderAccessProtectedFolders $Diff.ToRemove }
+            default { }
+          }
         }
       }
     } catch {

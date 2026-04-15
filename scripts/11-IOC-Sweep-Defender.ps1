@@ -583,8 +583,12 @@ try {
 
         if ($Remediate -and ((Get-ObjPropValue $r 'Action') -eq 'neutralize')) {
           try {
-            Remove-ItemProperty -Path $key -Name $value -Force -ErrorAction Stop
-            $Proof.Actions += "Registry neutralized: $path"
+            if ($PSCmdlet.ShouldProcess($path, 'Neutralize registry value')) {
+              Remove-ItemProperty -Path $key -Name $value -Force -ErrorAction Stop
+              $Proof.Actions += "Registry neutralized: $path"
+            } else {
+              $Proof.Actions += "Registry neutralize skipped by ShouldProcess: $path"
+            }
           } catch {
             $Proof.Errors += "Registry neutralize failed ($path): $($_.Exception.Message)"
             $ok = $false
@@ -625,9 +629,13 @@ try {
 
         if ($Remediate -and ($action -in @('disable','stop'))) {
           try {
-            if ($svc.State -ne 'Stopped') { Stop-Service -Name $svc.Name -Force -ErrorAction Stop }
-            if ($action -eq 'disable')    { Set-Service -Name $svc.Name -StartupType Disabled -ErrorAction Stop }
-            $Proof.Actions += "Service remediated: $($svc.Name) ($action)"
+            if ($PSCmdlet.ShouldProcess($svc.Name, "Contain service ($action)")) {
+              if ($svc.State -ne 'Stopped') { Stop-Service -Name $svc.Name -Force -ErrorAction Stop }
+              if ($action -eq 'disable')    { Set-Service -Name $svc.Name -StartupType Disabled -ErrorAction Stop }
+              $Proof.Actions += "Service remediated: $($svc.Name) ($action)"
+            } else {
+              $Proof.Actions += "Service remediation skipped by ShouldProcess: $($svc.Name) ($action)"
+            }
           } catch {
             $Proof.Errors += "Service remediation failed ($($svc.Name)): $($_.Exception.Message)"
             $ok = $false
@@ -669,8 +677,12 @@ try {
 
         if ($Remediate -and ($action -eq 'disable')) {
           try {
-            Disable-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction Stop | Out-Null
-            $Proof.Actions += "Task disabled: $full"
+            if ($PSCmdlet.ShouldProcess($full, 'Disable scheduled task')) {
+              Disable-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction Stop | Out-Null
+              $Proof.Actions += "Task disabled: $full"
+            } else {
+              $Proof.Actions += "Task disable skipped by ShouldProcess: $full"
+            }
           } catch {
             $Proof.Errors += "Task disable failed ($full): $($_.Exception.Message)"
             $ok = $false
@@ -902,6 +914,5 @@ Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPa
 if ($PassThru) { $v2Result }
 
 exit $exitCode
-
 
 

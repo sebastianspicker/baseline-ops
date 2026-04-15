@@ -808,10 +808,14 @@ function Export-Autoruns {
 }
 
 function Reset-Trigger {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param($cat)
   try {
     $rk = [string]$cat.Trigger.Registry
     if ($rk -and (Test-Path -LiteralPath $rk)) {
+      if (-not $PSCmdlet.ShouldProcess($rk, 'Reset artifact grabber trigger registry flag')) {
+        return
+      }
       New-ItemProperty -Path $rk -Name 'Request' -PropertyType DWord -Value 0 -Force | Out-Null
     }
   } catch { <# best-effort: trigger registry reset may fail without admin rights #> }

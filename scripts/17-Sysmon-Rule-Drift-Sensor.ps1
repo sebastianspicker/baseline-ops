@@ -534,6 +534,7 @@ function Test-RemediationScriptAllowed {
 }
 
 function Invoke-RemediationScript {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param([Parameter(Mandatory)][string]$ScriptPath)
 
   # S17 fix: validate ScriptPath is a .ps1 file under the expected scripts directory
@@ -562,9 +563,13 @@ function Invoke-RemediationScript {
     }
     $argList += @('-File', $ScriptPath, '-Mode', 'Remediate')
 
-    $p = Start-Process -FilePath "powershell.exe" -ArgumentList $argList -WindowStyle Hidden -PassThru -Wait -ErrorAction Stop
-    $result.ExitCode = $p.ExitCode
-    $result.Success = ($p.ExitCode -eq 0)
+    if ($PSCmdlet.ShouldProcess($ScriptPath, 'Launch remediation PowerShell process')) {
+      $p = Start-Process -FilePath "powershell.exe" -ArgumentList $argList -WindowStyle Hidden -PassThru -Wait -ErrorAction Stop
+      $result.ExitCode = $p.ExitCode
+      $result.Success = ($p.ExitCode -eq 0)
+    } else {
+      $result.Attempted = $false
+    }
   } catch {
     $result.Error = $_.Exception.Message
   }
