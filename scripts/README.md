@@ -41,7 +41,7 @@ Scripts that check configuration and report drift without making changes.
 ### Remediation Scripts
 Scripts that can apply fixes when run with `-Mode Remediate`.
 
-| Script | Purpose | What It Remediate |
+| Script | Purpose | What It Remediates |
 |--------|---------|-------------------|
 | `01-ASR-Defender-Allowlist.ps1` | ASR/Defender allowlist sync | Adds/removes exclusions to match JSON |
 | `02-LAPS-Hygiene.ps1` | LAPS password rotation | Rotates expired LAPS passwords |
@@ -113,6 +113,8 @@ Most scripts support these common parameters:
 | `-Quiet` / `-NoColor` | Reduce console noise / disable color where supported |
 | `-WhatIf` | Preview changes without applying (where supported) |
 | `-Confirm` | Require confirmation before changes (where supported) |
+
+Mutation-capable scripts should implement `SupportsShouldProcess` and honor `-WhatIf` / `-Confirm` for any state-changing path.
 
 **Pipeline output:** Scripts that document pipeline output emit exactly one structured object (e.g. `Summary`, `Findings`, `Config`) for automation (Export-Csv, ConvertTo-Json, Where-Object). Use `-PassThru` where the script gates pipeline output on that switch.
 

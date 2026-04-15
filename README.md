@@ -7,7 +7,7 @@ PowerShell toolkit for Windows endpoint hardening, drift detection, triage, and 
 
 ## Quick start
 
-Run a single audit from an elevated PowerShell prompt:
+Run a single script from an elevated PowerShell prompt:
 
 ```powershell
 # Defender health check (audit mode, no changes)
@@ -22,14 +22,14 @@ Run a single audit from an elevated PowerShell prompt:
 
 ## Repository policy
 
-This repository uses a lean root layout. The root intentionally keeps only core project docs:
+This repository keeps the root lean. The tracked top-level docs are:
 
 - `README.md`
 - `CONTRIBUTING.md`
 - `SECURITY.md`
 - `CHANGELOG.md`
 
-Operational bug tracking and investigation history live in GitHub Issues/PRs, not in large root markdown artifacts.
+Generated evidence, local audit workspace files, and machine-specific harness artifacts are ignored through `.gitignore` and should not be committed.
 
 ## Requirements
 
@@ -45,6 +45,7 @@ Operational bug tracking and investigation history live in GitHub Issues/PRs, no
 - `examples/` : sample JSON configs and profiles
 - `tests/` : Pester tests
 - `tools/` : CI and operator utilities (GUI launcher, verify, secret scan)
+- `.github/` : workflows, templates, and repo policy metadata
 
 ## Script catalog (at a glance)
 
