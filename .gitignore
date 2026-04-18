@@ -35,6 +35,10 @@ reports/
 reports/*
 !reports/screenshots/
 reports/screenshots/*
+!reports/screenshots/*.html
+!reports/screenshots/*.txt
+reports/screenshots/*.html
+reports/screenshots/*.txt
 !reports/screenshots/launcher-gui-preview.png
 eventlogs/
 defender/
