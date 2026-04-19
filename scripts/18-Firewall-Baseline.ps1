@@ -639,49 +639,6 @@ function Ensure-FwRule {
   }
   $out
 }
-function Write-ConsoleSummary {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][System.Collections.IEnumerable]$Results,
-    [Parameter(Mandatory)][timespan]$Duration,
-    [Parameter(Mandatory)][bool]$Elevated,
-    [Parameter(Mandatory)][bool]$Remediate,
-    [Parameter(Mandatory)][bool]$Strict,
-    [Parameter(Mandatory)][string]$PolicyStore,
-    [Parameter(Mandatory)][bool]$ShowOk
-  )
-  $items = @($Results)
-  $driftCount  = @($items | Where-Object { $_.Status -eq 'Drift'   }).Count
-  $errorCount  = @($items | Where-Object { $_.Status -eq 'Error'   }).Count
-  $changeCount = @($items | Where-Object { $_.Status -eq 'Changed' }).Count
-  $noteCount   = @($items | Where-Object { $_.Status -eq 'Note'    }).Count
-  $okCount     = @($items | Where-Object { $_.Status -eq 'OK'      }).Count
-  $mode = if ($Remediate) { 'Remediate' } else { 'Audit' }
-  Write-UiHeader -Text "Firewall baseline summary"
-  Write-UiLine -Text ("Mode:        " + $mode) -Color Gray
-  Write-UiLine -Text ("Strict:      " + $Strict) -Color Gray
-  Write-UiLine -Text ("Elevated:    " + $Elevated) -Color Gray
-  Write-UiLine -Text ("PolicyStore: " + $PolicyStore) -Color Gray
-  Write-UiLine -Text ("Duration:    " + [string]$Duration) -Color Gray
-  Write-UiLine ""
-  Write-UiLine -Text ("Changed:     " + $changeCount) -Color Cyan
-  Write-UiLine -Text ("Drift:       " + $driftCount) -Color Yellow
-  Write-UiLine -Text ("Errors:      " + $errorCount) -Color Red
-  Write-UiLine -Text ("Notes:       " + $noteCount) -Color DarkGray
-  if ($ShowOk) { Write-UiLine -Text ("OK:          " + $okCount) -Color Green }
-  Write-UiLine ""
-  # Show important items first
-  $top = $items | Where-Object { $_.Status -in @('Error','Drift','Changed','Note') }
-  if (-not $ShowOk) { $top = $top | Where-Object { $_.Status -ne 'OK' } }
-  if (@($top).Count -gt 0) {
-    Write-UiHeader -Text "Findings (top 25)"
-    $top | Select-Object -First 25 | ForEach-Object { Write-UiItem -Item $_ }
-  }
-  if ($ShowOk -and $okCount -gt 0) {
-    Write-UiHeader -Text "OK items (top 25)"
-    ($items | Where-Object { $_.Status -eq 'OK' } | Select-Object -First 25) | ForEach-Object { Write-UiItem -Item $_ }
-  }
-}
 # -------------------------
 # Main
 # -------------------------
@@ -746,7 +703,34 @@ $eventSummary = "Mode={0}; Elevated={1}; PolicyStore={2}; Changed={3}; Drift={4}
   ([string]$duration)
 Write-HealthEvent -Id $eventId -Message $eventSummary -Level $level -Source $EventSource -LogName $EventLogName
 if ($ConsoleSummary) {
-  Write-ConsoleSummary -Results $results -Duration $duration -Elevated $isAdmin -Remediate $Remediate -Strict $Strict -PolicyStore $LocalPolicyStore -ShowOk $ShowOkInConsole
+  $summaryObj = [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Mode = $Mode; Duration = $duration }
+  $findingsAL = [System.Collections.ArrayList]@($script:Findings)
+  Write-ConsoleSummary -Summary $summaryObj -Findings $findingsAL `
+    -CustomFields ([ordered]@{
+      Mode        = $(if ($Remediate) { 'Remediate' } else { 'Audit' })
+      Strict      = $Strict
+      Elevated    = $isAdmin
+      PolicyStore = $LocalPolicyStore
+      Changed     = @($results | Where-Object { $_.Status -eq 'Changed' }).Count
+      Drift       = @($results | Where-Object { $_.Status -eq 'Drift' }).Count
+      Errors      = @($results | Where-Object { $_.Status -eq 'Error' }).Count
+      Duration    = [string]$duration
+    })
+  # Show important items (non-OK, top 25)
+  $items = @($results)
+  $top = $items | Where-Object { $_.Status -in @('Error','Drift','Changed','Note') }
+  if (@($top).Count -gt 0) {
+    Write-UiHeader -Text "Findings (top 25)"
+    $top | Select-Object -First 25 | ForEach-Object { Write-UiItem -Item $_ }
+  }
+  # Show OK items if requested
+  if ($ShowOkInConsole) {
+    $okItems = $items | Where-Object { $_.Status -eq 'OK' }
+    if (@($okItems).Count -gt 0) {
+      Write-UiHeader -Text "OK items (top 25)"
+      ($okItems | Select-Object -First 25) | ForEach-Object { Write-UiItem -Item $_ }
+    }
+  }
 }
 # V2 output contract
 $resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }

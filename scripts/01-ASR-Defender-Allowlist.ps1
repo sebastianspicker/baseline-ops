@@ -470,72 +470,6 @@ function Apply-Diff {
   }
 }
 
-function Write-ConsoleSummary {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory=$true)][pscustomobject]$Result
-  )
-
-
-  $modeColor = if ($Result.Remediate) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Cyan }
-  $resColor = switch ($Result.Result) {
-    'OK_NO_DRIFT'          { [ConsoleColor]::Green; break }
-    'REMEDIATION_OK'       { [ConsoleColor]::Green; break }
-    'DRIFT_NO_REMEDIATION' { [ConsoleColor]::Yellow; break }
-    'REMEDIATION_ERRORS'   { [ConsoleColor]::Red; break }
-    'FAILED'               { [ConsoleColor]::Red; break }
-    default                { [ConsoleColor]::Gray }
-  }
-
-  Write-UiLine ""
-  Write-UiLine "============================================================" -ForegroundColor DarkGray
-  Write-UiLine "Defender / ASR / CFA Allowlist Sync" -ForegroundColor White
-  Write-UiLine "============================================================" -ForegroundColor DarkGray
-
-  Write-KeyValue -Key "Mode" -Value ($(if ($Result.Remediate) { "Remediate" } else { "Audit" })) -KeyStyle DarkGray -ValueStyle $modeColor
-  Write-KeyValue -Key "Baseline" -Value $Result.BaselineUsed -KeyStyle DarkGray -ValueStyle ($(if ($Result.BaselineUsed -eq 'None') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
-  Write-KeyValue -Key "Computer" -Value $Result.ComputerName
-  Write-KeyValue -Key "Timestamp" -Value $Result.Timestamp
-  Write-KeyValue -Key "JSON" -Value $Result.SourceJson
-  Write-KeyValue -Key "Audit" -Value $Result.AuditPath
-
-  Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-  Write-KeyValue -Key "JsonLoaded" -Value ([string]$Result.JsonLoaded) -KeyStyle DarkGray -ValueStyle ($(if ($Result.JsonLoaded) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }))
-  if ($Result.JsonError) { Write-KeyValue -Key "JsonError" -Value $Result.JsonError -KeyStyle DarkGray -ValueStyle Yellow }
-
-  Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-  Write-KeyValue -Key "Add" -Value ([string]$Result.TotalAdd) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalAdd -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
-  Write-KeyValue -Key "Remove" -Value ([string]$Result.TotalRemove) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalRemove -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green }))
-  Write-KeyValue -Key "Rejected" -Value ([string]$Result.TotalRejected) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalRejected -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::DarkGray }))
-  Write-KeyValue -Key "Errors" -Value ([string]$Result.TotalErrors) -KeyStyle DarkGray -ValueStyle ($(if ($Result.TotalErrors -gt 0) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkGray }))
-  Write-KeyValue -Key "Result" -Value $Result.Result -KeyStyle DarkGray -ValueStyle $resColor
-
-  if ($Result.Notes -and $Result.Notes.Count -gt 0) {
-    Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-    Write-UiLine "Notes:" -ForegroundColor DarkGray
-    foreach ($n in $Result.Notes) { Write-UiLine ("- " + $n) -ForegroundColor DarkGray }
-  }
-
-  if ($Result.PerCategory -and $Result.PerCategory.Count -gt 0) {
-    Write-UiLine "------------------------------------------------------------" -ForegroundColor DarkGray
-    Write-UiLine "Per-category diff:" -ForegroundColor DarkGray
-    foreach ($row in ($Result.PerCategory | Sort-Object Name)) {
-      Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
-      if ($row.Add -gt 0 -or $row.Remove -gt 0 -or $row.Rejected -gt 0) {
-        # Optional: highlight lines with changes (second line in color to avoid pipeline)
-        Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f "",$row.Add,$row.Remove,$row.Rejected) -ForegroundColor DarkGray
-        Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f "",$row.Add,$row.Remove,$row.Rejected) -ForegroundColor DarkGray
-      }
-
-      # Keep it simple: single line; colors per field are not possible without multiple Write-UiLine calls.
-      # We already color the totals and overall result.
-    }
-  }
-
-  Write-UiLine "============================================================" -ForegroundColor DarkGray
-  Write-UiLine ""
-}
-
 # ----------------------------- Main ------------------------------------------------
 $script:Findings = New-FindingsList
 $null = Ensure-EventSource
@@ -564,8 +498,31 @@ if (-not $isWindowsHost) {
   }
 
   Write-AuditJson -Path $AuditPath -Object $final
-  Write-ConsoleSummary -Result $final
-
+  $summaryObj = [pscustomobject]@{ ComputerName = $final.ComputerName; Timestamp = $final.Timestamp }
+  $findingsAL = [System.Collections.ArrayList]@($script:Findings)
+  Write-ConsoleSummary -Summary $summaryObj -Findings $findingsAL `
+    -CustomFields ([ordered]@{
+      Mode       = $(if ($final.Remediate) { 'Remediate' } else { 'Audit' })
+      Baseline   = $final.BaselineUsed
+      JSON       = $final.SourceJson
+      Audit      = $final.AuditPath
+      JsonLoaded = [string]$final.JsonLoaded
+      Add        = [string]$final.TotalAdd
+      Remove     = [string]$final.TotalRemove
+      Rejected   = [string]$final.TotalRejected
+      Errors     = [string]$final.TotalErrors
+      Result     = $final.Result
+    })
+  if ($final.Notes -and $final.Notes.Count -gt 0) {
+    Write-UiLine "Notes:" -ForegroundColor DarkGray
+    foreach ($n in $final.Notes) { Write-UiLine ("- " + $n) -ForegroundColor DarkGray }
+  }
+  if ($final.PerCategory -and $final.PerCategory.Count -gt 0) {
+    Write-UiLine "Per-category diff:" -ForegroundColor DarkGray
+    foreach ($row in ($final.PerCategory | Sort-Object Name)) {
+      Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
+    }
+  }
   $v2Result = New-V2ResultObject -ScriptName '01-ASR-Defender-Allowlist.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $final -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $v2Result }
@@ -713,7 +670,31 @@ try {
   }
 
   Write-AuditJson -Path $AuditPath -Object $final
-  Write-ConsoleSummary -Result $final
+  $summaryObj = [pscustomobject]@{ ComputerName = $final.ComputerName; Timestamp = $final.Timestamp }
+  $findingsAL = [System.Collections.ArrayList]@($script:Findings)
+  Write-ConsoleSummary -Summary $summaryObj -Findings $findingsAL `
+    -CustomFields ([ordered]@{
+      Mode       = $(if ($final.Remediate) { 'Remediate' } else { 'Audit' })
+      Baseline   = $final.BaselineUsed
+      JSON       = $final.SourceJson
+      Audit      = $final.AuditPath
+      JsonLoaded = [string]$final.JsonLoaded
+      Add        = [string]$final.TotalAdd
+      Remove     = [string]$final.TotalRemove
+      Rejected   = [string]$final.TotalRejected
+      Errors     = [string]$final.TotalErrors
+      Result     = $final.Result
+    })
+  if ($final.Notes -and $final.Notes.Count -gt 0) {
+    Write-UiLine "Notes:" -ForegroundColor DarkGray
+    foreach ($n in $final.Notes) { Write-UiLine ("- " + $n) -ForegroundColor DarkGray }
+  }
+  if ($final.PerCategory -and $final.PerCategory.Count -gt 0) {
+    Write-UiLine "Per-category diff:" -ForegroundColor DarkGray
+    foreach ($row in ($final.PerCategory | Sort-Object Name)) {
+      Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
+    }
+  }
 
 }
 catch {
@@ -744,7 +725,31 @@ catch {
   }
 
   Write-AuditJson -Path $AuditPath -Object $final
-  Write-ConsoleSummary -Result $final
+  $summaryObj = [pscustomobject]@{ ComputerName = $final.ComputerName; Timestamp = $final.Timestamp }
+  $findingsAL = [System.Collections.ArrayList]@($script:Findings)
+  Write-ConsoleSummary -Summary $summaryObj -Findings $findingsAL `
+    -CustomFields ([ordered]@{
+      Mode       = $(if ($final.Remediate) { 'Remediate' } else { 'Audit' })
+      Baseline   = $final.BaselineUsed
+      JSON       = $final.SourceJson
+      Audit      = $final.AuditPath
+      JsonLoaded = [string]$final.JsonLoaded
+      Add        = [string]$final.TotalAdd
+      Remove     = [string]$final.TotalRemove
+      Rejected   = [string]$final.TotalRejected
+      Errors     = [string]$final.TotalErrors
+      Result     = $final.Result
+    })
+  if ($final.Notes -and $final.Notes.Count -gt 0) {
+    Write-UiLine "Notes:" -ForegroundColor DarkGray
+    foreach ($n in $final.Notes) { Write-UiLine ("- " + $n) -ForegroundColor DarkGray }
+  }
+  if ($final.PerCategory -and $final.PerCategory.Count -gt 0) {
+    Write-UiLine "Per-category diff:" -ForegroundColor DarkGray
+    foreach ($row in ($final.PerCategory | Sort-Object Name)) {
+      Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
+    }
+  }
 }
 
 # V2 output contract
