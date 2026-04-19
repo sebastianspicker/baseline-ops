@@ -44,6 +44,9 @@ Scripts that check configuration and report drift without making changes.
 | `47-WDAG-Readiness-Audit.ps1` | Application Guard prerequisites audit | `-ConfigPath` |
 | `48-ExploitProtection-Audit.ps1` | Exploit Protection and ASR mitigations | `-ConfigPath` |
 | `49-DriverSigning-Integrity-Audit.ps1` | Driver signing and kernel code integrity | `-ConfigPath` |
+| `50-AMSI-Audit.ps1` | AMSI provider registration and bypass detection | `-ConfigPath` |
+| `51-AppLocker-Audit.ps1` | AppLocker policy enforcement and rule coverage | `-ConfigPath` |
+| `52-DoH-Audit.ps1` | DNS-over-HTTPS client configuration audit | `-ConfigPath` |
 
 ### Remediation Scripts
 Scripts that can apply fixes when run with `-Mode Remediate`.

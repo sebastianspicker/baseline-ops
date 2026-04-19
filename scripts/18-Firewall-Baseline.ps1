@@ -110,7 +110,7 @@ param(
   # Pretty console output. (Pipeline output is always structured objects only.)
   [switch]$ConsoleSummary = $true,
   # Show verbose "OK" items in the console summary.
-  [switch]$ShowOkInConsole = $false
+  [switch]$ShowOkInConsole
 ,
   [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
   [ValidateSet('Console','Json','Csv','None')][string]$OutputFormat = 'Console',

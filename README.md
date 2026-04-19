@@ -40,7 +40,7 @@ Generated evidence, local audit workspace files, and machine-specific harness ar
 
 ## Core structure
 
-- `scripts/` : operational scripts (49 scripts across audit, remediation, collection, monitoring)
+- `scripts/` : operational scripts (52 scripts across audit, remediation, collection, monitoring)
 - `lib/` : shared modules (Output, Console, Results, Config, Registry, etc.)
 - `examples/` : sample JSON configs and profiles
 - `tests/` : Pester tests
@@ -100,6 +100,9 @@ Generated evidence, local audit workspace files, and machine-specific harness ar
 | 47 | WDAG-Readiness-Audit | Hardening | x | |
 | 48 | ExploitProtection-Audit | Hardening | x | |
 | 49 | DriverSigning-Integrity-Audit | Hardening | x | |
+| 50 | AMSI-Audit | Hardening | x | |
+| 51 | AppLocker-Audit | Hardening | x | |
+| 52 | DoH-Audit | Network | x | |
 
 See [scripts/README.md](scripts/README.md) for full parameter documentation per script.
 

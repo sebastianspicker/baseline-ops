@@ -138,7 +138,7 @@ param(
   [string]$Reason,
 
   # Interactive default: do not emit objects unless requested.
-  [switch]$EmitObject = $false,
+  [switch]$EmitObject,
 
   # Optional: write UI to information stream instead of host.
   [switch]$UseInformationStream
