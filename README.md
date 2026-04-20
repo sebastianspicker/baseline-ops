@@ -120,6 +120,18 @@ Deployment helpers:
 - `scripts/00-Copy-Local.ps1`
 - `scripts/00-Run-Local.ps1`
 
+### v2 execution flow
+
+```mermaid
+flowchart TD
+    A["00-Validate-Profile.ps1\n(schema + integrity check)"] --> B["00-Run-Profile.ps1\n(step orchestration)"]
+    B -->|"per step"| C["00-Run-Local.ps1\n(elevated invocation)"]
+    C --> D["NN-Script.ps1\n(audit / remediate)"]
+    D -->|"v2 result object"| E["lib/Serialization.psm1\nConvertTo-V2Json"]
+    B -->|"all results"| F["00-Report-Aggregate.ps1\n(summary rollup)"]
+    B2["00-Run-Batch.ps1\n(category/tag filter)"] -->|"delegates to"| B
+```
+
 ### Breaking changes (v2 hard cutover)
 
 - `-Mode` is the normalized execution switch (`Audit|Remediate`) for productive scripts.
