@@ -20,3 +20,4 @@ parallelize-matrix-execu: publication
 add-stricter-warning-han: publication
 github-actions: maintenance
 name: maintenance
+string: maintenance
