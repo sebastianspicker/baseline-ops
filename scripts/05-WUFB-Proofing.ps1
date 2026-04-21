@@ -161,6 +161,21 @@ if ($NoColor) {
 }
 $ErrorActionPreference = 'Stop'
 
+$isWindowsHost = ($env:OS -eq 'Windows_NT')
+if (-not $isWindowsHost) {
+  $summary = [pscustomobject]@{
+    ComputerName = $env:COMPUTERNAME
+    Timestamp    = Get-Date
+    Mode         = $Mode
+    Supported    = $false
+    Notes        = @('Skipped: this script is only supported on Windows hosts.')
+  }
+  $result = New-V2ResultObject -ScriptName '05-WUFB-Proofing.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $result }
+  exit 0
+}
+
 # C10: canonical findings list
 $script:Findings = New-FindingsList
 
@@ -171,56 +186,6 @@ $script:Findings = New-FindingsList
 
 
 
-
-function Write-ConsoleSummary {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][hashtable]$Summary,
-    [AllowEmptyCollection()][string[]]$Changes,
-    [AllowEmptyCollection()][string[]]$Drift,
-    [AllowEmptyCollection()][string[]]$Notes
-  )
-
-  $result = [string]$Summary.Result
-  $resColor = [ConsoleColor]::Gray
-  if ($result -eq 'OK') { $resColor = [ConsoleColor]::Green }
-  elseif ($result -eq 'DRIFT') { $resColor = [ConsoleColor]::Yellow }
-  elseif ($result -eq 'WARNING') { $resColor = [ConsoleColor]::Yellow }
-  elseif ($result -eq 'ERROR') { $resColor = [ConsoleColor]::Red }
-
-  Write-UiLine ""
-  Write-DecorativeRule -Title "WUfB Proofing Summary" -Color 'Header'
-
-  Write-KeyValue -Key 'Result'    -Value $Summary.Result -ValueColor $resColor
-  Write-KeyValue -Key 'Elevated'  -Value $Summary.Elevated
-  Write-KeyValue -Key 'Remediate' -Value $Summary.Remediate
-  Write-KeyValue -Key 'Strict'    -Value $Summary.Strict
-  Write-KeyValue -Key 'Changes'   -Value $Summary.ChangesCount
-  Write-KeyValue -Key 'Drift'     -Value $Summary.DriftCount
-  Write-KeyValue -Key 'Notes'     -Value $Summary.NotesCount
-  Write-KeyValue -Key 'EventLog'  -Value $Summary.EventLogStatus
-  Write-KeyValue -Key 'Proof JSON'-Value $Summary.ProofPath
-
-  if ($Changes -and $Changes.Count -gt 0) {
-    Write-UiLine ""
-    Write-UiLine "Changes:" -ForegroundColor ([ConsoleColor]::Green)
-    foreach ($c in $Changes) { Write-UiLine ("- {0}" -f $c) -ForegroundColor ([ConsoleColor]::Gray) }
-  }
-
-  if ($Drift -and $Drift.Count -gt 0) {
-    Write-UiLine ""
-    Write-UiLine "Drift:" -ForegroundColor ([ConsoleColor]::Yellow)
-    foreach ($d in $Drift) { Write-UiLine ("- {0}" -f $d) -ForegroundColor ([ConsoleColor]::Gray) }
-  }
-
-  if ($Notes -and $Notes.Count -gt 0) {
-    Write-UiLine ""
-    Write-UiLine "Notes:" -ForegroundColor ([ConsoleColor]::Cyan)
-    foreach ($n in $Notes) { Write-UiLine ("- {0}" -f $n) -ForegroundColor ([ConsoleColor]::Gray) }
-  }
-
-  Write-UiLine ""
-}
 
 # -----------------------------
 # Event log (best-effort)
@@ -700,7 +665,40 @@ try {
     ProofPath      = $proofPathToShow
   }
 
-  Write-ConsoleSummary -Summary $summary -Changes $changes.ToArray() -Drift $drifts.ToArray() -Notes $notes.ToArray()
+  $summaryObj = [pscustomobject]$summary
+  if (-not $summaryObj.PSObject.Properties['ComputerName']) {
+    $summaryObj | Add-Member -NotePropertyName ComputerName -NotePropertyValue $env:COMPUTERNAME
+  }
+  Write-ConsoleSummary -Summary $summaryObj -Findings ([System.Collections.ArrayList]::new()) `
+    -CustomFields ([ordered]@{
+      Result     = $summary.Result
+      Elevated   = $summary.Elevated
+      Remediate  = $summary.Remediate
+      Strict     = $summary.Strict
+      Changes    = $summary.ChangesCount
+      Drift      = $summary.DriftCount
+      Notes      = $summary.NotesCount
+      EventLog   = $summary.EventLogStatus
+      'Proof JSON' = $summary.ProofPath
+    })
+  $changesArr = $changes.ToArray()
+  $driftsArr  = $drifts.ToArray()
+  $notesArr   = $notes.ToArray()
+  if ($changesArr -and $changesArr.Count -gt 0) {
+    Write-UiLine ""
+    Write-UiLine "Changes:" -ForegroundColor ([ConsoleColor]::Green)
+    foreach ($c in $changesArr) { Write-UiLine ("- {0}" -f $c) -ForegroundColor ([ConsoleColor]::Gray) }
+  }
+  if ($driftsArr -and $driftsArr.Count -gt 0) {
+    Write-UiLine ""
+    Write-UiLine "Drift:" -ForegroundColor ([ConsoleColor]::Yellow)
+    foreach ($d in $driftsArr) { Write-UiLine ("- {0}" -f $d) -ForegroundColor ([ConsoleColor]::Gray) }
+  }
+  if ($notesArr -and $notesArr.Count -gt 0) {
+    Write-UiLine ""
+    Write-UiLine "Notes:" -ForegroundColor ([ConsoleColor]::Cyan)
+    foreach ($n in $notesArr) { Write-UiLine ("- {0}" -f $n) -ForegroundColor ([ConsoleColor]::Gray) }
+  }
 
   if ($PassThru) {
     [pscustomobject]@{

@@ -185,6 +185,21 @@ if ($NoColor) {
 }
 $ErrorActionPreference = 'Stop'
 
+$isWindowsHost = ($env:OS -eq 'Windows_NT')
+if (-not $isWindowsHost) {
+  $summary = [pscustomobject]@{
+    ComputerName = $env:COMPUTERNAME
+    Timestamp    = Get-Date
+    Mode         = $Mode
+    Supported    = $false
+    Notes        = @('Skipped: this script is only supported on Windows hosts.')
+  }
+  $result = New-V2ResultObject -ScriptName '03-LocalAdmins-Guardrail.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $result }
+  exit 0
+}
+
 # ---------------- Constants / Defaults ----------------
 
 $script:EventSource            = 'LocalAdmins-Guardrail'
@@ -468,58 +483,6 @@ function New-GuardrailResult {
 }
 
 
-function Write-ConsoleSummary {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)] $Result)
-
-  if ($Quiet) { return }
-
-  $levelColor = 'Green'
-  if ($Result.EventLevel -eq 'Warning') { $levelColor = 'Yellow' }
-  if ($Result.EventLevel -eq 'Error')   { $levelColor = 'Red' }
-
-  Write-UiLine ""
-  Write-ColorLine "=== Local Admins Guardrail ===" 'Cyan'
-  Write-ColorLine ("ComputerName           : {0}" -f $Result.ComputerName) 'Gray'
-  Write-ColorLine ("GroupName              : {0}" -f $Result.GroupName) 'Gray'
-  Write-UiLine ""
-
-  Write-ColorLine ("Status                 : {0} (EventId {1})" -f $Result.EventLevel, $Result.EventId) $levelColor
-  Write-ColorLine ("Remediate              : {0}" -f $Result.Remediate) 'White'
-  Write-ColorLine ("AllowDomainRemediation : {0}" -f $Result.AllowDomainRemediation) 'White'
-  Write-UiLine ""
-
-  $failSafeColor = $(if ($Result.FailSafeNoRemove) { 'Yellow' } else { 'Green' })
-  Write-ColorLine ("FailSafeNoRemove       : {0}" -f $Result.FailSafeNoRemove) $failSafeColor
-  Write-ColorLine ("ConfigLoaded           : {0}" -f $Result.ConfigLoaded) 'Gray'
-  Write-ColorLine ("AllowListPathUsed      : {0}" -f ($(if ($Result.AllowListPathUsed) { $Result.AllowListPathUsed } else { "(none)" }))) 'Gray'
-  Write-UiLine ""
-
-  Write-ColorLine ("MembersBeforeCount     : {0}" -f @($Result.MembersBefore).Count) 'White'
-  Write-ColorLine ("AllowResolvedSidCount  : {0}" -f @($Result.AllowSIDs).Count) 'White'
-  Write-ColorLine ("UnresolvedAllowCount   : {0}" -f @($Result.UnresolvedAllowInput).Count) $(if (@($Result.UnresolvedAllowInput).Count -gt 0) { 'Yellow' } else { 'Green' })
-  Write-UiLine ""
-
-  $driftColor = $(if ($Result.DriftDetected) { 'Yellow' } else { 'Green' })
-  Write-ColorLine ("DriftDetected          : {0}" -f $Result.DriftDetected) $driftColor
-  Write-ColorLine ("ToAddCount             : {0}" -f @($Result.ToAddSIDs).Count) $(if (@($Result.ToAddSIDs).Count -gt 0) { 'Yellow' } else { 'Green' })
-  Write-ColorLine ("ToRemoveCount          : {0}" -f @($Result.ToRemove).Count) $(if (@($Result.ToRemove).Count -gt 0) { 'Yellow' } else { 'Green' })
-  Write-UiLine ""
-
-  if ($Result.Remediate) {
-    Write-ColorLine ("AddedCount             : {0}" -f @($Result.AddedSIDs).Count) $(if (@($Result.AddedSIDs).Count -gt 0) { 'Yellow' } else { 'Green' })
-    Write-ColorLine ("RemovedCount           : {0}" -f @($Result.RemovedIds).Count) $(if (@($Result.RemovedIds).Count -gt 0) { 'Yellow' } else { 'Green' })
-    Write-ColorLine ("PostCompliant          : {0}" -f $Result.PostCompliant) $(if ($Result.PostCompliant) { 'Green' } else { 'Yellow' })
-    Write-UiLine ""
-  }
-
-  if (@($Result.Errors).Count -gt 0) {
-    Write-ColorLine "Errors:" 'Red'
-    foreach ($e in $Result.Errors) { Write-ColorLine ("- {0}" -f $e) 'Red' }
-    Write-UiLine ""
-  }
-}
-
 # ---------------- Main ----------------
 
 Ensure-EventSource -Source $script:EventSource -LogName $script:EventLogName
@@ -710,7 +673,25 @@ try {
   Write-HealthEvent -Id 3510 -Message $result.EventMessage -Level 'Error'
 
 } finally {
-  if ($result) { Write-ConsoleSummary -Result $result }
+  if ($result -and -not $Quiet) {
+    $summaryObj = [pscustomobject]@{ ComputerName = $result.ComputerName; Timestamp = Get-Date }
+    Write-ConsoleSummary -Summary $summaryObj -Findings ([System.Collections.ArrayList]::new()) `
+      -CustomFields ([ordered]@{
+        Group            = $result.GroupName
+        Status           = ("{0} (EventId {1})" -f $result.EventLevel, $result.EventId)
+        Remediate        = [string]$result.Remediate
+        DriftDetected    = [string]$result.DriftDetected
+        ToAdd            = @($result.ToAddSIDs).Count
+        ToRemove         = @($result.ToRemove).Count
+        FailSafeNoRemove = [string]$result.FailSafeNoRemove
+        ConfigLoaded     = [string]$result.ConfigLoaded
+      })
+    if (@($result.Errors).Count -gt 0) {
+      Write-ColorLine "Errors:" 'Red'
+      foreach ($e in $result.Errors) { Write-ColorLine ("- {0}" -f $e) 'Red' }
+      Write-UiLine ""
+    }
+  }
 }
 
 # V2 output contract
