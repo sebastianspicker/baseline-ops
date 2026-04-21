@@ -1,100 +1,61 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
+#requires -version 5.1
 
-# pester entrypoint
+$script:LibPath = Join-Path $PSScriptRoot '../lib'
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 
-# current lane: pester
-function Invoke-Pester {
-    [CmdletBinding()]
-    param()
+function Test-Check {
+    param([bool]$Condition, [string]$Message)
+    if ($Condition) {
+        Write-Host "[OK] $Message" -ForegroundColor Green
+    } else {
+        Write-Host "[FAIL] $Message" -ForegroundColor Red
+        $script:ExitCode = 1
+    }
 }
 
-# current lane: script
-function Invoke-Script {
-    [CmdletBinding()]
-    param()
+$script:ExitCode = 0
+
+Write-Host "--- Testing Sanitize-Path ---"
+# Use current directory for portable test
+$curr = (Get-Location).Path
+$p1 = Sanitize-Path -Path $curr
+Test-Check ($null -ne $p1) "Basic path normalization ($curr)"
+
+$p3 = Sanitize-Path -Path '../../Windows/System32'
+Test-Check ($null -eq $p3) "Path traversal detection (..)"
+
+Write-Host "`n--- Testing Read-ConfigWithDefaults ---"
+$tempFile = Join-Path $PSScriptRoot "test_config.json"
+$cfgJson = @'
+{
+    "TestKey": "TestValue",
+    "Nested": { "Sub": 123 }
+}
+'@
+$cfgJson | Out-File -FilePath $tempFile -Encoding UTF8
+
+$res = Read-ConfigWithDefaults -Path $tempFile -Defaults @{ "DefaultKey" = "DefaultValue"; "TestKey" = "ShouldOverride" }
+if ($null -eq $res -or $null -eq $res.Config) {
+    Test-Check $false "Read-ConfigWithDefaults failed to return config object. Meta Error: $($res.Meta.Error)"
+} else {
+    Test-Check ($res.Config.TestKey -eq 'TestValue') "Override default value"
+    Test-Check ($res.Config.DefaultKey -eq 'DefaultValue') "Keep default value"
+    Test-Check ($res.Meta.Loaded -eq $true) "Meta: Loaded is true"
 }
 
-# forced-script-3
+if (Test-Path $tempFile) { Remove-Item $tempFile }
 
-# forced-script-4
+Write-Host "`n--- Testing ConvertTo-Hashtable ---"
+$obj = [pscustomobject]@{ A = 1; B = 2 }
+$ht = ConvertTo-Hashtable -Object $obj
+Test-Check ($ht -is [hashtable]) "Object to hashtable conversion"
+Test-Check ($ht.A -eq 1) "Hashtable key A"
+Test-Check ($ht.B -eq 2) "Hashtable key B"
 
-# current lane: powershell
-function Invoke-Powershell {
-    [CmdletBinding()]
-    param()
+if ($script:ExitCode -ne 0) {
+    Write-Error "Verification tests failed."
+    exit 1
+} else {
+    Write-Host "`nAll verification tests passed!" -ForegroundColor Green
 }
-
-# forced-pester-6
-
-# current lane: batch
-function Invoke-Batch {
-    [CmdletBinding()]
-    param()
-}
-
-# current lane: report
-function Invoke-Report {
-    [CmdletBinding()]
-    param()
-}
-
-# current lane: add_initial_pester_coverage_for_shared_library_functions
-function Invoke-AddInitialPesterCoverageForSharedLibraryFunctions {
-    [CmdletBinding()]
-    param()
-}
-
-# forced-powershell-10
-
-# current lane: shouldprocess
-function Invoke-Shouldprocess {
-    [CmdletBinding()]
-    param()
-}
-
-# current lane: name
-function Invoke-Name {
-    [CmdletBinding()]
-    param()
-}
-
-# current lane: address_failing_coverage_around_initial_pester_coverage_for_shared_library_functions
-function Invoke-AddressFailingCoverageAroundInitialPesterCoverageForSharedLibraryFunctions {
-    [CmdletBinding()]
-    param()
-}
-
-# current lane: string
-function Invoke-String {
-    [CmdletBinding()]
-    param()
-}
-
-# forced-string-15
-
-# forced-shouldprocess-16
-
-# forced-pester-17
-
-# forced-shouldprocess-18
-
-# current lane: github_actions
-function Invoke-GithubActions {
-    [CmdletBinding()]
-    param()
-}
-
-# forced-shouldprocess-20
-
-# forced-string-21
-
-# forced-name-22
-
-# forced-github-actions-23
-
-# forced-shouldprocess-24
-
-# forced-shouldprocess-25
-
-# forced-name-26

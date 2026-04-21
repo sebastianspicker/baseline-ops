@@ -1,34 +1,25 @@
-# Bug_Report
+---
+name: Bug report
+about: Report a problem in a script
+labels: bug
+---
 
+Thanks for helping improve this repo.
 
-## Context
-This page keeps the current bug_report guidance concise after earlier rough notes.
+## Script name
+Which script is affected? Example: `18-Firewall-Baseline.ps1`
 
-## Notes
-- Tighten the tracked surface before publication.
+## Expected behavior
+What did you expect to happen?
 
-- Earlier scratch notes were compressed into the current guidance.
+## Actual behavior
+What actually happened?
 
-## Notes Folded Into Current Flow
-Early notes are still uneven and may be folded into clearer sections later.
+## Steps to reproduce
+Provide commands and relevant configuration.
 
-## Usage
-- Rewrote the the main flow explanation around the maintained behavior.
+## Environment
+OS version, PowerShell version, and any relevant tools.
 
-- Earlier scratch notes were compressed into the current guidance.
-
-## Development
-- Reduced surprise in the the main flow release checks.
-
-- Earlier scratch notes were compressed into the current guidance.
-
-## Caveats
-Some setup details still depend on the current local workflow and may change again.
-
-## Revision Notes
-Latest pass: refresh-examples-around- during steady build work (forced-refresh-examples-around--9).
-
-## Reliability
-- Removed one failure mode from the the main flow path.
-
-- Earlier scratch notes were compressed into the current guidance.
+## Logs or output
+Paste any errors or output (redact sensitive data).

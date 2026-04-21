@@ -1,10 +1,100 @@
-node_modules/
-.venv/
-dist/
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.cursor/
+.codex/
+
+# PowerShell
+*.ps1~
+*.psm1~
+*.psd1~
+
+# Logs and outputs
+*.log
+*.tmp
+*.bak
+*.old
+
+# Generated artifacts (may contain sensitive data)
+*.csv
+*.tsv
+*.zip
+*.evtx
+*.cab
+*.etl
+
+# Common output folders (support bundles / proofs)
+support/
+proof/
+proofs/
+evidence/
+reports/
+!reports/
+reports/*
+!reports/screenshots/
+reports/screenshots/*
+!reports/screenshots/launcher-gui-preview.png
+eventlogs/
+defender/
+defender-support/
+_extracted/
+
+# Environment files and credentials
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+id_rsa
+id_ed25519
+*.keystore
+
+# Local docs (findings/logs/decisions)
+DECISIONS.md
+FINDINGS.md
+LOG.md
+REFACTOR_PLAN.md
+PHYSICS_AUDIT.md
+validation.md
+HANDOFF.md
+progress.md
+
+# Development artifacts
+ralph-loop/
+plans/
+.claude/
+
+# Local harness and audit workspace state
+.agents/
+.github/codex/
+.github/workflows/codex.yml
+AGENTS.md
+AUDIT.md
+HARNESS_PRINCIPLES.md
+code_review.md
+docs/agent/
+docs/source-audit/
+scripts/topology_inventory.sh
+
+# CI/test artifacts
+coverage/
+test-results/
+testResults.xml
+junit.xml
+*.trx
+*.coverage
+*.coveragexml
+.nyc_output/
 .pytest_cache/
-
-# forced-align-docs-and-templates-1
-
-# forced-clean-temporary-review-a-2
-
-# forced-tighten-the-tracked-surf-3
+.mypy_cache/
+.ruff_cache/
+.cache/
+.terraform/
+node_modules/
+dist/
+build/
+out/
