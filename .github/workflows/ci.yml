@@ -1,23 +1,20 @@
-name: verify
+name: Main verification
+
 on:
   push:
-    branches: [dev]
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
-  verify:
+  check_1_lint_shell_yaml_markdown_actions:
+    name: "Lint (shell/yaml/markdown/actions)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: git status --short
-add-verification-guidanc: bootstrap
-run-the-full-pester-matr: core-build-out
-github-actions: core-build-out
-powershell: publication
-github-actions: publication
-string: publication
-cache-dependencies-for-f: publication
-normalize-python-setup-a: publication
-parallelize-matrix-execu: publication
-add-stricter-warning-han: publication
-github-actions: maintenance
-name: maintenance
-string: maintenance
+      - name: Verify checkout
+        run: git status --short
