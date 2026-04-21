@@ -142,7 +142,6 @@ try {
           -Message ("Windows Defender AMSI provider is registered ({0})." -f $clsid)
       } else {
         # Unknown provider — could be a third-party AV or injected payload
-        $clsidPath = Join-Path $script:AmsiProvidersPath $clsid
         $providerName = try {
           (Get-ItemProperty -Path "HKLM:\SOFTWARE\Classes\CLSID\$clsid" -ErrorAction SilentlyContinue).'(default)'
         } catch { $null }
