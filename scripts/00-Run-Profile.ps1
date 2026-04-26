@@ -87,11 +87,69 @@ function Test-StepArgHasToken {
   )
 
   if (-not $ArgsList) { return $false }
-  $pattern = '^-{0}($|:)' -f [regex]::Escape($Name)
+  $pattern = '^-{1,2}{0}($|:|=)' -f [regex]::Escape($Name)
   foreach ($arg in $ArgsList) {
     if ([string]$arg -imatch $pattern) { return $true }
   }
   return $false
+}
+
+function Get-StepArgName {
+  [CmdletBinding()]
+  param([string]$Token)
+
+  if ([string]::IsNullOrWhiteSpace($Token)) { return $null }
+  if ($Token -match '^-{1,2}([A-Za-z][A-Za-z0-9-]*)(?::|=|$)') {
+    return [string]$Matches[1]
+  }
+
+  return $null
+}
+
+function Remove-BlockedStepArgs {
+  [CmdletBinding()]
+  param(
+    [string[]]$ArgsList,
+    [string[]]$BlockedNames
+  )
+
+  if (-not $ArgsList -or $ArgsList.Count -eq 0) { return @() }
+  if (-not $BlockedNames -or $BlockedNames.Count -eq 0) { return @($ArgsList) }
+
+  $sanitized = New-Object System.Collections.Generic.List[string]
+
+  $blockedNameSet = @{}
+  foreach ($blocked in $BlockedNames) {
+    if (-not [string]::IsNullOrWhiteSpace([string]$blocked)) {
+      $normalized = ([string]$blocked).TrimStart('-')
+      if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+        $blockedNameSet[$normalized.ToLowerInvariant()] = $true
+      }
+    }
+  }
+
+  for ($idx = 0; $idx -lt $ArgsList.Count; $idx++) {
+    $token = [string]$ArgsList[$idx]
+    $tokenName = Get-StepArgName -Token $token
+    $blockedMatch = if ($tokenName) { $blockedNameSet.ContainsKey($tokenName.ToLowerInvariant()) } else { $false }
+
+    if (-not $blockedMatch) {
+      [void]$sanitized.Add($token)
+      continue
+    }
+
+    Write-Warning "Blocked argument override '$token' removed from profile step arguments."
+
+    # If the blocked parameter was provided as "-Name value", drop the value token as well.
+    if ($token -match '^-{1,2}[A-Za-z][A-Za-z0-9-]*$' -and ($idx + 1) -lt $ArgsList.Count) {
+      $next = [string]$ArgsList[$idx + 1]
+      if ($next -notmatch '^-') {
+        $idx++
+      }
+    }
+  }
+
+  return @($sanitized)
 }
 
 $validatorPath = Join-Path $PSScriptRoot '00-Validate-Profile.ps1'
@@ -188,14 +246,7 @@ while ($pending.Count -gt 0) {
 
     # Validate that profile step args don't attempt to override security-sensitive parameters
     $blockedOverrides = @('-RootPath', '-ConfigPath', '-ExpectedHash')
-    foreach ($argVal in @($stepArgs)) {
-      foreach ($blocked in $blockedOverrides) {
-        if ([string]$argVal -ieq $blocked -or [string]$argVal -imatch "^$([regex]::Escape($blocked)):") {
-          Write-Warning "Profile step '$scriptName' contains blocked argument override '$argVal'. Removing it."
-          $stepArgs = @($stepArgs | Where-Object { [string]$_ -ine $argVal })
-        }
-      }
-    }
+    $stepArgs = Remove-BlockedStepArgs -ArgsList $stepArgs -BlockedNames $blockedOverrides
 
     # Legacy profile compatibility: normalize removed v1 token "-Remediate" to v2 mode.
     if (@($stepArgs | Where-Object { [string]$_ -ieq '-Remediate' }).Count -gt 0) {

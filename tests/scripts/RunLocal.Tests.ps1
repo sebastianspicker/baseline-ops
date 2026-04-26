@@ -103,4 +103,20 @@ exit 0
       }
     }
   }
+
+  It 'Rejects unsupported hash algorithm in -ExpectedHash prefix' {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-hash-alg-{0}" -f [guid]::NewGuid().ToString('N'))
+    $scriptsDir = Join-Path $tempRoot 'scripts'
+    try {
+      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      Set-Content -LiteralPath (Join-Path $scriptsDir '00-Hash.ps1') -Value 'exit 0' -Encoding UTF8
+
+      $runner = Join-Path $PSScriptRoot '../../scripts/00-Run-Local.ps1'
+      { & $runner -ScriptName '00-Hash.ps1' -RootPath $tempRoot -ExpectedHash 'MD5:ABCD' -Confirm:$false } | Should -Throw '*Unsupported hash algorithm*'
+    } finally {
+      if (Test-Path -LiteralPath $tempRoot) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    }
+  }
 }

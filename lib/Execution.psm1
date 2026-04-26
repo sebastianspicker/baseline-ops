@@ -75,14 +75,14 @@ function Convert-ArgumentTokens {
   $namedArgs = @{}
   $positionalArgs = New-Object System.Collections.ArrayList
   $optionPattern = '^-{1,2}[A-Za-z][A-Za-z0-9-]*$'
-  $optionWithInlineValuePattern = '^-{1,2}([A-Za-z][A-Za-z0-9-]*):(.*)$'
+  $optionWithInlineValuePattern = '^-{1,2}([A-Za-z][A-Za-z0-9-]*)(:|=)(.*)$'
 
   for ($i = 0; $i -lt $Arguments.Count; $i++) {
     $token = [string]$Arguments[$i]
 
     if ($token -match $optionWithInlineValuePattern) {
       $name = $Matches[1]
-      $value = Convert-TokenValue -Value $Matches[2]
+      $value = Convert-TokenValue -Value $Matches[3]
       if ($namedArgs.ContainsKey($name)) {
         $existing = @($namedArgs[$name])
         $namedArgs[$name] = @($existing + $value)

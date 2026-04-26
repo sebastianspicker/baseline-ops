@@ -215,6 +215,11 @@ if (-not [string]::IsNullOrWhiteSpace($ExpectedHash)) {
     $expectedAlg = $Matches[1]
     $expectedHashValue = $Matches[2]
   }
+
+  $allowedHashAlgorithms = @('SHA256','SHA384','SHA512')
+  if ($allowedHashAlgorithms -notcontains $expectedAlg.ToUpperInvariant()) {
+    throw "Unsupported hash algorithm '$expectedAlg'. Allowed: $($allowedHashAlgorithms -join ', ')."
+  }
   
   $actualHashObj = Get-FileHash -Path $scriptPath -Algorithm $expectedAlg
   $actualHash = $actualHashObj.Hash

@@ -77,6 +77,17 @@ Describe 'Convert-ArgumentTokens' {
     $parsed.Named.NoColor | Should -Be $true
   }
 
+  It 'Parses equals-style inline values' {
+    $parsed = Convert-ArgumentTokens -Arguments @('-Mode=Remediate','-Strict=$true')
+    $parsed.Named.Mode | Should -Be 'Remediate'
+    $parsed.Named.Strict | Should -Be $true
+  }
+
+  It 'Parses double-dash equals-style inline values' {
+    $parsed = Convert-ArgumentTokens -Arguments @('--Mode=Remediate')
+    $parsed.Named.Mode | Should -Be 'Remediate'
+  }
+
   It 'Handles empty arguments array' {
     $parsed = Convert-ArgumentTokens -Arguments @()
     $parsed.Named.Count | Should -Be 0

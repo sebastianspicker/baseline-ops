@@ -79,4 +79,130 @@ exit 1
       }
     }
   }
+
+  It 'Removes blocked step arguments together with their value tokens' {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runprofile-blocked-args-{0}" -f [guid]::NewGuid().ToString('N'))
+    $scriptsDir = Join-Path $tempRoot 'scripts'
+    $profilePath = Join-Path $tempRoot 'profile.json'
+
+    try {
+      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+
+      $argScript = @'
+param(
+  [ValidateSet('Audit','Remediate')]
+  [string]$Mode = 'Audit',
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$Remaining
+)
+if (@($Remaining).Count -gt 0) { exit 1 }
+exit 0
+'@
+      Set-Content -LiteralPath (Join-Path $scriptsDir '01-Blocked-Args.ps1') -Value $argScript -Encoding UTF8
+
+      $profile = @{
+        ProfileName = 'test-profile-blocked-args'
+        Version = '2.0'
+        Defaults = @{ Mode = 'Audit'; Strict = $false; OutputFormat = 'Console'; OutputPath = $null }
+        Steps = @(
+          @{ Script = '01-Blocked-Args.ps1'; Args = @('-RootPath', 'C:\temp\override'); ContinueOnError = $false; DependsOn = @() }
+        )
+        Integrity = @{ RequireSigned = $false; ExpectedHashes = @{} }
+      }
+      $profile | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $profilePath -Encoding UTF8
+
+      $runner = Join-Path $PSScriptRoot '../../scripts/00-Run-Profile.ps1'
+      & $runner -ProfilePath $profilePath -RootPath $tempRoot -OutputFormat None -Confirm:$false
+
+      $LASTEXITCODE | Should -Be 0
+    } finally {
+      if (Test-Path -LiteralPath $tempRoot) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    }
+  }
+
+  It 'Removes blocked step arguments when provided with inline equals syntax' {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runprofile-blocked-inline-{0}" -f [guid]::NewGuid().ToString('N'))
+    $scriptsDir = Join-Path $tempRoot 'scripts'
+    $profilePath = Join-Path $tempRoot 'profile.json'
+
+    try {
+      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+
+      $argScript = @'
+param(
+  [ValidateSet('Audit','Remediate')]
+  [string]$Mode = 'Audit',
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$Remaining
+)
+if (@($Remaining).Count -gt 0) { exit 1 }
+exit 0
+'@
+      Set-Content -LiteralPath (Join-Path $scriptsDir '01-Blocked-Inline.ps1') -Value $argScript -Encoding UTF8
+
+      $profile = @{
+        ProfileName = 'test-profile-inline'
+        Version = '2.0'
+        Defaults = @{ Mode = 'Audit'; Strict = $false; OutputFormat = 'Console'; OutputPath = $null }
+        Steps = @(
+          @{ Script = '01-Blocked-Inline.ps1'; Args = @('-ExpectedHash=SHA256:bad'); ContinueOnError = $false; DependsOn = @() }
+        )
+        Integrity = @{ RequireSigned = $false; ExpectedHashes = @{} }
+      }
+      $profile | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $profilePath -Encoding UTF8
+
+      $runner = Join-Path $PSScriptRoot '../../scripts/00-Run-Profile.ps1'
+      & $runner -ProfilePath $profilePath -RootPath $tempRoot -OutputFormat None -Confirm:$false
+
+      $LASTEXITCODE | Should -Be 0
+    } finally {
+      if (Test-Path -LiteralPath $tempRoot) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    }
+  }
+
+  It 'Removes blocked step arguments when provided with double-dash syntax' {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runprofile-blocked-double-dash-{0}" -f [guid]::NewGuid().ToString('N'))
+    $scriptsDir = Join-Path $tempRoot 'scripts'
+    $profilePath = Join-Path $tempRoot 'profile.json'
+
+    try {
+      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+
+      $argScript = @'
+param(
+  [ValidateSet('Audit','Remediate')]
+  [string]$Mode = 'Audit',
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$Remaining
+)
+if (@($Remaining).Count -gt 0) { exit 1 }
+exit 0
+'@
+      Set-Content -LiteralPath (Join-Path $scriptsDir '01-Blocked-Double-Dash.ps1') -Value $argScript -Encoding UTF8
+
+      $profile = @{
+        ProfileName = 'test-profile-double-dash'
+        Version = '2.0'
+        Defaults = @{ Mode = 'Audit'; Strict = $false; OutputFormat = 'Console'; OutputPath = $null }
+        Steps = @(
+          @{ Script = '01-Blocked-Double-Dash.ps1'; Args = @('--RootPath', 'C:\temp\override'); ContinueOnError = $false; DependsOn = @() }
+        )
+        Integrity = @{ RequireSigned = $false; ExpectedHashes = @{} }
+      }
+      $profile | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $profilePath -Encoding UTF8
+
+      $runner = Join-Path $PSScriptRoot '../../scripts/00-Run-Profile.ps1'
+      & $runner -ProfilePath $profilePath -RootPath $tempRoot -OutputFormat None -Confirm:$false
+
+      $LASTEXITCODE | Should -Be 0
+    } finally {
+      if (Test-Path -LiteralPath $tempRoot) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    }
+  }
 }
