@@ -37,7 +37,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Serialization.psm1') -Force
 
@@ -384,6 +384,7 @@ if ($PassThru) {
   $runResult
 }
 
+if ($WhatIfPreference -and $failed -eq 0) { exit 0 }
 if ($failed -gt 0) { exit 1 }
 if ($partial -gt 0 -or $skipped -gt 0) { exit 2 }
 exit 0
