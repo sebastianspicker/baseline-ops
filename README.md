@@ -3,6 +3,7 @@
 [![CI](https://github.com/sebastianspicker/win-mdm-security-hardening-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/win-mdm-security-hardening-kit/actions/workflows/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/9a0b314d7fd6478cae7c2854167922b5)](https://app.codacy.com/gh/sebastianspicker/win-mdm-security-hardening-kit/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sebastianspicker/win-mdm-security-hardening-kit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sebastianspicker/win-mdm-security-hardening-kit)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13161/badge)](https://www.bestpractices.dev/projects/13161)
 
 PowerShell toolkit for Windows endpoint hardening, drift detection, triage, and controlled remediation in MDM-managed environments.
 
