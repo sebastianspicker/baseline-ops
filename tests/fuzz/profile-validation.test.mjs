@@ -70,7 +70,7 @@ const validProfileArbitrary = fc.record({
       ...scripts.map((script) =>
         fc.record({
           Script: fc.constant(script),
-          Args: fc.array(fc.string({ maxLength: 16 }).filter((value) => value !== ''), { maxLength: 3 }),
+          Args: fc.array(fc.string({ maxLength: 16 }).filter((value) => !/^\s*$/.test(value)), { maxLength: 3 }),
           DependsOn: fc.constant([])
         })
       )
