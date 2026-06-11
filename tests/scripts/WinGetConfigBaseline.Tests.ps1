@@ -23,7 +23,8 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
         function global:Get-Command {
           [CmdletBinding()]
           param(
-            [string]$Name
+            [string]$Name,
+            [System.Management.Automation.CommandTypes[]]$CommandType
           )
 
           if ($Name -eq 'winget.exe') {
