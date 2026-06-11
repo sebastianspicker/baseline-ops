@@ -16,6 +16,50 @@ $script:SkipWindowsTests = (-not $IsWindows)
 BeforeAll {
   Import-Module (Join-Path $PSScriptRoot '../../lib/Common.psm1') -Force
   Import-Module (Join-Path $PSScriptRoot '../../lib/EventLog.psm1') -Force
+
+  function Get-WarningMessages {
+    param([object[]]$Output)
+    @($Output | Where-Object { $_ -is [System.Management.Automation.WarningRecord] } | ForEach-Object { $_.Message })
+  }
+}
+
+Describe 'Deprecated EventLog caller-scope aliases' {
+  AfterEach {
+    Remove-Variable -Scope Global -Name EventSourceName -ErrorAction SilentlyContinue
+    Remove-Variable -Scope Global -Name EventLog -ErrorAction SilentlyContinue
+  }
+
+  It 'Ensure-EventSource warns when falling back to EventSourceName' {
+    $global:EventSourceName = 'DeprecatedSource'
+
+    $output = Ensure-EventSource -LogName 'Application' 3>&1
+
+    Get-WarningMessages -Output $output | Should -Contain 'Use EventSource, not EventSourceName (deprecated)'
+  }
+
+  It 'Ensure-EventSource warns when falling back to EventLog' {
+    $global:EventLog = 'Application'
+
+    $output = Ensure-EventSource -Source 'DeprecatedSource' 3>&1
+
+    Get-WarningMessages -Output $output | Should -Contain 'Use EventLogName, not EventLog (deprecated)'
+  }
+
+  It 'Write-HealthEvent warns when falling back to EventSourceName' {
+    $global:EventSourceName = 'DeprecatedSource'
+
+    $output = Write-HealthEvent -Id 1000 -Message 'Test' -LogName 'Application' 3>&1
+
+    Get-WarningMessages -Output $output | Should -Contain 'Use EventSource, not EventSourceName (deprecated)'
+  }
+
+  It 'Write-HealthEvent warns when falling back to EventLog' {
+    $global:EventLog = 'Application'
+
+    $output = Write-HealthEvent -Id 1000 -Message 'Test' -Source 'DeprecatedSource' 3>&1
+
+    Get-WarningMessages -Output $output | Should -Contain 'Use EventLogName, not EventLog (deprecated)'
+  }
 }
 
 Describe 'Ensure-EventSource' {
