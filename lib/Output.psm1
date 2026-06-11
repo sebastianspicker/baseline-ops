@@ -126,9 +126,9 @@ function Write-UiLine {
   $fg = if ($NoColor) { $null } else { Resolve-UiColor -Style $Style }
   if ($NoNewLine) {
     if ($null -ne $fg) {
-      Write-Host $Message -ForegroundColor $fg -NoNewline
+      $PSCmdlet.Host.UI.Write($fg, $PSCmdlet.Host.UI.RawUI.BackgroundColor, $Message)
     } else {
-      Write-Host $Message -NoNewline
+      $PSCmdlet.Host.UI.Write($Message)
     }
     return
   }
@@ -361,19 +361,14 @@ function Write-KeyValue {
 
   $prefix = if ($Indent -gt 0) { ' ' * $Indent } else { '' }
   $valueText = if ([string]::IsNullOrWhiteSpace($Value)) { $EmptyValueText } else { $Value }
+  [void]$KeyStyle
 
   # TODO: Replace caller-scope probing with explicit parameter plumbing.
   $useInfo = [bool](Get-CallerValue -Name 'UseWriteInformation')
   if (-not $useInfo) { $useInfo = [bool](Get-CallerValue -Name 'UseInformationStream') }
 
-  if ($useInfo) {
-    $line = $prefix + ("{0,-$KeyWidth}: {1}" -f $Key, $valueText)
-    Write-UiLine -Message $line -Style $ValueStyle -UseWriteInformation
-    return
-  }
-
-  Write-ConsoleLine -Message ($prefix + ("{0,-$KeyWidth}: " -f $Key)) -Style $KeyStyle -NoNewLine
-  Write-ConsoleLine -Message $valueText -Style $ValueStyle
+  $line = $prefix + ("{0,-$KeyWidth}: {1}" -f $Key, $valueText)
+  Write-UiLine -Message $line -Style $ValueStyle -UseWriteInformation:$useInfo
 }
 
 function Write-UiStatus {

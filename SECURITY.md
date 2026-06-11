@@ -5,8 +5,8 @@
 Only the current `main` branch is actively maintained unless the maintainer
 explicitly confirms support for another branch or tag. Scripts are intended for
 controlled, lab-tested environments; ask for maintainer confirmation before
-using them outside that scope, and always validate remediation scripts against
-your own environment before production use.
+using them outside that scope. For production use, validate remediation scripts
+against your own environment or open a maintainer discussion before proceeding.
 
 ## Scope
 

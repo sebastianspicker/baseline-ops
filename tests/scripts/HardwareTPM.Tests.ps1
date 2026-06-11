@@ -6,7 +6,7 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
     Import-Module (Join-Path $PSScriptRoot '../../lib/EventLog.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '../../lib/Serialization.psm1') -Force
 
-    function Set-HardwareTpmTestValue {
+    function Write-HardwareTpmTestValue {
       param(
         [Parameter(Mandatory)][string]$Name,
         [AllowNull()]$Value
@@ -19,13 +19,13 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
       Get-Variable -Name "HardwareTpmTest$Name" -Scope Global -ValueOnly
     }
 
-    Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
-    Set-HardwareTpmTestValue -Name WriteEventResult -Value $true
-    Set-HardwareTpmTestValue -Name TpmObject -Value $null
-    Set-HardwareTpmTestValue -Name TpmMethods -Value @{}
-    Set-HardwareTpmTestValue -Name SecureBoot -Value $true
-    Set-HardwareTpmTestValue -Name BitLockerProtectionStatus -Value 1
-    Set-HardwareTpmTestValue -Name EventSourceResult -Value $true
+    Write-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
+    Write-HardwareTpmTestValue -Name WriteEventResult -Value $true
+    Write-HardwareTpmTestValue -Name TpmObject -Value $null
+    Write-HardwareTpmTestValue -Name TpmMethods -Value @{}
+    Write-HardwareTpmTestValue -Name SecureBoot -Value $true
+    Write-HardwareTpmTestValue -Name BitLockerProtectionStatus -Value 1
+    Write-HardwareTpmTestValue -Name EventSourceResult -Value $true
 
     Mock -CommandName Ensure-EventSource -MockWith { Get-HardwareTpmTestValue -Name EventSourceResult }
     Mock -CommandName Write-HealthEvent -MockWith { Get-HardwareTpmTestValue -Name WriteEventResult }
@@ -44,9 +44,9 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
         $env:USERNAME = 'tester'
-        Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $true
-        Set-HardwareTpmTestValue -Name WriteEventResult -Value $true
-        Set-HardwareTpmTestValue -Name EventSourceResult -Value $true
+        Write-HardwareTpmTestValue -Name SaveJsonThrows -Value $true
+        Write-HardwareTpmTestValue -Name WriteEventResult -Value $true
+        Write-HardwareTpmTestValue -Name EventSourceResult -Value $true
 
         function global:Confirm-SecureBootUEFI { $true }
         function global:Get-BitLockerVolume {
@@ -135,9 +135,9 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
         $env:USERNAME = 'tester'
-        Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
-        Set-HardwareTpmTestValue -Name WriteEventResult -Value $false
-        Set-HardwareTpmTestValue -Name EventSourceResult -Value $true
+        Write-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
+        Write-HardwareTpmTestValue -Name WriteEventResult -Value $false
+        Write-HardwareTpmTestValue -Name EventSourceResult -Value $true
 
         function global:Confirm-SecureBootUEFI { $true }
         function global:Get-BitLockerVolume {
@@ -239,13 +239,13 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
         $env:USERNAME = 'tester'
-        Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
-        Set-HardwareTpmTestValue -Name WriteEventResult -Value $true
-        Set-HardwareTpmTestValue -Name TpmObject -Value $TpmObject
-        Set-HardwareTpmTestValue -Name TpmMethods -Value $TpmMethods
-        Set-HardwareTpmTestValue -Name SecureBoot -Value $SecureBoot
-        Set-HardwareTpmTestValue -Name BitLockerProtectionStatus -Value $BitLockerProtectionStatus
-        Set-HardwareTpmTestValue -Name EventSourceResult -Value $EventSourceResult
+        Write-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
+        Write-HardwareTpmTestValue -Name WriteEventResult -Value $true
+        Write-HardwareTpmTestValue -Name TpmObject -Value $TpmObject
+        Write-HardwareTpmTestValue -Name TpmMethods -Value $TpmMethods
+        Write-HardwareTpmTestValue -Name SecureBoot -Value $SecureBoot
+        Write-HardwareTpmTestValue -Name BitLockerProtectionStatus -Value $BitLockerProtectionStatus
+        Write-HardwareTpmTestValue -Name EventSourceResult -Value $EventSourceResult
 
         function global:Confirm-SecureBootUEFI { Get-HardwareTpmTestValue -Name SecureBoot }
         function global:Get-BitLockerVolume {
