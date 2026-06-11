@@ -1,6 +1,7 @@
 # Windows MDM Endpoint Security Hardening Kit
 
 [![CI](https://github.com/sebastianspicker/win-mdm-security-hardening-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/win-mdm-security-hardening-kit/actions/workflows/ci.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/9a0b314d7fd6478cae7c2854167922b5)](https://app.codacy.com/gh/sebastianspicker/win-mdm-security-hardening-kit/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sebastianspicker/win-mdm-security-hardening-kit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sebastianspicker/win-mdm-security-hardening-kit)
 
 PowerShell toolkit for Windows endpoint hardening, drift detection, triage, and controlled remediation in MDM-managed environments.
@@ -29,7 +30,22 @@ This repository keeps the root lean. The tracked top-level docs are:
 - `SECURITY.md`
 - `CHANGELOG.md`
 
-Generated evidence, local audit workspace files, and machine-specific harness artifacts are ignored through `.gitignore` and should not be committed.
+Public subfolder docs are limited to `docs/README.md`, `scripts/README.md`,
+`lib/README.md`, and `examples/README.md`. Internal audit notes, remediation
+plans, ledgers, status logs, deprecated docs, generated evidence, local archive
+packets, local Codacy Analysis CLI artifacts, vendored source snapshots, and
+machine-specific harness artifacts are ignored through `.gitignore` and should
+not be committed.
+
+## Current status
+
+The maintained project surface is the v2 orchestration model documented below.
+Use `-Mode Audit` for read-only checks and `-Mode Remediate` only for scripts
+that explicitly support state changes and `ShouldProcess`.
+
+Local cross-platform verification covers parsing, orchestration contracts, and
+Pester tests. Windows-only runtime behavior still needs validation on a Windows
+lab host or CI runner before production rollout.
 
 ## Requirements
 
@@ -43,6 +59,7 @@ Generated evidence, local audit workspace files, and machine-specific harness ar
 - `scripts/` : operational scripts (52 scripts across audit, remediation, collection, monitoring)
 - `lib/` : shared modules (Output, Console, Results, Config, Registry, etc.)
 - `examples/` : sample JSON configs and profiles
+- `docs/` : public docs index and assets only
 - `tests/` : Pester tests
 - `tools/` : CI and operator utilities (GUI launcher, verify, secret scan)
 - `.github/` : workflows, templates, and repo policy metadata
@@ -208,6 +225,10 @@ Cross-platform local CI wrapper:
 
 On non-Windows developer hosts, orchestration-level verification is supported with PowerShell 7. Windows-only numbered scripts that cannot execute meaningfully on the host should return a structured unsupported-host result rather than failing profile startup.
 
+GitHub Actions run the same basic gates through the CI and lint workflows. The
+OpenSSF Scorecard workflow runs on `main`, a weekly schedule, and manual
+dispatch.
+
 ## Launcher GUI
 
 Run the launcher from repository root:
@@ -250,6 +271,7 @@ Scripts use consistent color coding for scannable results:
 
 ## Related docs
 
+- [docs/README.md](docs/README.md)
 - [scripts/README.md](scripts/README.md)
 - [lib/README.md](lib/README.md)
 - [examples/README.md](examples/README.md)
