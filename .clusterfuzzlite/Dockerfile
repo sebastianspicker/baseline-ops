@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/powershell:7.5-ubuntu-24.04
+FROM mcr.microsoft.com/powershell:7.5-ubuntu-24.04@sha256:042240d57ec9e47e511033b92625a8d95875ee5860af3015992c248b58a8be81
 
 ENV SRC=/src
 ENV OUT=/out
