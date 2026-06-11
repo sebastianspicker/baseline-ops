@@ -29,6 +29,7 @@ $script:SeverityConfig = @{
   'Pass'     = @{ Color = 'Green'; Rank = -1; Prefix = '[PASS] ' }
   'Fail'     = @{ Color = 'Red'; Rank = 3; Prefix = '[FAIL] ' }
   'Skip'     = @{ Color = 'DarkGray'; Rank = -2; Prefix = '[SKIP] ' }
+  'Debug'    = @{ Color = 'DarkGray'; Rank = -3; Prefix = '[DEBUG]' }
 }
 
 <#
@@ -41,7 +42,7 @@ function Get-SeverityColor {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
-    [ValidateSet('Critical', 'High', 'Medium', 'Low', 'Info', 'Warning', 'Error', 'OK', 'Pass', 'Fail', 'Skip')]
+    [ValidateSet('Critical', 'High', 'Medium', 'Low', 'Info', 'Warning', 'Error', 'OK', 'Pass', 'Fail', 'Skip', 'Debug')]
     [string]$Severity
   )
 
@@ -93,26 +94,24 @@ function Get-ConsoleColor {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
-    [ValidateSet('OK', 'WARN', 'ERR', 'INFO', 'DIM', 'CRIT', 'HIGH', 'MED', 'LOW')]
+    [ValidateSet('OK', 'WARN', 'ERR', 'INFO', 'DIM', 'CRIT', 'HIGH', 'MED', 'LOW', 'DEBUG')]
     [string]$Kind
   )
 
-  $mapping = @{
-    'OK'   = 'Green'
-    'WARN' = 'Yellow'
-    'ERR'  = 'Red'
-    'INFO' = 'Gray'
-    'DIM'  = 'DarkGray'
-    'CRIT' = 'Red'
-    'HIGH' = 'Red'
-    'MED'  = 'Yellow'
-    'LOW'  = 'Cyan'
+  $severity = switch ($Kind) {
+    'OK'    { 'OK' }
+    'WARN'  { 'Warning' }
+    'ERR'   { 'Error' }
+    'INFO'  { 'Info' }
+    'DIM'   { 'Debug' }
+    'CRIT'  { 'Critical' }
+    'HIGH'  { 'High' }
+    'MED'   { 'Medium' }
+    'LOW'   { 'Low' }
+    'DEBUG' { 'Debug' }
   }
 
-  if ($mapping.ContainsKey($Kind)) {
-    return $mapping[$Kind]
-  }
-  return 'Gray'
+  return Get-SeverityColor -Severity $severity
 }
 
 <#
@@ -136,6 +135,7 @@ function Get-SeverityRank {
     '^(Low)$' { 'Low' }
     '^(OK|Pass|Passed|Good|Success)$' { 'OK' }
     '^(Skip|Skipped)$' { 'Skip' }
+    '^(Debug)$' { 'Debug' }
     default { 'Info' }
   }
 
@@ -160,6 +160,7 @@ function Get-SeverityPrefix {
     '^(Low)$' { 'Low' }
     '^(OK|Pass|Passed|Good|Success)$' { 'OK' }
     '^(Skip|Skipped)$' { 'Skip' }
+    '^(Debug)$' { 'Debug' }
     default { 'Info' }
   }
 
@@ -185,21 +186,10 @@ function Write-ColoredLine {
   } else { $null }
 
   if ($null -ne $fg) {
-    Write-Host $Text -ForegroundColor $fg -NoNewline:$NoNewLine
+    Write-Information -MessageData $Text -InformationAction Continue
   } else {
-    Write-Host $Text -NoNewline:$NoNewLine
+    Write-Information -MessageData $Text -InformationAction Continue
   }
-}
-
-function Write-PrettyLine {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)]
-    [string]$Text,
-    [object]$Color = 'Gray'
-  )
-
-  Write-ColoredLine -Text $Text -Color $Color
 }
 
 function Write-DecorativeRule {
@@ -352,6 +342,7 @@ function Write-ConsoleSummary {
     if ($stats.Medium -gt 0) { [void]$parts.Add("Med=$($stats.Medium)") }
     if ($stats.Low -gt 0) { [void]$parts.Add("Low=$($stats.Low)") }
     if ($stats.Info -gt 0) { [void]$parts.Add("Info=$($stats.Info)") }
+    if ($stats.Skip -gt 0) { [void]$parts.Add("Skip=$($stats.Skip)") }
     if ($parts.Count -gt 0) {
       Write-ColoredLine -Text '' -Color 'Gray'
       Write-ColoredLine -Text (" Breakdown: " + ($parts -join ' | ')) -Color 'Gray'
@@ -398,6 +389,7 @@ function Get-FindingStats {
     Info    = 0
     Warning = 0
     Error   = 0
+    Skip    = 0
   }
 
   foreach ($finding in $findingsList) {
@@ -407,6 +399,7 @@ function Get-FindingStats {
       '^(Medium|Warning|Warn)$' { $stats.Medium++; break }
       '^(Low)$' { $stats.Low++; break }
       '^(Error|Err|Fail)$' { $stats.Error++; break }
+      '^(Skip|Skipped)$' { $stats.Skip++; break }
       default { $stats.Info++ }
     }
   }
@@ -414,18 +407,26 @@ function Get-FindingStats {
   return [pscustomobject]$stats
 }
 
-Export-ModuleMember -Function `
-  Get-SeverityColor, `
-  Get-StatusColor, `
-  Get-ColorForLevel, `
-  Get-ConsoleColor, `
-  Get-SeverityRank, `
-  Get-SeverityPrefix, `
-  Write-ColoredLine, `
-  Write-PrettyLine, `
-  Write-DecorativeRule, `
-  Write-SectionHeader, `
-  Write-SummaryHeader, `
-  Write-FindingLine, `
-  Write-ConsoleSummary, `
-  Get-FindingStats
+Set-Alias -Name Write-PrettyLine -Value Write-ColoredLine
+
+$script:ConsoleExportedFunctions = @(
+  'Get-SeverityColor'
+  'Get-StatusColor'
+  'Get-ColorForLevel'
+  'Get-ConsoleColor'
+  'Get-SeverityRank'
+  'Get-SeverityPrefix'
+  'Write-ColoredLine'
+  'Write-DecorativeRule'
+  'Write-SectionHeader'
+  'Write-SummaryHeader'
+  'Write-FindingLine'
+  'Write-ConsoleSummary'
+  'Get-FindingStats'
+)
+
+$script:ConsoleExportedAliases = @(
+  'Write-PrettyLine'
+)
+
+Export-ModuleMember -Function $script:ConsoleExportedFunctions -Alias $script:ConsoleExportedAliases

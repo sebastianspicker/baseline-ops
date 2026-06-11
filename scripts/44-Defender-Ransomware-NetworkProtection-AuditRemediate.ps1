@@ -81,7 +81,7 @@ param(
 
   [switch]$ApplyNetworkProtectionServerPrereqs,
 
-  [switch]$DisableDatagramProcessingOnWinServer = $true,
+  [bool]$DisableDatagramProcessingOnWinServer = $true,
 
   [string]$ConfigJsonPath,
 
@@ -106,30 +106,8 @@ Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
 Set-StrictMode -Version Latest
-# v2-init
-$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
-$script:__V2Context = @{
-  Mode = $Mode
-  ConfigPath = $ConfigPath
-  OutputFormat = $OutputFormat
-  OutputPath = $OutputPath
-  PassThru = [bool]$PassThru
-  Strict = [bool]$Strict
-  Quiet = [bool]$Quiet
-  NoColor = [bool]$NoColor
-}
-if ($PSBoundParameters.ContainsKey('Mode')) {
-  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
-    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
-  }
-}
-if ($Quiet) {
-  $InformationPreference = 'SilentlyContinue'
-  $VerbosePreference = 'SilentlyContinue'
-}
-if ($NoColor) {
-  $script:NoColor = $true
-}
+# v2-init (migrated to Initialize-V2Context)
+Initialize-V2Context -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -BoundParameters $PSBoundParameters
 $ErrorActionPreference = 'Stop'
 
 $isWindowsHost = ($env:OS -eq 'Windows_NT')
@@ -141,7 +119,7 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = New-V2ResultObject -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $result = Get-V2ResultObject -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
   exit 0
@@ -162,7 +140,7 @@ function Normalize-OptionalPath {
 
 function Get-OsInfo {
   try { Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop }
-  catch { Get-WmiObject -Class Win32_OperatingSystem }
+  catch { throw "Failed to query Win32_OperatingSystem via CIM: $($_.Exception.Message)" }
 }
 
 function Convert-CfaStateToToken {
@@ -344,7 +322,7 @@ Ensure-Cmdlet -Name 'Set-MpPreference'
 # Init + safe defaults
 # -----------------------------
 
-$findingList = New-FindingsList
+$findingList = Get-FindingsList
 
 $ConfigJsonPath = Normalize-OptionalPath -Path $ConfigJsonPath
 $ExportPath     = Normalize-OptionalPath -Path $ExportPath
@@ -524,7 +502,7 @@ Write-ConsoleReport -Summary $summary -Before $before -After $after -FindingList
 
 # V2 output contract
 $resultToken = if ($Strict -and $findingList.Count -gt 0) { 'FAIL' } elseif ($findingList.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = New-V2ResultObject -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings @($findingList) -Summary $summary -Metadata @{ Before = $before; After = $after }
+$v2Result = Get-V2ResultObject -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings @($findingList) -Summary $summary -Metadata @{ Before = $before; After = $after }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

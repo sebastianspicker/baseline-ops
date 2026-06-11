@@ -9,6 +9,26 @@ Provides functions to ensure an event source exists and to write structured
 health events to the Windows Application Event Log.
 #>
 
+function Get-EventLogCallerValue {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$CanonicalName,
+    [Parameter(Mandatory)][string]$DeprecatedName,
+    [Parameter(Mandatory)][string]$WarningMessage
+  )
+
+  $value = Get-CallerValue -Name $CanonicalName
+  if ($value) { return $value }
+
+  $value = Get-CallerValue -Name $DeprecatedName
+  if ($value) {
+    Write-Warning $WarningMessage
+    return $value
+  }
+
+  return $null
+}
+
 <#
 .SYNOPSIS
   Ensures a Windows Event Log source is registered.
@@ -27,16 +47,14 @@ function Ensure-EventSource {
     [string]$OnErrorMessage
   )
   if ([string]::IsNullOrWhiteSpace($Source)) {
-    $Source = Get-CallerValue -Name 'EventSource'
-    if (-not $Source) { $Source = Get-CallerValue -Name 'EventSourceName' }
+    $Source = Get-EventLogCallerValue -CanonicalName 'EventSource' -DeprecatedName 'EventSourceName' -WarningMessage 'Use EventSource, not EventSourceName (deprecated)'
   }
   if ([string]::IsNullOrWhiteSpace($LogName)) {
-    $LogName = Get-CallerValue -Name 'EventLogName'
-    if (-not $LogName) { $LogName = Get-CallerValue -Name 'EventLog' }
+    $LogName = Get-EventLogCallerValue -CanonicalName 'EventLogName' -DeprecatedName 'EventLog' -WarningMessage 'Use EventLogName, not EventLog (deprecated)'
     if ([string]::IsNullOrWhiteSpace($LogName)) { $LogName = 'Application' }
   }
   if ([string]::IsNullOrWhiteSpace($Source)) {
-    if ($OnErrorMessage) { Write-Warning $OnErrorMessage } else { Write-Warning 'Ensure-EventSource: -Source or -SourceName is required, or set EventSource/EventSourceName in caller scope.' }
+    if ($OnErrorMessage) { Write-Warning $OnErrorMessage } else { Write-Warning 'Ensure-EventSource: -Source or -SourceName is required, or set EventSource in caller scope.' }
     return $false
   }
 
@@ -79,16 +97,14 @@ function Write-HealthEvent {
   )
 
   if (-not $Source) {
-    $Source = Get-CallerValue -Name 'EventSource'
-    if (-not $Source) { $Source = Get-CallerValue -Name 'EventSourceName' }
+    $Source = Get-EventLogCallerValue -CanonicalName 'EventSource' -DeprecatedName 'EventSourceName' -WarningMessage 'Use EventSource, not EventSourceName (deprecated)'
   }
   if (-not $LogName) {
-    $LogName = Get-CallerValue -Name 'EventLogName'
-    if (-not $LogName) { $LogName = Get-CallerValue -Name 'EventLog' }
+    $LogName = Get-EventLogCallerValue -CanonicalName 'EventLogName' -DeprecatedName 'EventLog' -WarningMessage 'Use EventLogName, not EventLog (deprecated)'
   }
 
   if ([string]::IsNullOrWhiteSpace($Source) -or [string]::IsNullOrWhiteSpace($LogName)) {
-    $msg = 'Write-HealthEvent: Source or LogName is missing. Set EventSource/EventSourceName and EventLogName/EventLog in caller scope or pass -Source and -LogName.'
+    $msg = 'Write-HealthEvent: Source or LogName is missing. Set EventSource and EventLogName in caller scope or pass -Source and -LogName.'
     if ($OnErrorMessage) { Write-Warning $OnErrorMessage } else { Write-Warning $msg }
     return $false
   }

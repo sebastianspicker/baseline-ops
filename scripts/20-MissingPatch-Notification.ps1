@@ -160,30 +160,8 @@ $script:UseInformationStream = [bool]$UseInformationStream
 
 
 Set-StrictMode -Version Latest
-# v2-init
-$null = $Mode, $ConfigPath, $OutputFormat, $OutputPath, $PassThru, $Strict, $Quiet, $NoColor
-$script:__V2Context = @{
-  Mode = $Mode
-  ConfigPath = $ConfigPath
-  OutputFormat = $OutputFormat
-  OutputPath = $OutputPath
-  PassThru = [bool]$PassThru
-  Strict = [bool]$Strict
-  Quiet = [bool]$Quiet
-  NoColor = [bool]$NoColor
-}
-if ($PSBoundParameters.ContainsKey('Mode')) {
-  if (Get-Variable -Name Remediate -ErrorAction SilentlyContinue) {
-    Set-Variable -Name Remediate -Scope Script -Value ($Mode -eq 'Remediate')
-  }
-}
-if ($Quiet) {
-  $InformationPreference = 'SilentlyContinue'
-  $VerbosePreference = 'SilentlyContinue'
-}
-if ($NoColor) {
-  $script:NoColor = $true
-}
+# v2-init (migrated to Initialize-V2Context)
+Initialize-V2Context -ScriptName '20-MissingPatch-Notification.ps1' -BoundParameters $PSBoundParameters
 $ErrorActionPreference = 'Stop'
 
 $isWindowsHost = ($env:OS -eq 'Windows_NT')
@@ -195,14 +173,14 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = New-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $result = Get-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
   exit 0
 }
 
 # C10: canonical findings list
-$script:Findings = New-FindingsList
+$script:Findings = Get-FindingsList
 
 # ----------------------------
 # Helpers
@@ -235,7 +213,7 @@ function Get-DefaultStatePath {
 
 # Ensure-DirectoryForFile imported from lib/Common.psm1
 
-function New-ConsoleLine {
+function Get-ConsoleLine {
   [CmdletBinding()]
   param([string]$Char = '-', [int]$Width = 78)
   ($Char * $Width)
@@ -244,7 +222,7 @@ function New-ConsoleLine {
 
 # Save-JsonUtf8NoBom: replaced by canonical Save-Json from lib/Serialization.psm1
 
-function New-DefaultFeed {
+function Get-DefaultFeed {
   [CmdletBinding()]
   param()
 
@@ -262,23 +240,23 @@ function Load-KBFeedSafe {
   param([Parameter(Mandatory)][string]$Path)
 
   if (-not (Test-Path -LiteralPath $Path)) {
-    return [pscustomobject]@{ Feed = (New-DefaultFeed); Status = 'Missing'; Error = $null }
+    return [pscustomobject]@{ Feed = (Get-DefaultFeed); Status = 'Missing'; Error = $null }
   }
 
   try {
     $raw = Get-Content -Raw -LiteralPath $Path -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($raw)) {
-      return [pscustomobject]@{ Feed = (New-DefaultFeed); Status = 'InvalidOrEmpty'; Error = 'Feed file is empty.' }
+      return [pscustomobject]@{ Feed = (Get-DefaultFeed); Status = 'InvalidOrEmpty'; Error = 'Feed file is empty.' }
     }
 
     $obj = $raw | ConvertFrom-Json
     if ($null -eq $obj -or $null -eq $obj.KBs) {
-      return [pscustomobject]@{ Feed = (New-DefaultFeed); Status = 'InvalidOrEmpty'; Error = "Feed JSON missing 'KBs' property." }
+      return [pscustomobject]@{ Feed = (Get-DefaultFeed); Status = 'InvalidOrEmpty'; Error = "Feed JSON missing 'KBs' property." }
     }
 
     return [pscustomobject]@{ Feed = $obj; Status = 'OK'; Error = $null }
   } catch {
-    return [pscustomobject]@{ Feed = (New-DefaultFeed); Status = 'InvalidOrEmpty'; Error = $_.Exception.Message }
+    return [pscustomobject]@{ Feed = (Get-DefaultFeed); Status = 'InvalidOrEmpty'; Error = $_.Exception.Message }
   }
 }
 
@@ -360,7 +338,9 @@ function Get-UiStyleForLevel {
 # ----------------------------
 
 $eventSource = 'PatchReminder'
-$null = Ensure-EventSource -Source $eventSource -Log 'Application'
+if (-not (Ensure-EventSource -Source $eventSource -Log 'Application')) {
+  Write-Warning "EventSource could not be registered. EventLog tracing will be unavailable."
+}
 
 $run = [ordered]@{
   Host        = $env:COMPUTERNAME
@@ -505,8 +485,8 @@ elseif ((Get-Count $missingCritical) -gt 0) { $msg += " | Missing: $mList" }
 Write-HealthEvent -Id $status -Msg $msg -Level $level -Source $eventSource
 
 # Pretty console output.
-$headerLine = New-ConsoleLine -Char '='
-$line       = New-ConsoleLine -Char '-'
+$headerLine = Get-ConsoleLine -Char '='
+$line       = Get-ConsoleLine -Char '-'
 $levelStyle = Get-UiStyleForLevel -Level $level
 
 Write-UiLine -Message $headerLine -Style Dim
@@ -560,7 +540,7 @@ Write-UiLine -Message $headerLine -Style Dim
 
 # V2 output contract
 $resultToken = if ($report.Errors.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = New-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $report -Metadata @{}
+$v2Result = Get-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $report -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0
