@@ -131,7 +131,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
@@ -665,7 +665,7 @@ try {
   # V2 output contract
   $resultToken = if (-not $overallOk) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
   $v2Summary = [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Mode = $Mode; OverallOk = $overallOk; Timestamp = Get-Date }
-  $v2Result = Get-V2ResultObject -ScriptName '08-WinGet-SelfHeal.ps1' -Mode $Mode -Result $resultToken -Findings ($script:Findings.ToArray()) -Summary $v2Summary -Metadata @{ Records = $records.ToArray() }
+  $v2Result = Get-V2ResultObject -ScriptName '08-WinGet-SelfHeal.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings.ToArray()) -Summary $v2Summary -Metadata @{ Records = $records.ToArray() }
   Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $v2Result }
   if ($overallOk) { exit 0 } else { exit 1 }

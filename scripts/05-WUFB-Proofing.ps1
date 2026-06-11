@@ -130,10 +130,10 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
@@ -460,9 +460,7 @@ Write-KeyValue -Key 'Mode'  -Value $modeText
 Write-UiLine ""
 
 try {
-  $eventSourceReady = $true
   if (-not (Ensure-EventSource)) {
-    $eventSourceReady = $false
     Write-Warning "EventSource could not be registered. EventLog tracing will be unavailable."
     $notes.Add("Event source not ensured. EventLog write may fail.") | Out-Null
   }
@@ -729,7 +727,7 @@ foreach ($d in @($drifts)) {
 
 # V2 output contract
 $resultToken = if (-not $ok) { 'FAIL' } elseif ($hasDriftFinal) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '05-WUFB-Proofing.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Ok = $ok; HasDrift = $hasDriftFinal; Timestamp = Get-Date }) -Metadata @{}
+$v2Result = Get-V2ResultObject -ScriptName '05-WUFB-Proofing.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Ok = $ok; HasDrift = $hasDriftFinal; Timestamp = Get-Date }) -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

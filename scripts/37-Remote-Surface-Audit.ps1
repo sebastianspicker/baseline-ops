@@ -188,18 +188,18 @@ try {
 if ($winrmSvc) {
   if ($winrmSvc.Status -ne 'Running') {
     $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.WinRMServiceNotRunningSeverity' -DefaultValue $DefaultConfig.Findings.WinRMServiceNotRunningSeverity
-    Add-Finding -Code 'REMOTE-WinRMNotRunning' -Severity $sev -Message ("WinRM service is {0}." -f $winrmSvc.Status)
+    Add-Finding -FindingList $Findings -Code 'REMOTE-WinRMNotRunning' -Severity $sev -Message ("WinRM service is {0}." -f $winrmSvc.Status)
   } else {
     $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.WinRMRunningSeverity' -DefaultValue $DefaultConfig.Findings.WinRMRunningSeverity
-    Add-Finding -Code 'REMOTE-WinRMRunning' -Severity $sev -Message 'WinRM service is running.'
+    Add-Finding -FindingList $Findings -Code 'REMOTE-WinRMRunning' -Severity $sev -Message 'WinRM service is running.'
   }
 } else {
-  Add-Finding -Code 'REMOTE-WinRMServiceMissing' -Severity 'Info' -Message 'WinRM service not found (edition/component/hardening).'
+  Add-Finding -FindingList $Findings -Code 'REMOTE-WinRMServiceMissing' -Severity 'Info' -Message 'WinRM service not found (edition/component/hardening).'
 }
 
 if ($winrmListenersRaw -and $winrmListenersRaw.Length -gt 0) {
   $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.WinRMListenerPresentSeverity' -DefaultValue $DefaultConfig.Findings.WinRMListenerPresentSeverity
-  Add-Finding -Code 'REMOTE-WinRMListenerPresent' -Severity $sev -Message 'WinRM listener configuration is present/readable.'
+  Add-Finding -FindingList $Findings -Code 'REMOTE-WinRMListenerPresent' -Severity $sev -Message 'WinRM listener configuration is present/readable.'
 }
 
 # -------------------------
@@ -218,16 +218,16 @@ $sshdSvc = Get-Service -Name 'sshd' -ErrorAction SilentlyContinue
 
 if ($sshCap) {
   $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.OpenSSHCapabilitySeverity' -DefaultValue $DefaultConfig.Findings.OpenSSHCapabilitySeverity
-  Add-Finding -Code 'REMOTE-OpenSSHCapability' -Severity $sev -Message ("OpenSSH.Server capability state: {0}" -f $sshCap.State)
+  Add-Finding -FindingList $Findings -Code 'REMOTE-OpenSSHCapability' -Severity $sev -Message ("OpenSSH.Server capability state: {0}" -f $sshCap.State)
 }
 
 if ($sshdSvc) {
   if ($sshdSvc.Status -eq 'Running') {
     $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.SSHDRunningSeverity' -DefaultValue $DefaultConfig.Findings.SSHDRunningSeverity
-    Add-Finding -Code 'REMOTE-SSHDRunning' -Severity $sev -Message 'sshd service is running.'
+    Add-Finding -FindingList $Findings -Code 'REMOTE-SSHDRunning' -Severity $sev -Message 'sshd service is running.'
   } else {
     $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.SSHDNotRunningSeverity' -DefaultValue $DefaultConfig.Findings.SSHDNotRunningSeverity
-    Add-Finding -Code 'REMOTE-SSHDNotRunning' -Severity $sev -Message ("sshd service is {0}." -f $sshdSvc.Status)
+    Add-Finding -FindingList $Findings -Code 'REMOTE-SSHDNotRunning' -Severity $sev -Message ("sshd service is {0}." -f $sshdSvc.Status)
   }
 }
 
@@ -245,13 +245,13 @@ if (Test-Path -LiteralPath $rdpKey) {
 
 if ($rdpEnabled -eq $true) {
   $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.RDPEnabledSeverity' -DefaultValue $DefaultConfig.Findings.RDPEnabledSeverity
-  Add-Finding -Code 'REMOTE-RDPEnabled' -Severity $sev -Message 'RDP is enabled (fDenyTSConnections=0).'
+  Add-Finding -FindingList $Findings -Code 'REMOTE-RDPEnabled' -Severity $sev -Message 'RDP is enabled (fDenyTSConnections=0).'
 } elseif ($rdpEnabled -eq $false) {
   $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.RDPDisabledSeverity' -DefaultValue $DefaultConfig.Findings.RDPDisabledSeverity
-  Add-Finding -Code 'REMOTE-RDPDisabled' -Severity $sev -Message 'RDP is disabled (fDenyTSConnections=1).'
+  Add-Finding -FindingList $Findings -Code 'REMOTE-RDPDisabled' -Severity $sev -Message 'RDP is disabled (fDenyTSConnections=1).'
 } else {
   $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.RDPUnknownSeverity' -DefaultValue $DefaultConfig.Findings.RDPUnknownSeverity
-  Add-Finding -Code 'REMOTE-RDPUnknown' -Severity $sev -Message 'RDP status could not be determined (missing registry key/value or access denied).'
+  Add-Finding -FindingList $Findings -Code 'REMOTE-RDPUnknown' -Severity $sev -Message 'RDP status could not be determined (missing registry key/value or access denied).'
 }
 
 # -------------------------
@@ -269,11 +269,11 @@ if (Get-Command -Name Get-SmbClientConfiguration -ErrorAction SilentlyContinue) 
 
 if ($smbServerCfg) {
   $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.SMBServerCfgSeverity' -DefaultValue $DefaultConfig.Findings.SMBServerCfgSeverity
-  Add-Finding -Code 'REMOTE-SMBServerCfg' -Severity $sev -Message ("SMB server: EncryptData={0}, RejectUnencryptedAccess={1}" -f $smbServerCfg.EncryptData, $smbServerCfg.RejectUnencryptedAccess)
+  Add-Finding -FindingList $Findings -Code 'REMOTE-SMBServerCfg' -Severity $sev -Message ("SMB server: EncryptData={0}, RejectUnencryptedAccess={1}" -f $smbServerCfg.EncryptData, $smbServerCfg.RejectUnencryptedAccess)
 }
 if ($smbClientCfg) {
   $sev = Get-ConfigValue -ConfigObject $Config -Path 'Findings.SMBClientCfgSeverity' -DefaultValue $DefaultConfig.Findings.SMBClientCfgSeverity
-  Add-Finding -Code 'REMOTE-SMBClientCfg' -Severity $sev -Message ("SMB client: RequireEncryption={0}" -f $smbClientCfg.RequireEncryption)
+  Add-Finding -FindingList $Findings -Code 'REMOTE-SMBClientCfg' -Severity $sev -Message ("SMB client: RequireEncryption={0}" -f $smbClientCfg.RequireEncryption)
 }
 
 # -------------------------
@@ -328,13 +328,13 @@ if ($ExportPath) {
 # Pretty console summary (host stream only)
 # -------------------------
 if (-not $NoConsoleSummary) {
-  Write-UiSection "Remote Surface Audit"
+  Write-Section "Remote Surface Audit"
   Write-UiLine ("Computer  : {0}" -f $result.Summary.ComputerName) ([ConsoleColor]::Gray)
   Write-UiLine ("Timestamp : {0}" -f $result.Summary.Timestamp) ([ConsoleColor]::Gray)
-  Write-UiLine ("Findings  : {0}" -f $result.Summary.FindingsCount) (if ($result.Summary.FindingsCount -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green })
+  Write-UiLine ("Findings  : {0}" -f $result.Summary.FindingsCount) $(if ($result.Summary.FindingsCount -gt 0) { [ConsoleColor]::Yellow } else { [ConsoleColor]::Green })
 
   $sevOrder = @('High','Medium','Low','Info')
-  Write-UiSection "Severity counts"
+  Write-Section "Severity counts"
   foreach ($s in $sevOrder) {
     $c = ($result.Findings | Where-Object { $_.Severity -eq $s } | Measure-Object).Count
     Write-UiLine ("{0,-6} : {1}" -f $s, $c) (Get-SeverityColor -Severity $s)
@@ -342,7 +342,7 @@ if (-not $NoConsoleSummary) {
 
   $showSurfaces = [bool](Get-ConfigValue -ConfigObject $Config -Path 'Console.ShowSurfaces' -DefaultValue $DefaultConfig.Console.ShowSurfaces)
   if ($showSurfaces) {
-    Write-UiSection "Surfaces"
+    Write-Section "Surfaces"
     foreach ($p in $result.Surfaces.PSObject.Properties) {
       $val = $p.Value
       if ($null -eq $val) { $val = '<null>' }
@@ -360,7 +360,7 @@ if (-not $NoConsoleSummary) {
   if ($maxTop -gt 50) { $maxTop = 50 }
 
   if ($maxTop -gt 0 -and $result.Findings.Count -gt 0) {
-    Write-UiSection ("Top findings (max {0})" -f $maxTop)
+    Write-Section ("Top findings (max {0})" -f $maxTop)
 
     $top = $result.Findings |
       Sort-Object @{ Expression = { [int](Get-SeverityRank -Severity ([string]$_.Severity)) }; Descending = $true }, Code |

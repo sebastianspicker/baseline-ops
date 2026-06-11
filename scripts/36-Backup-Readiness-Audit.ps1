@@ -77,6 +77,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
@@ -142,7 +143,7 @@ function Get-Config {
   }
 
   if (-not (Test-Path -LiteralPath $Path)) {
-    Add-Finding -Code 'BKP-ConfigJsonMissing' -Severity 'Info' `
+    Add-Finding -FindingList $script:Findings -Code 'BKP-ConfigJsonMissing' -Severity 'Info' `
       -Message 'Config JSON not found; using defaults.' `
       -Extra @{
         Evidence    = ("ConfigJsonPath={0}" -f $Path)
@@ -174,7 +175,7 @@ function Get-Config {
     return $cfg
   }
   catch {
-    Add-Finding -Code 'BKP-ConfigJsonInvalid' -Severity 'Low' `
+    Add-Finding -FindingList $script:Findings -Code 'BKP-ConfigJsonInvalid' -Severity 'Low' `
       -Message 'Config JSON could not be loaded/parsed; using defaults.' `
       -Extra @{
         Evidence    = $_.Exception.Message
@@ -205,7 +206,7 @@ function Get-OsDiskInfo {
     }
   }
   catch {
-    Add-Finding -Code 'BKP-OsDiskQueryFailed' -Severity 'Medium' `
+    Add-Finding -FindingList $script:Findings -Code 'BKP-OsDiskQueryFailed' -Severity 'Medium' `
       -Message 'OS disk could not be queried via CIM.' `
       -Extra @{
         Evidence    = $_.Exception.Message
@@ -266,7 +267,7 @@ function Get-WsbStatus {
     }
     catch {
       $status = 'Unknown'
-      Add-Finding -Code 'BKP-WSBQueryFailed' -Severity 'Low' `
+      Add-Finding -FindingList $script:Findings -Code 'BKP-WSBQueryFailed' -Severity 'Low' `
         -Message 'Windows Server Backup feature status could not be determined.' `
         -Extra @{
           Evidence    = $_.Exception.Message
@@ -308,7 +309,7 @@ function Invoke-Export {
     return $true
   }
   catch {
-    Add-Finding -Code 'BKP-ExportFailed' -Severity 'Low' `
+    Add-Finding -FindingList $script:Findings -Code 'BKP-ExportFailed' -Severity 'Low' `
       -Message 'Export failed.' `
       -Extra @{
         Evidence    = $_.Exception.Message
@@ -324,7 +325,7 @@ $cfg = Get-Config -Path $ConfigJsonPath
 $osInfo = Get-OsDiskInfo
 if ($osInfo) {
   if ($osInfo.FreeGB -lt $cfg.MinOsFreeGB) {
-    Add-Finding -Code 'BKP-OsDiskLowFree' -Severity 'High' `
+    Add-Finding -FindingList $script:Findings -Code 'BKP-OsDiskLowFree' -Severity 'High' `
       -Message ("OS disk free space is low: {0}GB of {1}GB." -f $osInfo.FreeGB, $osInfo.SizeGB) `
       -Extra @{
         Evidence    = ("Drive={0}; ThresholdGB={1}" -f $osInfo.DeviceID, $cfg.MinOsFreeGB)
@@ -336,7 +337,7 @@ if ($osInfo) {
 $vssInfo = Get-VssWriters
 if (-not $vssInfo.Writers -or $vssInfo.Writers.Count -eq 0) {
   if ($cfg.TreatUnparsedVssAsFinding) {
-    Add-Finding -Code 'BKP-VSSWritersUnparsed' -Severity 'Low' `
+    Add-Finding -FindingList $script:Findings -Code 'BKP-VSSWritersUnparsed' -Severity 'Low' `
       -Message 'VSS writer output could not be parsed (permissions or unexpected output).' `
       -Extra @{
         Evidence    = ($vssInfo.Raw | Select-Object -First 1)
@@ -353,7 +354,7 @@ else {
     }
     $sev = Normalize-Severity -Severity $sev -Fallback 'Medium'
 
-    Add-Finding -Code 'BKP-VSSWriterFailed' -Severity $sev `
+    Add-Finding -FindingList $script:Findings -Code 'BKP-VSSWriterFailed' -Severity $sev `
       -Message ("VSS writer state is Failed: {0}" -f $w.Name) `
       -Extra @{
         Evidence    = ("State={0}; LastError={1}" -f $w.State, $w.LastError)
@@ -364,7 +365,7 @@ else {
 
 $wsbStatus = Get-WsbStatus
 if ($wsbStatus -eq 'NotInstalled') {
-  Add-Finding -Code 'BKP-WSBNotInstalled' -Severity 'Info' `
+  Add-Finding -FindingList $script:Findings -Code 'BKP-WSBNotInstalled' -Severity 'Info' `
     -Message 'Windows Server Backup feature is not installed (only relevant if expected).' `
     -Extra @{
       Evidence    = 'Get-WindowsFeature Windows-Server-Backup'
@@ -377,7 +378,7 @@ $fileHistoryPresent = $false
 try { $fileHistoryPresent = Test-Path -Path $fileHistoryKey } catch { $fileHistoryPresent = $false }
 
 if (-not $fileHistoryPresent -and $wsbStatus -ne 'Installed') {
-  Add-Finding -Code 'BKP-NoNativeBackupIndicator' -Severity 'Info' `
+  Add-Finding -FindingList $script:Findings -Code 'BKP-NoNativeBackupIndicator' -Severity 'Info' `
     -Message 'No clear indicator of Windows Server Backup or File History (baseline only).' `
     -Extra @{
       Evidence    = ("WSBStatus={0}; FileHistoryKeyPresent={1}" -f $wsbStatus, $fileHistoryPresent)
@@ -431,14 +432,14 @@ $customFields = [ordered]@{
   'WSB'      = [string]$indicators.WSBStatus
   'FileHist' = [string]$indicators.FileHistoryKey
 }
-$findingsAL = [System.Collections.ArrayList]@($script:Findings)
+$findingsAL = ConvertTo-ArrayList -InputObject $script:Findings
 Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
   -Title 'Backup Readiness Audit (Baseline)' `
   -CustomFields $customFields
 
 # V2 output contract
 $resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '36-Backup-Readiness-Audit.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $summary -Metadata @{ Indicators = $indicators }
+$v2Result = Get-V2ResultObject -ScriptName '36-Backup-Readiness-Audit.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary $summary -Metadata @{ Indicators = $indicators }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

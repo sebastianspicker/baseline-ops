@@ -99,9 +99,9 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -245,33 +245,33 @@ function Write-ConsoleReport {
 
   $headerLine = ("=" * 54)
 
-  Write-ColorLine -Text "" -Color $cInfo
-  Write-ColorLine -Text $headerLine -Color $cDim
-  Write-ColorLine -Text "Defender Audit/Remediation" -Color $cTitle
-  Write-ColorLine -Text $headerLine -Color $cDim
+  Write-UiLine -Text "" -Color $cInfo
+  Write-UiLine -Text $headerLine -Color $cDim
+  Write-UiLine -Text "Defender Audit/Remediation" -Color $cTitle
+  Write-UiLine -Text $headerLine -Color $cDim
 
-  Write-ColorLine -Text ("Computer : {0}" -f $Summary.ComputerName) -Color $cInfo
-  Write-ColorLine -Text ("OS       : {0}" -f $Summary.OS) -Color $cInfo
-  Write-ColorLine -Text ("Mode     : {0}" -f $Summary.Mode) -Color $cInfo
-  Write-ColorLine -Text ("Time     : {0}" -f $Summary.Timestamp) -Color $cInfo
+  Write-UiLine -Text ("Computer : {0}" -f $Summary.ComputerName) -Color $cInfo
+  Write-UiLine -Text ("OS       : {0}" -f $Summary.OS) -Color $cInfo
+  Write-UiLine -Text ("Mode     : {0}" -f $Summary.Mode) -Color $cInfo
+  Write-UiLine -Text ("Time     : {0}" -f $Summary.Timestamp) -Color $cInfo
 
   $findColor = if ($Summary.FindingsCount -eq 0) { $cOk } elseif ($Summary.FindingsCount -lt 3) { $cWarn } else { $cBad }
-  Write-ColorLine -Text ("Findings : {0}" -f $Summary.FindingsCount) -Color $findColor
+  Write-UiLine -Text ("Findings : {0}" -f $Summary.FindingsCount) -Color $findColor
 
-  Write-ColorLine -Text "" -Color $cInfo
-  Write-ColorLine -Text "Desired configuration:" -Color $cTitle
-  Write-ColorLine -Text ("  CFA            : {0}" -f $Summary.DesiredCFA) -Color $cInfo
-  Write-ColorLine -Text ("  NP             : {0}" -f $Summary.DesiredNP) -Color $cInfo
-  Write-ColorLine -Text ("  NP prereqs     : {0}" -f $Summary.ApplyNPPrereqs) -Color $cInfo
-  Write-ColorLine -Text ("  Disable UDP srv: {0}" -f $(if ($Summary.IsServer) { $Summary.DisableDatagram } else { "n/a" })) -Color $cInfo
+  Write-UiLine -Text "" -Color $cInfo
+  Write-UiLine -Text "Desired configuration:" -Color $cTitle
+  Write-UiLine -Text ("  CFA            : {0}" -f $Summary.DesiredCFA) -Color $cInfo
+  Write-UiLine -Text ("  NP             : {0}" -f $Summary.DesiredNP) -Color $cInfo
+  Write-UiLine -Text ("  NP prereqs     : {0}" -f $Summary.ApplyNPPrereqs) -Color $cInfo
+  Write-UiLine -Text ("  Disable UDP srv: {0}" -f $(if ($Summary.IsServer) { $Summary.DisableDatagram } else { "n/a" })) -Color $cInfo
 
-  Write-ColorLine -Text "" -Color $cInfo
-  Write-ColorLine -Text "Before -> After:" -Color $cTitle
+  Write-UiLine -Text "" -Color $cInfo
+  Write-UiLine -Text "Before -> After:" -Color $cTitle
 
   function Write-StateDelta {
     param([string]$Name, [string]$From, [string]$To)
     $color = if ($From -eq $To) { $cOk } else { $cWarn }
-    Write-ColorLine -Text ("  {0,-14}: {1} -> {2}" -f $Name, $From, $To) -Color $color
+    Write-UiLine -Text ("  {0,-14}: {1} -> {2}" -f $Name, $From, $To) -Color $color
   }
 
   Write-StateDelta -Name 'CFA' -From $Before.ControlledFolderAccess -To $After.ControlledFolderAccess
@@ -284,8 +284,8 @@ function Write-ConsoleReport {
   }
 
   if ($findings.Count -gt 0) {
-    Write-ColorLine -Text "" -Color $cInfo
-    Write-ColorLine -Text "Findings (top 20):" -Color $cTitle
+    Write-UiLine -Text "" -Color $cInfo
+    Write-UiLine -Text "Findings (top 20):" -Color $cTitle
 
     foreach ($f in ($findings | Select-Object -First 20)) {
       $sevColor = switch ($f.Severity) {
@@ -293,20 +293,20 @@ function Write-ConsoleReport {
         'Medium' { $cWarn }
         default  { $cInfo }
       }
-      Write-ColorLine -Text ("  [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -Color $sevColor
+      Write-UiLine -Text ("  [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) -Color $sevColor
     }
 
     if ($findings.Count -gt 20) {
-      Write-ColorLine -Text ("  (Only first 20 shown; total findings: {0})" -f $findings.Count) -Color $cDim
+      Write-UiLine -Text ("  (Only first 20 shown; total findings: {0})" -f $findings.Count) -Color $cDim
     }
   }
 
   if ($Summary.ExportPath) {
-    Write-ColorLine -Text "" -Color $cInfo
-    Write-ColorLine -Text ("CSV export : {0}" -f $Summary.ExportPath) -Color $cDim
+    Write-UiLine -Text "" -Color $cInfo
+    Write-UiLine -Text ("CSV export : {0}" -f $Summary.ExportPath) -Color $cDim
   }
 
-  Write-ColorLine -Text "" -Color $cInfo
+  Write-UiLine -Text "" -Color $cInfo
 }
 
 # -----------------------------
@@ -502,7 +502,7 @@ Write-ConsoleReport -Summary $summary -Before $before -After $after -FindingList
 
 # V2 output contract
 $resultToken = if ($Strict -and $findingList.Count -gt 0) { 'FAIL' } elseif ($findingList.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings @($findingList) -Summary $summary -Metadata @{ Before = $before; After = $after }
+$v2Result = Get-V2ResultObject -ScriptName '44-Defender-Ransomware-NetworkProtection-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $findingList) -Summary $summary -Metadata @{ Before = $before; After = $after }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

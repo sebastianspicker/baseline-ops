@@ -74,7 +74,7 @@ param(
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
@@ -437,7 +437,7 @@ if ($ExportPath) {
 }
 
 if (-not $script:Quiet) {
-  $findingsAL = [System.Collections.ArrayList]@($script:Findings)
+  $findingsAL = ConvertTo-ArrayList -InputObject $script:Findings
   Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
     -CustomFields ([ordered]@{
       Mode          = $Mode
@@ -476,7 +476,7 @@ if (-not $script:Quiet) {
 
 # V2 output contract
 $resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '38-SecurityOptions-Drift.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $summary -Metadata @{ CurrentValues = [object[]]$script:CurrentValues; Drift = [object[]]$script:Drift; DesiredLoaded = $desiredLoaded }
+$v2Result = Get-V2ResultObject -ScriptName '38-SecurityOptions-Drift.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary $summary -Metadata @{ CurrentValues = [object[]]$script:CurrentValues; Drift = [object[]]$script:Drift; DesiredLoaded = $desiredLoaded }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

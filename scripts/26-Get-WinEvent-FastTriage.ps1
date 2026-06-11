@@ -180,7 +180,7 @@ function Resolve-TriageConfig {
   if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
 
   if (-not (Test-Path -LiteralPath $Path)) {
-    Write-InfoLine ("Config not found: {0}. Using defaults." -f $Path)
+    Write-Info ("Config not found: {0}. Using defaults." -f $Path)
     return $null
   }
 
@@ -190,8 +190,8 @@ function Resolve-TriageConfig {
     return ($raw | ConvertFrom-Json -ErrorAction Stop)
   }
   catch {
-    Write-InfoLine ("Config invalid/unreadable: {0}. Using defaults." -f $Path)
-    Write-InfoLine ("Config error: {0}" -f $_.Exception.Message)
+    Write-Info ("Config invalid/unreadable: {0}. Using defaults." -f $Path)
+    Write-Info ("Config error: {0}" -f $_.Exception.Message)
     return $null
   }
 }
@@ -475,7 +475,7 @@ if (-not $Quiet) {
   Write-UiLine ("ExportPath   : {0}" -f ($(if ($ExportPath) { $ExportPath } else { '<none>' }))) -ForegroundColor DarkGray
   Write-UiLine ("Exported     : {0}" -f $exported) -ForegroundColor DarkGray
 
-  Write-InfoLine ""  # blank line (safe now)
+  Write-Info ""  # blank line (safe now)
 
   if ($levelStats.Count -gt 0) {
     Write-UiLine "Levels:" -ForegroundColor Cyan
@@ -486,7 +486,7 @@ if (-not $Quiet) {
   }
 
   if ($providerStats.Count -gt 0) {
-    Write-InfoLine ""
+    Write-Info ""
     Write-UiLine "Top Providers:" -ForegroundColor Cyan
     foreach ($g in $providerStats) {
       Write-UiLine ("  {0,-40} {1,6}" -f $g.Name, $g.Count) -ForegroundColor Gray
@@ -494,7 +494,7 @@ if (-not $Quiet) {
   }
 
   if ($idStats.Count -gt 0) {
-    Write-InfoLine ""
+    Write-Info ""
     Write-UiLine "Top Event IDs:" -ForegroundColor Cyan
     foreach ($g in $idStats) {
       Write-UiLine ("  {0,-10} {1,6}" -f $g.Name, $g.Count) -ForegroundColor Gray
@@ -502,7 +502,7 @@ if (-not $Quiet) {
   }
 
   if ($collapseSummary.Count -gt 0) {
-    Write-InfoLine ""
+    Write-Info ""
     Write-UiLine "Top Similar (collapsed):" -ForegroundColor Cyan
     foreach ($row in $collapseSummary) {
       $c = Get-LevelColor -LevelDisplayName $row.Level

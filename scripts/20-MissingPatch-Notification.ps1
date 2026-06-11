@@ -151,7 +151,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
@@ -194,8 +194,9 @@ function Get-Count {
 
 function Is-PlaceholderPath {
   [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
+  param([string]$Path)
 
+  if ([string]::IsNullOrWhiteSpace($Path)) { return $true }
   $p = $Path.Trim()
   if ($p -match '^(?i)PATH/TO(/|\\)') { return $true }
   if ($p -match '^(?i)PATH\\TO(\\|/)') { return $true }
@@ -237,9 +238,9 @@ function Get-DefaultFeed {
 
 function Load-KBFeedSafe {
   [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
+  param([string]$Path)
 
-  if (-not (Test-Path -LiteralPath $Path)) {
+  if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
     return [pscustomobject]@{ Feed = (Get-DefaultFeed); Status = 'Missing'; Error = $null }
   }
 
@@ -540,7 +541,7 @@ Write-UiLine -Message $headerLine -Style Dim
 
 # V2 output contract
 $resultToken = if ($report.Errors.Count -gt 0) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings @($script:Findings) -Summary $report -Metadata @{}
+$v2Result = Get-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary $report -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

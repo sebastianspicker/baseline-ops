@@ -62,12 +62,12 @@ param(
   [switch]$NoColor
 )
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 # v2-init (migrated to Initialize-V2Context)
@@ -90,8 +90,20 @@ if (-not $isWindowsHost) {
 }
 
 Set-StrictMode -Version Latest
-$DefaultProofOutFile = $null
-$DefaultEvidenceDir  = $null
+# -----------------------------
+# Globals / Defaults (anonymized)
+# -----------------------------
+$DefaultProofOutFile = Join-Path ([System.IO.Path]::GetTempPath()) 'IOC-Sweep-Defender-proof.json'
+$DefaultEvidenceDir  = Join-Path ([System.IO.Path]::GetTempPath()) 'IOC-Sweep-Defender-evidence'
+# -----------------------------
+# Console helpers (host-only)
+# -----------------------------
+# -----------------------------
+# Core helpers
+# -----------------------------
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
+# Expand-Env imported from lib/Evidence.psm1
+# Read-Json replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 function Get-ObjPropValue {
   param(
     [Parameter(Mandatory=$true)] $Obj,
@@ -127,14 +139,14 @@ function Get-DefaultCatalog {
 function Load-Catalog {
   param([string]$CatalogPath,[string]$ConfigPath)
   $res = [ordered]@{ Catalog = $null; Source = 'Default'; Errors = @() }
-  $sanitizedCatalog = Sanitize-Path -Path $CatalogPath -MustExist
+  $sanitizedCatalog = if ([string]::IsNullOrWhiteSpace($CatalogPath)) { $null } else { Sanitize-Path -Path $CatalogPath -MustExist }
   if ($sanitizedCatalog) {
     $c = Read-JsonFileSafe -Path $sanitizedCatalog
     if ($c) { $res.Catalog = $c; $res.Source = 'CatalogPath'; return $res }
     $res.Errors += ("CatalogPath not loaded: {0}" -f $sanitizedCatalog)
   }
   $cfg = $null
-  $sanitizedConfig = Sanitize-Path -Path $ConfigPath -MustExist
+  $sanitizedConfig = if ([string]::IsNullOrWhiteSpace($ConfigPath)) { $null } else { Sanitize-Path -Path $ConfigPath -MustExist }
   if ($sanitizedConfig) {
     $cfg = Read-JsonFileSafe -Path $sanitizedConfig
     if (-not $cfg) { $res.Errors += ("ConfigPath not loaded: {0}" -f $sanitizedConfig) }

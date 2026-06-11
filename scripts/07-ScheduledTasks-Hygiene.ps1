@@ -113,7 +113,7 @@ param(
   [switch]$NoColor
 )
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
@@ -142,8 +142,17 @@ if (-not $isWindowsHost) {
 # C10: canonical findings list
 $script:Findings = Get-FindingsList
 $DefaultEventSource    = 'TasksHygiene'
-$DefaultQuarantineDir  = $null
-$DefaultProofOutFile   = $null
+$DefaultQuarantineDir  = Join-Path ([System.IO.Path]::GetTempPath()) 'TasksHygiene-Quarantine'
+$DefaultProofOutFile   = Join-Path ([System.IO.Path]::GetTempPath()) 'TasksHygiene-proof.json'
+# =========================
+# Console (pretty)
+# =========================
+# =========================
+# Helpers
+# =========================
+# Test-IsAdmin imported from lib/Common.psm1
+# Save-Json: using canonical Save-Json from lib/Serialization.psm1
+# Try-LoadJsonFile replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
 function Get-PropValue {
   param(
     [Parameter(Mandatory=$true)]$Object,
@@ -746,8 +755,8 @@ catch {
   Write-HealthEvent -Id 5050 -Msg $errMsg -Level 'Error' -Source $EventSource
   Write-UiHeader "Scheduled Tasks Hygiene Summary"
   Write-UiStatus -Label "FAIL" -State FAIL -Text $errMsg
-  [void](Add-Finding -FindingList $script:Findings -Code 'TASK-Error' -Severity 'High' -Message $errMsg)
-  $v2Result = Get-V2ResultObject -ScriptName '07-ScheduledTasks-Hygiene.ps1' -Mode $Mode -Result 'FAIL' -Findings $script:Findings.ToArray() -Summary @{ Error = $errMsg } -Metadata @{}
+  Add-Finding -FindingList $script:Findings -Code 'TASK-Error' -Severity 'High' -Message $errMsg
+  $v2Result = Get-V2ResultObject -ScriptName '07-ScheduledTasks-Hygiene.ps1' -Mode $Mode -Result 'FAIL' -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary @{ Error = $errMsg } -Metadata @{}
   Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $v2Result }
   exit 1

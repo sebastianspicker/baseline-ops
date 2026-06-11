@@ -159,7 +159,7 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
@@ -192,7 +192,7 @@ $script:Findings = Get-FindingsList
 # Anonymized defaults
 $EventLogName   = 'Application'
 $EventSource    = 'HardwareTPM-Audit'
-$DefaultOutFile = "PATH/TO/PROOF/HardwareCompliance.json"
+$DefaultOutFile = Join-Path ([System.IO.Path]::GetTempPath()) 'HardwareCompliance.json'
 
 # -----------------------------
 # Helpers (no pipeline formatting)
@@ -541,31 +541,31 @@ try {
   if ($tpm) {
     $tpmPresent = [bool]$tpm.Present
     $tpmKind = if ($tpmPresent) { 'OK' } else { 'ERR' }
-    Write-ColorLine -Text ("TPM    : {0}" -f $(if ($tpmPresent) { "Present" } else { "Missing/No Access" })) -Color $tpmKind
+    Write-UiLine -Text ("TPM    : {0}" -f $(if ($tpmPresent) { "Present" } else { "Missing/No Access" })) -Color $tpmKind
     if ($tpmPresent) {
-      Write-ColorLine -Text ("         SpecVersion={0}, Owned={1}, Enabled={2}, Activated={3}, Ready={4}" -f $tpm.SpecVersion,$tpm.IsOwned,$tpm.Enabled,$tpm.Activated,$tpm.Ready) -Color 'DIM'
+      Write-UiLine -Text ("         SpecVersion={0}, Owned={1}, Enabled={2}, Activated={3}, Ready={4}" -f $tpm.SpecVersion,$tpm.IsOwned,$tpm.Enabled,$tpm.Activated,$tpm.Ready) -Color 'DIM'
     }
   }
   # SecureBoot status
-  Write-ColorLine -Text ("Secure : {0}" -f $(if ($proof.Results.SecureBoot) { "Secure Boot ON" } else { "Secure Boot OFF/Unknown" })) -Color $(if ($proof.Results.SecureBoot) { 'OK' } else { 'WARN' })
+  Write-UiLine -Text ("Secure : {0}" -f $(if ($proof.Results.SecureBoot) { "Secure Boot ON" } else { "Secure Boot OFF/Unknown" })) -Color $(if ($proof.Results.SecureBoot) { 'OK' } else { 'WARN' })
   # BitLocker status
   $blOk = $proof.Results.BitLockerOsProtected
-  Write-ColorLine -Text ("BL(OS) : {0}" -f $(if ($blOk) { "Protection ON" } else { "Protection OFF/Unknown" })) -Color $(if ($blOk) { 'OK' } else { 'WARN' })
+  Write-UiLine -Text ("BL(OS) : {0}" -f $(if ($blOk) { "Protection ON" } else { "Protection OFF/Unknown" })) -Color $(if ($blOk) { 'OK' } else { 'WARN' })
   # Drifts
   Write-UiLine ""
   if ($drifts.Count -gt 0) {
-    Write-ColorLine -Text "Drifts :" -Color 'ERR'
-    foreach ($d in $drifts) { Write-ColorLine -Text ("- {0}" -f $d) -Color 'ERR' }
+    Write-UiLine -Text "Drifts :" -Color 'ERR'
+    foreach ($d in $drifts) { Write-UiLine -Text ("- {0}" -f $d) -Color 'ERR' }
   } else {
-    Write-ColorLine -Text "Drifts : (none)" -Color 'OK'
+    Write-UiLine -Text "Drifts : (none)" -Color 'OK'
   }
   # Notes
   if ($notes.Count -gt 0) {
     Write-UiLine ""
-    Write-ColorLine -Text "Notes  :" -Color 'WARN'
-    foreach ($n in $notes) { Write-ColorLine -Text ("- {0}" -f $n) -Color 'WARN' }
+    Write-UiLine -Text "Notes  :" -Color 'WARN'
+    foreach ($n in $notes) { Write-UiLine -Text ("- {0}" -f $n) -Color 'WARN' }
   } else {
-    Write-ColorLine -Text "Notes  : (none)" -Color 'DIM'
+    Write-UiLine -Text "Notes  : (none)" -Color 'DIM'
   }
 
   # Pipeline output: one structured object only
@@ -576,7 +576,7 @@ catch {
   Add-ListItem -List ([ref]$errors) -Text $errMsg
   Write-HealthEvent -Id 4900 -Message $errMsg -Level 'Error' -Source $EventSource -LogName $EventLogName
   Write-UiHeader -Title "Hardware/TPM Audit Summary"
-  Write-ColorLine -Text $errMsg -Color 'ERR'
+  Write-UiLine -Text $errMsg -Color 'ERR'
 }
 
 # C10: populate canonical findings from drifts and errors

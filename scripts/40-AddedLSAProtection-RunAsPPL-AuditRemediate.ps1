@@ -105,9 +105,9 @@ param(
 )
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Config.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
@@ -514,7 +514,7 @@ function Write-PrettySummary {
 Require-Admin
 
 $configPath = if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) { $ConfigPath } else { Get-TokenValue -ArgsList $LegacyArgs -Token 'Config' }
-$cfgResult = Read-ConfigWithDefaults -Path $configPath -Defaults (Get-DefaultConfig) -AsHashtable -OnWarning { param($m) Write-WarnLine $m }
+$cfgResult = Read-ConfigWithDefaults -Path $configPath -Defaults (Get-DefaultConfig) -AsHashtable -OnWarning { param($m) Write-Warn $m }
 $config = $cfgResult.Config
 $config = Apply-ArgsOverlay -Config $config -ArgsList $LegacyArgs
 $config['Mode'] = if ($Mode -eq 'Remediate') { 'Remediate' } else { 'Audit' }
@@ -686,7 +686,7 @@ if ($OutputFormat -eq 'Console' -and -not $Quiet) { Write-PrettySummary -Result 
 
 # V2 output contract
 $resultToken = if ($registryWriteFailed) { 'FAIL' } elseif ($Strict -and $Findings.Count -gt 0) { 'FAIL' } elseif ($Findings.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings @($Findings.ToArray()) -Summary $result.Summary -Metadata @{ Current = $result.Current; After = $result.After }
+$v2Result = Get-V2ResultObject -ScriptName '40-AddedLSAProtection-RunAsPPL-AuditRemediate.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $Findings.ToArray()) -Summary $result.Summary -Metadata @{ Current = $result.Current; After = $result.After }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

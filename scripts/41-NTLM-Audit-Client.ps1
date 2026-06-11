@@ -85,9 +85,9 @@ param(
 
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
-Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
@@ -306,7 +306,7 @@ $customFields = [ordered]@{
   'MinLevel'   = [string]$summary.MinimumLevel
   'ConfigLoad' = [string]$summary.ConfigLoaded
 }
-$findingsAL = [System.Collections.ArrayList]@($findings)
+$findingsAL = ConvertTo-ArrayList -InputObject $findings
 Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
   -Title 'NTLM Audit (LmCompatibilityLevel)' `
   -CustomFields $customFields
@@ -314,7 +314,7 @@ Write-ConsoleSummary -Summary $summary -Findings $findingsAL `
 
 # V2 output contract
 $resultToken = if ($Strict -and $findings.Count -gt 0) { 'FAIL' } elseif ($findings.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '41-NTLM-Audit-Client.ps1' -Mode $Mode -Result $resultToken -Findings @($findings) -Summary $summary -Metadata @{}
+$v2Result = Get-V2ResultObject -ScriptName '41-NTLM-Audit-Client.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $findings) -Summary $summary -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0

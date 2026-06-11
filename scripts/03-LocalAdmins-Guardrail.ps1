@@ -701,8 +701,8 @@ try {
         ConfigLoaded     = [string]$result.ConfigLoaded
       })
     if (@($result.Errors).Count -gt 0) {
-      Write-ColorLine "Errors:" 'Red'
-      foreach ($e in $result.Errors) { Write-ColorLine ("- {0}" -f $e) 'Red' }
+      Write-UiLine "Errors:" 'Red'
+      foreach ($e in $result.Errors) { Write-UiLine ("- {0}" -f $e) 'Red' }
       Write-UiLine ""
     }
   }

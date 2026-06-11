@@ -1,4 +1,4 @@
-name: Lint (shell/yaml/markdown/actions)
+name: CodeQL
 
 on:
   workflow_dispatch:
@@ -10,32 +10,32 @@ on:
       - 'feat/**'
       - 'update-*'
       - 'update/**'
-    paths-ignore:
-      - 'AGENTS.md'
-      - 'docs/agent/**'
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
   pull_request:
     branches:
       - main
       - dev
-      - 'fix/**'
-      - 'feat/**'
-    paths-ignore:
-      - 'AGENTS.md'
-      - 'docs/agent/**'
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
 
 permissions: {}
 
 concurrency:
-  group: lint-${{ github.ref }}
+  group: codeql-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint (shell/yaml/markdown/actions)
+  analyze-actions:
+    name: CodeQL actions
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 10
+      security-events: write
+      actions: read
+    timeout-minutes: 15
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
@@ -47,9 +47,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Repository lint smoke
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash -n scripts/ci-local.sh
-          git diff --check -- .
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@cb06a0a8527b2c6970741b3a0baa15231dc74a4c # v4.34.1
+        with:
+          languages: actions
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@cb06a0a8527b2c6970741b3a0baa15231dc74a4c # v4.34.1

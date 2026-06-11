@@ -124,7 +124,7 @@ function Resolve-DomainRoleText {
 
 function Import-JsonConfig {
   [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Path)
+  param([string]$Path)
 
   if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
   if (-not (Test-Path -LiteralPath $Path)) { return $null }
@@ -316,10 +316,10 @@ if (-not $NoConsoleSummary) {
   $statusColor = if ($Findings.Count -gt 0) { 'Yellow' } else { 'Green' }
   $statusText  = if ($Findings.Count -gt 0) { 'ATTENTION' } else { 'OK' }
 
-  Write-ColorLine '' 'Gray'
-  Write-ColorLine '========================================' 'DarkGray'
-  Write-ColorLine (' Identity Audit - {0}' -f $statusText) $statusColor
-  Write-ColorLine '========================================' 'DarkGray'
+  Write-UiLine '' 'Gray'
+  Write-UiLine '========================================' 'DarkGray'
+  Write-UiLine (' Identity Audit - {0}' -f $statusText) $statusColor
+  Write-UiLine '========================================' 'DarkGray'
 
   Write-KeyValue -Key 'Computer' -Value $summary.ComputerName -ValueColor 'Cyan'
   Write-KeyValue -Key 'DNS'      -Value $summary.DNSHostName -ValueColor 'Gray'
@@ -341,7 +341,7 @@ if (-not $NoConsoleSummary) {
 
   if ($effective.ExpectedDomain) {
     $match = ($summary.PartOfDomain -eq $true -and -not [string]::IsNullOrWhiteSpace($summary.Domain) -and ($summary.Domain.ToLowerInvariant() -eq $effective.ExpectedDomain.ToLowerInvariant()))
-    Write-KeyValue -Key 'Expected' -Value $effective.ExpectedDomain -ValueColor (if ($match) { 'Green' } else { 'Yellow' })
+    Write-KeyValue -Key 'Expected' -Value $effective.ExpectedDomain -ValueColor $(if ($match) { 'Green' } else { 'Yellow' })
   }
 
   if ($effective.ExportPath) {
@@ -349,22 +349,22 @@ if (-not $NoConsoleSummary) {
   }
 
   if ($Findings.Count -gt 0) {
-    Write-ColorLine '' 'Gray'
-    Write-ColorLine 'Findings:' 'Yellow'
+    Write-UiLine '' 'Gray'
+    Write-UiLine 'Findings:' 'Yellow'
     foreach ($f in ($Findings | Sort-Object @{Expression={ Get-SeverityRank -Severity $_.Severity }; Descending = $true }, Code)) {
       $c = switch ($f.Severity) { 'High' { 'Red' } 'Medium' { 'Yellow' } default { 'Gray' } }
-      Write-ColorLine ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) $c
+      Write-UiLine ("- [{0}] {1}: {2}" -f $f.Severity, $f.Code, $f.Message) $c
     }
   }
 
-  Write-ColorLine '' 'Gray'
+  Write-UiLine '' 'Gray'
 }
 
 # endregion Pretty console output
 
 # V2 output contract
 $resultToken = if ($Strict -and $Findings.Count -gt 0) { 'FAIL' } elseif ($Findings.Count -gt 0) { 'WARN' } else { 'OK' }
-$v2Result = Get-V2ResultObject -ScriptName '28-Join-Identity-Audit.ps1' -Mode $Mode -Result $resultToken -Findings @($Findings.ToArray()) -Summary $result.Summary -Metadata @{}
+$v2Result = Get-V2ResultObject -ScriptName '28-Join-Identity-Audit.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $Findings.ToArray()) -Summary $result.Summary -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 exit 0
