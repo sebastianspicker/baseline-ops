@@ -21,7 +21,7 @@ Folder names to exclude from scanning.
 [CmdletBinding()]
 param(
   [string]$RootPath = '',
-  [bool]$FailOnMatch = $true,
+  [switch]$FailOnMatch = $true,
   [string[]]$Exclude = @('.git','node_modules','bin','obj','dist','_extracted')
 )
 

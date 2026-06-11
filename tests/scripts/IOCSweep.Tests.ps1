@@ -92,7 +92,7 @@ Describe '11-IOC-Sweep-Defender source failure reporting' {
         $env:ProgramFiles = Join-Path $TestDrive 'ProgramFiles'
         $fakeMpCmdRun = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
         New-Item -ItemType File -Path $fakeMpCmdRun -Force | Out-Null
-        $global:__IocDefenderExitCode = $DefenderExitCode
+        Set-Variable -Name __IocDefenderExitCode -Scope Global -Value $DefenderExitCode
 
         function global:Start-Process {
           [CmdletBinding()]
@@ -103,7 +103,12 @@ Describe '11-IOC-Sweep-Defender source failure reporting' {
             [switch]$Wait,
             [object]$WindowStyle
           )
-          return [pscustomobject]@{ ExitCode = $global:__IocDefenderExitCode }
+          [void]$FilePath
+          [void]$ArgumentList
+          [void]$PassThru
+          [void]$Wait
+          [void]$WindowStyle
+          return [pscustomobject]@{ ExitCode = (Get-Variable -Name __IocDefenderExitCode -Scope Global -ValueOnly) }
         }
 
         $invokeArgs = @{
@@ -181,6 +186,7 @@ Describe '11-IOC-Sweep-Defender source failure reporting' {
         function global:Get-Process {
           [CmdletBinding()]
           param([int]$Id)
+          [void]$Id
           Write-Error 'process source failed'
         }
       }
@@ -198,6 +204,7 @@ Describe '11-IOC-Sweep-Defender source failure reporting' {
         function global:Get-NetTCPConnection {
           [CmdletBinding()]
           param([string[]]$State)
+          [void]$State
           Write-Error 'network connection source failed'
         }
       }

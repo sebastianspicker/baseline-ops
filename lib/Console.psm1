@@ -186,9 +186,9 @@ function Write-ColoredLine {
   } else { $null }
 
   if ($null -ne $fg) {
-    Write-Information -MessageData $Text -InformationAction Continue
+    Write-Host $Text -ForegroundColor $fg -NoNewline:$NoNewLine
   } else {
-    Write-Information -MessageData $Text -InformationAction Continue
+    Write-Host $Text -NoNewline:$NoNewLine
   }
 }
 
@@ -390,6 +390,7 @@ function Get-FindingStats {
     Warning = 0
     Error   = 0
     Skip    = 0
+    Debug   = 0
   }
 
   foreach ($finding in $findingsList) {
@@ -400,6 +401,7 @@ function Get-FindingStats {
       '^(Low)$' { $stats.Low++; break }
       '^(Error|Err|Fail)$' { $stats.Error++; break }
       '^(Skip|Skipped)$' { $stats.Skip++; break }
+      '^(Debug)$' { $stats.Debug++; break }
       default { $stats.Info++ }
     }
   }

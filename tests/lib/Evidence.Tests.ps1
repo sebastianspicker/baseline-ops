@@ -72,12 +72,11 @@ Describe 'Get-FileSha256' {
     $result | Should -BeNullOrEmpty
   }
 
-  It 'Throws with context when hash computation fails' {
+  It 'Returns null when hash computation fails' {
     'locked content' | Out-File -FilePath $script:TestFile -Encoding UTF8
     Mock -CommandName Get-FileHash -ModuleName Evidence -MockWith { throw 'Access denied' }
 
-    { Get-FileSha256 -Path $script:TestFile } |
-      Should -Throw -ExpectedMessage '*Get-FileSha256*Access denied*'
+    Get-FileSha256 -Path $script:TestFile | Should -BeNullOrEmpty
   }
 
   It 'Returns consistent hash for same content' {

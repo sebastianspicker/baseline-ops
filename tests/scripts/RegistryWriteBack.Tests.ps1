@@ -10,7 +10,7 @@ Describe 'Registry remediation write-back failure reporting' -Tag 'RegistryWrite
     Import-Module (Join-Path $PSScriptRoot '../../lib/Registry.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '../../lib/Results.psm1') -Force
 
-    $global:RegistryWriteBackRegValues = @{}
+    Set-Variable -Name RegistryWriteBackRegValues -Scope Global -Value @{}
 
     Mock -CommandName Require-Admin -MockWith {}
     Mock -CommandName Ensure-RegistryKey -MockWith {}
@@ -28,8 +28,10 @@ Describe 'Registry remediation write-back failure reporting' -Tag 'RegistryWrite
     }
     Mock -CommandName Get-RegValue -MockWith {
       param([string]$Path, [string]$Name)
-      if ($global:RegistryWriteBackRegValues -and $global:RegistryWriteBackRegValues.ContainsKey($Name)) {
-        return $global:RegistryWriteBackRegValues[$Name]
+      [void]$Path
+      $regValues = Get-Variable -Name RegistryWriteBackRegValues -Scope Global -ValueOnly
+      if ($regValues -and $regValues.ContainsKey($Name)) {
+        return $regValues[$Name]
       }
       return $null
     }
@@ -91,7 +93,7 @@ Describe 'Registry remediation write-back failure reporting' -Tag 'RegistryWrite
   }
 
   It '31-PowerShell-Logging-Baseline reports FAIL when registry writes fail' {
-    $global:RegistryWriteBackRegValues = @{
+    Set-Variable -Name RegistryWriteBackRegValues -Scope Global -Value @{
       EnableTranscripting = 1
     }
     $transcriptDir = Join-Path (Join-Path $TestDrive 'ProgramData') 'PowerShellTranscripts'
@@ -116,7 +118,7 @@ Describe 'Registry remediation write-back failure reporting' -Tag 'RegistryWrite
   }
 
   It '39-CredentialGuard-VBS-AuditRemediate reports FAIL when registry writes fail' {
-    $global:RegistryWriteBackRegValues = @{
+    Set-Variable -Name RegistryWriteBackRegValues -Scope Global -Value @{
       EnableVirtualizationBasedSecurity = 1
       RequirePlatformSecurityFeatures   = 3
       LsaCfgFlags                       = 1
@@ -136,7 +138,7 @@ Describe 'Registry remediation write-back failure reporting' -Tag 'RegistryWrite
   }
 
   It '40-AddedLSAProtection-RunAsPPL-AuditRemediate reports FAIL when registry writes fail' {
-    $global:RegistryWriteBackRegValues = @{
+    Set-Variable -Name RegistryWriteBackRegValues -Scope Global -Value @{
       RunAsPPL     = 0
       RunAsPPLBoot = 0
     }
@@ -155,7 +157,7 @@ Describe 'Registry remediation write-back failure reporting' -Tag 'RegistryWrite
   }
 
   It '39-CredentialGuard-VBS-AuditRemediate reports explicit config parse failure as WARN' {
-    $global:RegistryWriteBackRegValues = @{
+    Set-Variable -Name RegistryWriteBackRegValues -Scope Global -Value @{
       EnableVirtualizationBasedSecurity = 1
       RequirePlatformSecurityFeatures   = 3
       LsaCfgFlags                       = 2
@@ -178,7 +180,7 @@ Describe 'Registry remediation write-back failure reporting' -Tag 'RegistryWrite
   }
 
   It '40-AddedLSAProtection-RunAsPPL-AuditRemediate reports explicit config parse failure as WARN' {
-    $global:RegistryWriteBackRegValues = @{
+    Set-Variable -Name RegistryWriteBackRegValues -Scope Global -Value @{
       RunAsPPL = 1
     }
     $configPath = Join-Path $TestDrive 'bad-lsa-config.json'

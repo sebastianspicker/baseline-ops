@@ -5,18 +5,32 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
     $script:HardwareTpmScript = Join-Path $PSScriptRoot '../../scripts/15-HardwareTPM-Audit.ps1'
     Import-Module (Join-Path $PSScriptRoot '../../lib/EventLog.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '../../lib/Serialization.psm1') -Force
-    $global:HardwareTpmTestSaveJsonThrows = $false
-    $global:HardwareTpmTestWriteEventResult = $true
-    $global:HardwareTpmTestTpmObject = $null
-    $global:HardwareTpmTestTpmMethods = @{}
-    $global:HardwareTpmTestSecureBoot = $true
-    $global:HardwareTpmTestBitLockerProtectionStatus = 1
-    $global:HardwareTpmTestEventSourceResult = $true
 
-    Mock -CommandName Ensure-EventSource -MockWith { $global:HardwareTpmTestEventSourceResult }
-    Mock -CommandName Write-HealthEvent -MockWith { $global:HardwareTpmTestWriteEventResult }
+    function Set-HardwareTpmTestValue {
+      param(
+        [Parameter(Mandatory)][string]$Name,
+        [AllowNull()]$Value
+      )
+      Set-Variable -Name "HardwareTpmTest$Name" -Scope Global -Value $Value
+    }
+
+    function Get-HardwareTpmTestValue {
+      param([Parameter(Mandatory)][string]$Name)
+      Get-Variable -Name "HardwareTpmTest$Name" -Scope Global -ValueOnly
+    }
+
+    Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
+    Set-HardwareTpmTestValue -Name WriteEventResult -Value $true
+    Set-HardwareTpmTestValue -Name TpmObject -Value $null
+    Set-HardwareTpmTestValue -Name TpmMethods -Value @{}
+    Set-HardwareTpmTestValue -Name SecureBoot -Value $true
+    Set-HardwareTpmTestValue -Name BitLockerProtectionStatus -Value 1
+    Set-HardwareTpmTestValue -Name EventSourceResult -Value $true
+
+    Mock -CommandName Ensure-EventSource -MockWith { Get-HardwareTpmTestValue -Name EventSourceResult }
+    Mock -CommandName Write-HealthEvent -MockWith { Get-HardwareTpmTestValue -Name WriteEventResult }
     Mock -CommandName Save-Json -MockWith {
-      if ($global:HardwareTpmTestSaveJsonThrows) {
+      if (Get-HardwareTpmTestValue -Name SaveJsonThrows) {
         throw 'proof write failed'
       }
     }
@@ -30,9 +44,9 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
         $env:USERNAME = 'tester'
-        $global:HardwareTpmTestSaveJsonThrows = $true
-        $global:HardwareTpmTestWriteEventResult = $true
-        $global:HardwareTpmTestEventSourceResult = $true
+        Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $true
+        Set-HardwareTpmTestValue -Name WriteEventResult -Value $true
+        Set-HardwareTpmTestValue -Name EventSourceResult -Value $true
 
         function global:Confirm-SecureBootUEFI { $true }
         function global:Get-BitLockerVolume {
@@ -47,6 +61,7 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         }
         function global:Get-CimInstance {
           param([string]$Namespace, [string]$ClassName)
+          [void]$Namespace
           if ($ClassName -eq 'Win32_BIOS') {
             return [pscustomobject]@{
               SerialNumber      = 'SERIAL'
@@ -65,6 +80,7 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         }
         function global:Invoke-CimMethod {
           param($InputObject, [string]$MethodName)
+          [void]$InputObject
           switch ($MethodName) {
             'IsOwned' { return [pscustomobject]@{ IsOwned = $true } }
             'IsEnabled' { return [pscustomobject]@{ IsEnabled = $true } }
@@ -119,9 +135,9 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
         $env:USERNAME = 'tester'
-        $global:HardwareTpmTestSaveJsonThrows = $false
-        $global:HardwareTpmTestWriteEventResult = $false
-        $global:HardwareTpmTestEventSourceResult = $true
+        Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
+        Set-HardwareTpmTestValue -Name WriteEventResult -Value $false
+        Set-HardwareTpmTestValue -Name EventSourceResult -Value $true
 
         function global:Confirm-SecureBootUEFI { $true }
         function global:Get-BitLockerVolume {
@@ -136,6 +152,7 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         }
         function global:Get-CimInstance {
           param([string]$Namespace, [string]$ClassName)
+          [void]$Namespace
           if ($ClassName -eq 'Win32_BIOS') {
             return [pscustomobject]@{
               SerialNumber      = 'SERIAL'
@@ -154,6 +171,7 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         }
         function global:Invoke-CimMethod {
           param($InputObject, [string]$MethodName)
+          [void]$InputObject
           switch ($MethodName) {
             'IsOwned' { return [pscustomobject]@{ IsOwned = $true } }
             'IsEnabled' { return [pscustomobject]@{ IsEnabled = $true } }
@@ -221,19 +239,19 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
         $env:USERNAME = 'tester'
-        $global:HardwareTpmTestSaveJsonThrows = $false
-        $global:HardwareTpmTestWriteEventResult = $true
-        $global:HardwareTpmTestTpmObject = $TpmObject
-        $global:HardwareTpmTestTpmMethods = $TpmMethods
-        $global:HardwareTpmTestSecureBoot = $SecureBoot
-        $global:HardwareTpmTestBitLockerProtectionStatus = $BitLockerProtectionStatus
-        $global:HardwareTpmTestEventSourceResult = $EventSourceResult
+        Set-HardwareTpmTestValue -Name SaveJsonThrows -Value $false
+        Set-HardwareTpmTestValue -Name WriteEventResult -Value $true
+        Set-HardwareTpmTestValue -Name TpmObject -Value $TpmObject
+        Set-HardwareTpmTestValue -Name TpmMethods -Value $TpmMethods
+        Set-HardwareTpmTestValue -Name SecureBoot -Value $SecureBoot
+        Set-HardwareTpmTestValue -Name BitLockerProtectionStatus -Value $BitLockerProtectionStatus
+        Set-HardwareTpmTestValue -Name EventSourceResult -Value $EventSourceResult
 
-        function global:Confirm-SecureBootUEFI { $global:HardwareTpmTestSecureBoot }
+        function global:Confirm-SecureBootUEFI { Get-HardwareTpmTestValue -Name SecureBoot }
         function global:Get-BitLockerVolume {
           [pscustomobject]@{
             VolumeType           = 'OperatingSystem'
-            ProtectionStatus     = $global:HardwareTpmTestBitLockerProtectionStatus
+            ProtectionStatus     = (Get-HardwareTpmTestValue -Name BitLockerProtectionStatus)
             MountPoint           = 'C:'
             VolumeStatus         = 'FullyEncrypted'
             EncryptionPercentage = 100
@@ -242,6 +260,7 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
         }
         function global:Get-CimInstance {
           param([string]$Namespace, [string]$ClassName)
+          [void]$Namespace
           if ($ClassName -eq 'Win32_BIOS') {
             return [pscustomobject]@{
               SerialNumber      = 'SERIAL'
@@ -252,15 +271,17 @@ Describe '15-HardwareTPM-Audit fatal failure reporting' -Tag 'HardwareTPM' {
             }
           }
           if ($ClassName -eq 'Win32_Tpm') {
-            return $global:HardwareTpmTestTpmObject
+            return (Get-HardwareTpmTestValue -Name TpmObject)
           }
           return $null
         }
         function global:Invoke-CimMethod {
           param($InputObject, [string]$MethodName)
+          [void]$InputObject
           $value = $null
-          if ($global:HardwareTpmTestTpmMethods.ContainsKey($MethodName)) {
-            $value = $global:HardwareTpmTestTpmMethods[$MethodName]
+          $tpmMethods = Get-HardwareTpmTestValue -Name TpmMethods
+          if ($tpmMethods.ContainsKey($MethodName)) {
+            $value = $tpmMethods[$MethodName]
           }
           switch ($MethodName) {
             'IsOwned' { return [pscustomobject]@{ IsOwned = $value } }

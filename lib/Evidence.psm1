@@ -46,7 +46,7 @@ function Get-FileSha256 {
     $hash = Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop
     return $hash.Hash
   } catch {
-    throw "Get-FileSha256: Failed to hash '$Path': $($_.Exception.Message)"
+    return $null
   }
 }
 

@@ -124,11 +124,15 @@ function Write-UiLine {
   }
 
   $fg = if ($NoColor) { $null } else { Resolve-UiColor -Style $Style }
-  if ($null -ne $fg) {
-    Write-Information -MessageData $Message -InformationAction Continue
-  } else {
-    Write-Information -MessageData $Message -InformationAction Continue
+  if ($NoNewLine) {
+    if ($null -ne $fg) {
+      Write-Host $Message -ForegroundColor $fg -NoNewline
+    } else {
+      Write-Host $Message -NoNewline
+    }
+    return
   }
+  Write-Information -MessageData $Message -InformationAction Continue
 }
 
 function Write-ConsoleLine {

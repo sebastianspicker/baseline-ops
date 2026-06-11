@@ -18,7 +18,7 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
         $env:USERNAME = 'test-user'
-        $global:WinGetConfigBaselineInvocations = @()
+        Set-Variable -Name WinGetConfigBaselineInvocations -Scope Global -Value ([System.Collections.ArrayList]::new())
 
         function global:Get-Command {
           [CmdletBinding()]
@@ -38,8 +38,9 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
         }
 
         function global:winget.exe {
-          $global:WinGetConfigBaselineInvocations += , @($args)
-          $global:LASTEXITCODE = 0
+          $invocations = Get-Variable -Name WinGetConfigBaselineInvocations -Scope Global -ValueOnly
+          [void]$invocations.Add(@($args))
+          Set-Variable -Name LASTEXITCODE -Scope Global -Value 0
         }
 
         $output = & $script:WinGetRunnerScript `
@@ -81,7 +82,7 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
         ExitCode = $exitCode
         Result = $result
         Text = ($output | Out-String)
-        Invocations = @($global:WinGetConfigBaselineInvocations)
+        Invocations = @((Get-Variable -Name WinGetConfigBaselineInvocations -Scope Global -ValueOnly).ToArray())
       }
     }
   }

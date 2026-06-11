@@ -3,9 +3,10 @@
 ## Supported Versions
 
 Only the current `main` branch is actively maintained unless the maintainer
-explicitly confirms support for another branch or tag. Scripts are provided for
-use in controlled, lab-tested environments. Always validate remediation scripts
-against your own environment before production use.
+explicitly confirms support for another branch or tag. Scripts are intended for
+controlled, lab-tested environments; ask for maintainer confirmation before
+using them outside that scope, and always validate remediation scripts against
+your own environment before production use.
 
 ## Scope
 

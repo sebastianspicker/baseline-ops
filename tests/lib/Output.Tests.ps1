@@ -128,13 +128,13 @@ Describe 'Write-KeyValue' {
   It 'Outputs key and value text' {
     Mock Write-Information {} -ModuleName Output
     { Write-KeyValue -Key 'Setting' -Value 'Enabled' } | Should -Not -Throw
-    Should -Invoke Write-Information -ModuleName Output -Times 2
+    Should -Invoke Write-Information -ModuleName Output -Times 1
   }
 
   It 'Shows empty value text when value is null' {
     Mock Write-Information {} -ModuleName Output
     { Write-KeyValue -Key 'EmptyKey' -Value $null } | Should -Not -Throw
-    Should -Invoke Write-Information -ModuleName Output -Times 2
+    Should -Invoke Write-Information -ModuleName Output -Times 1
   }
 
   It 'Handles custom indent' {

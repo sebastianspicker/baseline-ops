@@ -27,7 +27,6 @@ function Get-CallerValue {
   # - EventLog.psm1: Ensure-EventSource and Write-HealthEvent read
   #   EventSource and EventLogName. Deprecated EventSourceName/EventLog
   #   fallback reads warn before use.
-  # - Results.psm1: Add-Finding reads Findings and script:Findings.
   # TODO: Replace these hidden caller-scope contracts with explicit parameters.
   # Search scopes 1 through 3 (immediate caller up to 3 levels up).
   # Scope 1 = direct caller, 2 = caller's caller, 3 = one more level up.
@@ -38,7 +37,7 @@ function Get-CallerValue {
       $var = Get-Variable -Name $Name -Scope $scope -ErrorAction Stop
       return $var.Value
     } catch {
-      Write-Verbose ("Caller variable '{0}' not found in scope {1}: {2}" -f $Name,$scope,$_.Exception.Message)
+      # continue
     }
   }
   return $null
@@ -102,7 +101,8 @@ function Ensure-Directory {
   }
   try {
     if (-not (Test-Path -LiteralPath $Path)) {
-      New-Item -Path $Path -ItemType Directory -Force -ErrorAction Stop | Out-Null
+      $literalSafePath = [System.Management.Automation.WildcardPattern]::Escape($Path)
+      New-Item -Path $literalSafePath -ItemType Directory -Force -ErrorAction Stop | Out-Null
     }
     return $true
   } catch {

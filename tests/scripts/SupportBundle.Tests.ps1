@@ -38,13 +38,13 @@ Describe '09-SupportBundle record failure reporting' -Tag 'SupportBundle' {
         }
         $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding UTF8
 
-        $global:__SupportBundleKbFailure = [bool]$KbFailure
-        $global:__SupportBundleSidecarSummaryFailure = [bool]$SidecarSummaryFailure
+        Set-Variable -Name __SupportBundleKbFailure -Scope Global -Value ([bool]$KbFailure)
+        Set-Variable -Name __SupportBundleSidecarSummaryFailure -Scope Global -Value ([bool]$SidecarSummaryFailure)
 
         Mock -CommandName SB_WriteHealthEvent -MockWith { }
         Mock -CommandName SB_TestEventLogExists -MockWith { $false }
         Mock -CommandName SB_ExportKbStatus -MockWith {
-          if (-not $global:__SupportBundleKbFailure) {
+          if (-not (Get-Variable -Name __SupportBundleKbFailure -Scope Global -ValueOnly)) {
             return (SB_NewRecord -Name 'KBFeed' -Ok $true -ArtifactPath $null -Note 'no pending KB data' -Error $null)
           }
           SB_NewRecord -Name 'KBFeed' -Ok $false -ArtifactPath $null -Note $null -Error 'kb export failed'
@@ -60,7 +60,7 @@ Describe '09-SupportBundle record failure reporting' -Tag 'SupportBundle' {
             [string]$Path,
             $Object
           )
-          if ($global:__SupportBundleSidecarSummaryFailure -and $Path -like '*.summary.json') {
+          if ((Get-Variable -Name __SupportBundleSidecarSummaryFailure -Scope Global -ValueOnly) -and $Path -like '*.summary.json') {
             throw 'sidecar summary failed'
           }
           $Object | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $Path -Encoding UTF8

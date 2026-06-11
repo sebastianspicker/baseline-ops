@@ -305,7 +305,7 @@ Describe '12 SuspiciousArtifactGrabber parent behavior' -Tag 'SuspiciousArtifact
 
       $oldOS = $env:OS
       $oldComputerName = $env:COMPUTERNAME
-      $global:__ArtifactGrabberProcessError = [bool]$ProcessError
+      Set-Variable -Name __ArtifactGrabberProcessError -Scope Global -Value ([bool]$ProcessError)
       try {
         $env:OS = 'Windows_NT'
         $env:COMPUTERNAME = 'TEST-HOST'
@@ -329,7 +329,7 @@ Describe '12 SuspiciousArtifactGrabber parent behavior' -Tag 'SuspiciousArtifact
         $catalog | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $catalogPath -Encoding UTF8
 
         function global:Get-ScheduledTask {
-          if ($global:__ArtifactGrabberSuspiciousTask) {
+          if (Get-Variable -Name __ArtifactGrabberSuspiciousTask -Scope Global -ValueOnly) {
             return @(
               [pscustomobject]@{
                 TaskName  = 'SuspiciousTask'
@@ -357,8 +357,9 @@ Describe '12 SuspiciousArtifactGrabber parent behavior' -Tag 'SuspiciousArtifact
             [string]$ClassName,
             [string]$Namespace
           )
+          [void]$Namespace
 
-          if ($global:__ArtifactGrabberProcessError -and $ClassName -eq 'Win32_Process') {
+          if ((Get-Variable -Name __ArtifactGrabberProcessError -Scope Global -ValueOnly) -and $ClassName -eq 'Win32_Process') {
             throw 'process source unavailable'
           }
 
@@ -391,9 +392,12 @@ Describe '12 SuspiciousArtifactGrabber parent behavior' -Tag 'SuspiciousArtifact
             [string]$DestinationPath,
             [switch]$Force
           )
+          [void]$Path
+          [void]$DestinationPath
+          [void]$Force
         }
 
-        $global:__ArtifactGrabberSuspiciousTask = [bool]$SuspiciousTask
+        Set-Variable -Name __ArtifactGrabberSuspiciousTask -Scope Global -Value ([bool]$SuspiciousTask)
 
         Mock -CommandName Ensure-EventSource -MockWith { }
         Mock -CommandName Write-HealthEvent -MockWith { $true }
