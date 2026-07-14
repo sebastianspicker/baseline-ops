@@ -86,8 +86,7 @@
     - Time, Name, Status, Message, Data
 .NOTES
   Exit codes:
-  - 0 indicates overall success (OverallStatus = OK).
-  - 1 indicates overall failure (OverallStatus = NOT_OK).
+  - 0 = OK, 2 = WARN, 1 = FAIL.
   Event Log:
   The script attempts to write an audit entry to the Windows Application event log.
   This is best-effort and does not fail the run if event log write access is unavailable.
@@ -133,8 +132,10 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
+Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 $script:NoConsole = [bool]$NoConsole
 $script:PassThruRecords = [bool]$PassThruRecords
 Set-StrictMode -Version Latest
@@ -151,10 +152,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '08-WinGet-SelfHeal.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $resultToken = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '08-WinGet-SelfHeal.ps1' -Mode $Mode -Result $resultToken -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $resultToken)
 }
 
 # ---------------- Defaults ----------------
@@ -220,14 +222,18 @@ function Get-Config {
   try {
     $sanitized = Sanitize-Path -Path $Path -MustExist
     if ($sanitized) {
-      return Get-Content -Raw -LiteralPath $sanitized -Encoding UTF8 | ConvertFrom-Json
+      $configItem = Get-Item -LiteralPath $sanitized -Force -ErrorAction Stop
+      if ($configItem.Length -gt 1MB) { throw 'Configuration file exceeds the 1 MiB size limit.' }
+      return Get-BoundedUtf8FileContent -Path $sanitized -MaximumBytes 1048576 | ConvertFrom-Json
     }
     $here = Split-Path -Parent $MyInvocation.MyCommand.Path
     if ($here) {
       $alt = Join-Path (Split-Path -Parent $here) "config\config.json"
       $sanitizedAlt = Sanitize-Path -Path $alt -MustExist
       if ($sanitizedAlt) {
-        return Get-Content -Raw -LiteralPath $sanitizedAlt -Encoding UTF8 | ConvertFrom-Json
+        $configItem = Get-Item -LiteralPath $sanitizedAlt -Force -ErrorAction Stop
+        if ($configItem.Length -gt 1MB) { throw 'Configuration file exceeds the 1 MiB size limit.' }
+        return Get-BoundedUtf8FileContent -Path $sanitizedAlt -MaximumBytes 1048576 | ConvertFrom-Json
       }
     }
   } catch {
@@ -256,64 +262,50 @@ function Get-NestedPropValue {
 function Resolve-WingetPath {
   [CmdletBinding()]
   param()
-  $cmd = Get-Command winget -ErrorAction SilentlyContinue
-  if ($cmd -and $cmd.Source -and (Test-Path -LiteralPath $cmd.Source)) { return $cmd.Source }
-  $wa = Join-Path $env:ProgramFiles 'WindowsApps'
-  if (Test-Path -LiteralPath $wa) {
-    try {
-      $cand = Get-ChildItem -LiteralPath $wa -Directory -Filter 'Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe' -ErrorAction Stop |
-        Sort-Object Name -Descending | Select-Object -First 1
-      if ($cand) {
-        $p = Join-Path $cand.FullName 'winget.exe'
-        if (Test-Path -LiteralPath $p) { return $p }
-      }
-    } catch {
-      Write-Verbose ("WindowsApps winget probe failed: {0}" -f $_.Exception.Message)
-    }
-  }
-  return $null
-}
-function ConvertTo-QuotedArg {
-  param([Parameter(Mandatory)][string]$Value)
-  # Basic robust quoting for cmd.exe/shell characters
-  # We escape existing quotes and wrap the whole thing.
-  $escaped = $Value -replace '"', '\"'
-  return '"' + $escaped + '"'
+  return (Resolve-TrustedWingetPath)
 }
 function Invoke-Winget {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$WingetPath,
     [Parameter(Mandatory)][string[]]$WingetArgs,
-    [int]$TimeoutSec = 120
+    [ValidateRange(1, 86400)][int]$TimeoutSec = 120
   )
-  $psi = New-Object System.Diagnostics.ProcessStartInfo
-  $psi.FileName = $WingetPath
-  $psi.Arguments = ($WingetArgs | ForEach-Object { ConvertTo-QuotedArg $_ }) -join ' '
-  $psi.RedirectStandardOutput = $true
-  $psi.RedirectStandardError  = $true
-  $psi.UseShellExecute = $false
-  $psi.CreateNoWindow = $true
-  $p = New-Object System.Diagnostics.Process
-  $p.StartInfo = $psi
-  $null = $p.Start()
-  if (-not $p.WaitForExit($TimeoutSec * 1000)) {
-    try { $p.Kill() } catch {
-      Write-Verbose ("Timed-out winget process kill failed: {0}" -f $_.Exception.Message)
-    }
-    return @{
-      ExitCode = 408
-      StdOut   = ''
-      StdErr   = "Timeout after $TimeoutSec s"
-      Args     = $WingetArgs
-    }
+  $native = Invoke-NativeCommand -Command $WingetPath -Arguments $WingetArgs -CaptureOutput -Quiet -TimeoutSeconds $TimeoutSec -MaxOutputBytes 1048576
+  if ($null -eq $native) {
+    return @{ ExitCode = 1; StdOut = ''; StdErr = 'winget process could not be started.'; Args = $WingetArgs; TimedOut = $false; OutputTruncated = $false; StderrTruncated = $false; Success = $false }
   }
-  return @{
-    ExitCode = $p.ExitCode
-    StdOut   = $p.StandardOutput.ReadToEnd()
-    StdErr   = $p.StandardError.ReadToEnd()
-    Args     = $WingetArgs
+  $timedOut = [bool]$native.TimedOut
+  $truncated = [bool]$native.OutputTruncated -or [bool]$native.StderrTruncated
+  $exitCode = if ($timedOut) { 408 } elseif ($truncated) { 413 } else { [int]$native.ExitCode }
+  $stderr = [string]$native.Stderr
+  if ($timedOut) { $stderr = (($stderr, "Timeout after $TimeoutSec s" | Where-Object { $_ }) -join "`n") }
+  if ($truncated) { $stderr = (($stderr, 'Output truncated at 1048576 bytes; result is unusable.' | Where-Object { $_ }) -join "`n") }
+  return @{ ExitCode = $exitCode; StdOut = [string]$native.Stdout; StdErr = $stderr; Args = $WingetArgs; TimedOut = $timedOut; OutputTruncated = [bool]$native.OutputTruncated; StderrTruncated = [bool]$native.StderrTruncated; Success = ([bool]$native.Success -and -not $timedOut -and -not $truncated) }
+}
+function ConvertTo-ConservativeNativeArguments {
+  [CmdletBinding()]
+  param([AllowEmptyString()][string]$ArgumentString)
+  if ([string]::IsNullOrWhiteSpace($ArgumentString)) { return @() }
+  if ($ArgumentString -match '[\x00-\x1F\x7F]') { throw 'Installer arguments contain control characters.' }
+  $arguments = New-Object System.Collections.Generic.List[string]
+  $token = New-Object System.Text.StringBuilder
+  $inQuotes = $false; $started = $false
+  for ($index = 0; $index -lt $ArgumentString.Length; $index++) {
+    $character = $ArgumentString[$index]
+    if ($character -eq '"') {
+      if ($index -gt 0 -and $ArgumentString[$index - 1] -eq '\') { throw 'Installer arguments must not use escaped quotes.' }
+      $inQuotes = -not $inQuotes; $started = $true; continue
+    }
+    if ([char]::IsWhiteSpace($character) -and -not $inQuotes) {
+      if ($started) { [void]$arguments.Add($token.ToString()); $token.Clear() | Out-Null; $started = $false }
+      continue
+    }
+    [void]$token.Append($character); $started = $true
   }
+  if ($inQuotes) { throw 'Installer arguments contain an unclosed quote.' }
+  if ($started) { [void]$arguments.Add($token.ToString()) }
+  return $arguments.ToArray()
 }
 function Convert-ExitCodeToHex32 {
   [CmdletBinding()]
@@ -415,17 +407,62 @@ function Install-VcRedist {
   [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param(
     [Parameter(Mandatory)][string]$Path,
-    [string]$InstallArgs = "/install /quiet /norestart"
+    [string]$InstallArgs = "/install /quiet /norestart",
+    [ValidateSet('x64','x86')][string]$Architecture = 'x64'
   )
-  if (-not (Test-Path -LiteralPath $Path)) { return $false, "Installer not found: $Path" }
+  $installerStream = $null
   try {
-    if (-not $PSCmdlet.ShouldProcess($Path, 'Install VC++ redistributable')) {
+    $providerPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    if (-not (Test-Path -LiteralPath $providerPath -PathType Leaf)) { return $false, "Installer not found: $Path" }
+    $volumeRoot = [System.IO.Path]::GetPathRoot([System.IO.Path]::GetFullPath($providerPath))
+    if (Test-PathContainsReparsePoint -Path $providerPath -Root $volumeRoot) {
+      return $false, 'Installer path contains a reparse point.'
+    }
+
+    $resolvedPath = (Resolve-Path -LiteralPath $providerPath -ErrorAction Stop).ProviderPath
+    $installerItem = Get-Item -LiteralPath $resolvedPath -Force -ErrorAction Stop
+    if ($installerItem.Length -le 0 -or $installerItem.Length -gt 128MB) {
+      return $false, 'Installer size is outside the accepted range.'
+    }
+
+    # FileShare.Read denies writes, replacement, and deletion while the trust
+    # decision and process launch are in progress, closing the validation/use race.
+    $installerStream = [System.IO.File]::Open(
+      $resolvedPath,
+      [System.IO.FileMode]::Open,
+      [System.IO.FileAccess]::Read,
+      [System.IO.FileShare]::Read
+    )
+
+    if ($env:OS -eq 'Windows_NT') {
+      $signature = Get-AuthenticodeSignature -LiteralPath $resolvedPath -ErrorAction Stop
+      $signerSubject = if ($null -ne $signature.SignerCertificate) { [string]$signature.SignerCertificate.Subject } else { '' }
+      if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+          $signerSubject -notmatch '(?i)(^|,\s*)O=Microsoft Corporation(,|$)') {
+        return $false, 'Installer must have a valid Microsoft Authenticode signature.'
+      }
+
+      $expectedOriginalName = "VC_redist.$Architecture.exe"
+      $originalName = [string]$installerItem.VersionInfo.OriginalFilename
+      if (-not $originalName.Equals($expectedOriginalName, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $false, "Installer identity does not match $expectedOriginalName."
+      }
+    }
+
+    $arguments = ConvertTo-ConservativeNativeArguments -ArgumentString $InstallArgs
+    if (-not $PSCmdlet.ShouldProcess($resolvedPath, "Install VC++ $Architecture redistributable")) {
       return $false, 'Skipped by ShouldProcess'
     }
-    $p = Start-Process -FilePath $Path -ArgumentList $InstallArgs -Wait -PassThru -WindowStyle Hidden
-    if ($p.ExitCode -eq 0) { return $true, "OK" }
-    return $false, "ExitCode=$($p.ExitCode)"
+    $native = Invoke-NativeCommand -Command $resolvedPath -Arguments $arguments -CaptureOutput -Quiet -TimeoutSeconds 600 -MaxOutputBytes 1048576
+    if ($null -eq $native) { return $false, 'Installer process could not be started.' }
+    if ($native.TimedOut) { return $false, 'Installer timed out after 600 s.' }
+    if ($native.OutputTruncated -or $native.StderrTruncated) { return $false, 'Installer output was truncated; result is unusable.' }
+    if ($native.Success) { return $true, 'OK' }
+    return $false, "ExitCode=$($native.ExitCode)"
   } catch { return $false, $_.Exception.Message }
+  finally {
+    if ($null -ne $installerStream) { $installerStream.Dispose() }
+  }
 }
 # ---------------- Source Helpers ----------------
 function Test-WingetSourcePresent {
@@ -555,7 +592,7 @@ try {
     if ($Remediate) {
       if ($vcX64Path) {
         $r = $false; $m = $null
-        $r, $m = Install-VcRedist -Path $vcX64Path -InstallArgs $vcArgs
+        $r, $m = Install-VcRedist -Path $vcX64Path -InstallArgs $vcArgs -Architecture x64
         $st = 'Error'; $ms = 'Install failed.'
         if ($m -eq 'Skipped by ShouldProcess') { $st = 'Skipped'; $ms = $m }
         elseif ($r) { $st = 'OK'; $ms = 'Installed.' }
@@ -577,7 +614,7 @@ try {
     Add-Record -List $records -Record (Get-CheckRecord -Name 'VcRedistX86' -Status 'Warning' -Message 'Not installed (optional).')
     if ($Remediate -and $vcX86Path) {
       $r = $false; $m = $null
-      $r, $m = Install-VcRedist -Path $vcX86Path -InstallArgs $vcArgs
+      $r, $m = Install-VcRedist -Path $vcX86Path -InstallArgs $vcArgs -Architecture x86
       $st = 'Error'; $ms = 'Install failed.'
       if ($m -eq 'Skipped by ShouldProcess') { $st = 'Skipped'; $ms = $m }
       elseif ($r) { $st = 'OK'; $ms = 'Installed.' }
@@ -663,10 +700,12 @@ try {
     }
   }
   # V2 output contract
-  $resultToken = if (-not $overallOk) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+  $hasWarningRecords = @($records.ToArray() | Where-Object { $_.Status -eq 'Warning' }).Count -gt 0
+  $resultToken = if (-not $overallOk) { 'FAIL' } elseif ($hasWarningRecords -or $script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+  if ($Strict -and $resultToken -eq 'WARN') { $resultToken = 'FAIL' }
   $v2Summary = [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Mode = $Mode; OverallOk = $overallOk; Timestamp = Get-Date }
   $v2Result = Get-V2ResultObject -ScriptName '08-WinGet-SelfHeal.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings.ToArray()) -Summary $v2Summary -Metadata @{ Records = $records.ToArray() }
   Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $v2Result }
-  if ($overallOk) { exit 0 } else { exit 1 }
+  exit (Get-V2ExitCode -Result $resultToken)
 }

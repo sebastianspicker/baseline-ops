@@ -1,5 +1,7 @@
 Set-StrictMode -Version Latest
 
+Import-Module (Join-Path $PSScriptRoot 'Validation.psm1')
+
 <#
 .SYNOPSIS
 Safe JSON reading helper.
@@ -40,7 +42,7 @@ function Read-JsonFileWithStatus {
   }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-BoundedUtf8FileContent -Path $Path -MaximumBytes 1048576
   } catch {
     $meta.Status = 'Unreadable'
     $meta.Error = $_.Exception.Message

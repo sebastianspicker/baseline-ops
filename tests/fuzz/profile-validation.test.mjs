@@ -77,14 +77,19 @@ const validProfileArbitrary = fc.record({
     OutputFormat: fc.constantFrom('Console', 'Json', 'Csv', 'None')
   }),
   Steps: fc.uniqueArray(
-    fc.constantFrom('00-Report-Aggregate.ps1', '00-Validate-Profile.ps1'),
+    // Profiles may only schedule workload scripts. The 00-* scripts are
+    // control-plane entry points and the validator must reject them.
+    fc.constantFrom('01-ASR-Defender-Allowlist.ps1', '19-Software-Audit.ps1'),
     { minLength: 1, maxLength: 2 }
   ).chain((scripts) =>
     fc.tuple(
       ...scripts.map((script) =>
         fc.record({
           Script: fc.constant(script),
-          Args: fc.array(fc.string({ maxLength: 16 }).filter((value) => !/^\s*$/.test(value)), { maxLength: 3 }),
+          // Keep this arbitrary within the profile argument contract: nonempty
+          // string tokens that do not intentionally exercise a legacy-error
+          // path such as "-Remediate".
+          Args: fc.array(fc.constantFrom('sample', '--detail', 'value-123'), { maxLength: 3 }),
           DependsOn: fc.constant([])
         })
       )

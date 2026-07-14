@@ -10,6 +10,7 @@
 Describe '00-Validate-Profile orchestration' {
   BeforeAll {
     $script:ScriptsRoot = Join-Path $PSScriptRoot '../../scripts'
+    $script:LibRoot = Join-Path $PSScriptRoot '../../lib'
     $script:ValidateScript = Join-Path $script:ScriptsRoot '00-Validate-Profile.ps1'
     $script:TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "orch-validate-$(Get-Random)"
     New-Item -Path $script:TempDir -ItemType Directory -Force | Out-Null
@@ -120,6 +121,26 @@ Describe '00-Validate-Profile orchestration' {
       Should -Be 1
   }
 
+  It 'Rejects control-plane scripts as profile steps' {
+    $temp = Join-Path $script:TempDir "control-plane-step-$(Get-Random).json"
+    $doc = @{
+      ProfileName = 'control-plane-step'
+      Version     = '2.0'
+      Defaults    = @{ Mode = 'Audit' }
+      Steps       = @(
+        @{ Script = '00-Run-Profile.ps1'; Args = @('-ProfilePath', $temp); ContinueOnError = $false; DependsOn = @() }
+      )
+      Integrity   = @{ RequireSigned = $false; ExpectedHashes = @{} }
+    }
+    $doc | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $temp -Encoding UTF8
+
+    $result = & $script:ValidateScript -ProfilePath $temp -OutputFormat None -PassThru
+
+    $LASTEXITCODE | Should -Be 1
+    $result.Result | Should -Be 'FAIL'
+    @($result.Findings | Where-Object Code -eq 'PROFILE-STEP-CONTROL-PLANE').Count | Should -Be 1
+  }
+
   It 'Fails when DependsOn references an unknown script' {
     $temp = Join-Path $script:TempDir "bad-dep-$(Get-Random).json"
     $doc = @{
@@ -188,6 +209,7 @@ Describe '00-Validate-Profile orchestration' {
 Describe '00-Run-Batch orchestration' {
   BeforeAll {
     $script:ScriptsRoot = Join-Path $PSScriptRoot '../../scripts'
+    $script:LibRoot = Join-Path $PSScriptRoot '../../lib'
     $script:BatchScript = Join-Path $script:ScriptsRoot '00-Run-Batch.ps1'
     $script:TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "orch-batch-$(Get-Random)"
     New-Item -Path $script:TempDir -ItemType Directory -Force | Out-Null
@@ -197,12 +219,17 @@ Describe '00-Run-Batch orchestration' {
 
       $tempRoot = Join-Path $script:TempDir "batch-profile-$(Get-Random)"
       $tempScripts = Join-Path $tempRoot 'scripts'
+      $tempLib = Join-Path $tempRoot 'lib'
 
       try {
         New-Item -Path $tempScripts -ItemType Directory -Force | Out-Null
+        New-Item -Path $tempLib -ItemType Directory -Force | Out-Null
         New-Item -Path (Join-Path $tempScripts '_lib') -ItemType Directory -Force | Out-Null
         Copy-Item -LiteralPath $script:BatchScript -Destination (Join-Path $tempScripts '00-Run-Batch.ps1') -Force
         Copy-Item -LiteralPath (Join-Path $script:ScriptsRoot '_lib/Bootstrap.ps1') -Destination (Join-Path $tempScripts '_lib/Bootstrap.ps1') -Force
+        foreach ($moduleName in @('Common.psm1','Output.psm1','Serialization.psm1','Validation.psm1')) {
+          Copy-Item -LiteralPath (Join-Path $script:LibRoot $moduleName) -Destination (Join-Path $tempLib $moduleName) -Force
+        }
 
         $fakeRunProfile = @'
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -257,14 +284,14 @@ exit 0
     # Windows-specific cmdlets. The point is that the batch orchestrator
     # assembles a valid temp profile and invokes Run-Profile without error.
     & $script:BatchScript -Category Audit -OutputFormat None -RootPath (Split-Path $script:ScriptsRoot -Parent) -WhatIf
-    # WhatIf causes ShouldProcess to deny and exit 0
-    $LASTEXITCODE | Should -Be 0
+    # WhatIf causes ShouldProcess to deny execution and reports a warning.
+    $LASTEXITCODE | Should -Be 2
   }
 
   It 'Builds a valid batch profile for the Audit category' {
     # Run with -WhatIf so no scripts are actually executed
     & $script:BatchScript -Category Audit -OutputFormat None -RootPath (Split-Path $script:ScriptsRoot -Parent) -WhatIf
-    $LASTEXITCODE | Should -Be 0
+    $LASTEXITCODE | Should -Be 2
   }
 
   It 'Includes all documented late-number audit scripts in the generated Audit batch profile' {
@@ -282,7 +309,101 @@ exit 0
 
   It 'Handles Remediation category with -WhatIf without crashing' {
     & $script:BatchScript -Category Remediation -OutputFormat None -RootPath (Split-Path $script:ScriptsRoot -Parent) -WhatIf
-    $LASTEXITCODE | Should -Be 0
+    $LASTEXITCODE | Should -Be 2
+  }
+
+  It 'Excludes 00 control-plane scripts from the All category' {
+    $profileSpec = Get-GeneratedBatchProfile -Category All
+    $scripts = @($profileSpec.Steps | ForEach-Object { $_.Script })
+
+    @($scripts | Where-Object { $_ -like '00-*' }) | Should -BeNullOrEmpty
+    $scripts | Should -Contain '01-ASR-Defender-Allowlist.ps1'
+    $scripts | Should -Contain '52-DoH-Audit.ps1'
+  }
+
+  It 'Returns a V2 warning when WhatIf skips the batch' {
+    $result = & $script:BatchScript -Category Audit -OutputFormat None -RootPath (Split-Path $script:ScriptsRoot -Parent) -PassThru -WhatIf
+
+    $LASTEXITCODE | Should -Be 2
+    $result.ScriptName | Should -Be '00-Run-Batch.ps1'
+    $result.Result | Should -Be 'WARN'
+    $result.Summary.Executed | Should -BeFalse
+  }
+
+  It 'checks the privileged batch closure before importing repository code' {
+    $source = Get-Content -LiteralPath $script:BatchScript -Raw
+
+    $source | Should -Match "Join-Path \`$runnerLib 'Output\.psm1'"
+    $source | Should -Match "Join-Path \`$runnerLib 'Serialization\.psm1'"
+    $source | Should -Match '\$runProfilePath,'
+    $source | Should -Match 'PropagationFlags\]::InheritOnly'
+    $source.IndexOf('Assert-RunBatchTrustedWindowsAcl -Path $trustedPath') |
+      Should -BeLessThan $source.IndexOf(". (Join-Path `$PSScriptRoot '_lib/Bootstrap.ps1')")
+  }
+
+  It 'uses a protected elevated workspace and keeps the profile read-only during invocation' {
+    $source = Get-Content -LiteralPath $script:BatchScript -Raw
+
+    $source | Should -Match 'CommonApplicationData'
+    $source | Should -Match 'Set-BatchAdminSystemAcl -Path \$tempProfile'
+    $source | Should -Match '\[System\.IO\.FileShare\]::Read'
+    $source.IndexOf('$profileLockStream = New-Object System.IO.FileStream') |
+      Should -BeLessThan $source.IndexOf('& $runProfilePath @params')
+    $source.IndexOf('& $runProfilePath @params') |
+      Should -BeLessThan $source.IndexOf('$profileLockStream.Dispose()')
+  }
+
+  It 'does not replace an explicitly bound default root on non-Windows' -Skip:([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+    $result = & $script:BatchScript -Category Audit -RootPath 'C:\install\mdm\ps1' -OutputFormat None -PassThru -WhatIf
+
+    $LASTEXITCODE | Should -Be 1
+    $result.Result | Should -Be 'FAIL'
+    @($result.Findings | Where-Object Code -eq 'Batch-MissingScriptsDirectory').Count | Should -Be 1
+  }
+
+  It 'uses checkout fallback when the default root was omitted on non-Windows' -Skip:([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+    $result = & $script:BatchScript -Category Audit -OutputFormat None -PassThru -WhatIf
+
+    $LASTEXITCODE | Should -Be 2
+    $result.Result | Should -Be 'WARN'
+  }
+
+  It 'protects elevated batch workspaces for Administrators and SYSTEM only' -Skip:([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
+    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+    if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
+      Set-ItResult -Skipped -Because 'The Windows ACL fixture requires an elevated test process.'
+      return
+    }
+
+    $tokens = $null
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+      (Resolve-Path $script:BatchScript),
+      [ref]$tokens,
+      [ref]$parseErrors
+    )
+    $functionAst = @($ast.FindAll({
+          param($node)
+          $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -eq 'Set-BatchAdminSystemAcl'
+        }, $true))[0]
+    . ([scriptblock]::Create($functionAst.Extent.Text))
+
+    $aclDirectory = Join-Path $TestDrive 'admin-system-only'
+    New-Item -Path $aclDirectory -ItemType Directory -Force | Out-Null
+    Set-BatchAdminSystemAcl -Path $aclDirectory -Directory
+
+    $acl = Get-Acl -LiteralPath $aclDirectory
+    $acl.AreAccessRulesProtected | Should -BeTrue
+    $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value | Should -Be 'S-1-5-32-544'
+    $allowSids = @(
+      $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) |
+        Where-Object AccessControlType -eq ([System.Security.AccessControl.AccessControlType]::Allow) |
+        ForEach-Object { $_.IdentityReference.Value } |
+        Sort-Object -Unique
+    )
+    $allowSids | Should -Be @('S-1-5-18', 'S-1-5-32-544')
   }
 
   It 'Propagates unsupported-host WARN children through batch orchestration' {
@@ -388,19 +509,26 @@ Describe '00-Report-Aggregate orchestration' {
     $result.Summary.WARN | Should -Be 0
   }
 
-  It 'Throws when given an empty directory with no JSON files' {
+  It 'Returns a V2 FAIL result for an empty directory with no JSON files' {
     $emptyDir = Join-Path $script:TempDir "empty-$(Get-Random)"
     New-Item -Path $emptyDir -ItemType Directory -Force | Out-Null
 
-    { & $script:AggregateScript -InputPath $emptyDir -OutputFormat None -PassThru } | Should -Throw '*No JSON result files*'
+    $result = & $script:AggregateScript -InputPath $emptyDir -OutputFormat None -PassThru
+
+    $LASTEXITCODE | Should -Be 1
+    $result.Result | Should -Be 'FAIL'
+    $result.Summary.Error | Should -Match 'No JSON result files'
   }
 
-  It 'Throws when given a directory containing only non-JSON files' {
+  It 'Returns a V2 FAIL result for a directory containing only non-JSON files' {
     $noJsonDir = Join-Path $script:TempDir "nojson-$(Get-Random)"
     New-Item -Path $noJsonDir -ItemType Directory -Force | Out-Null
     Set-Content -LiteralPath (Join-Path $noJsonDir 'readme.txt') -Value 'not json' -Encoding UTF8
 
-    { & $script:AggregateScript -InputPath $noJsonDir -OutputFormat None -PassThru } | Should -Throw '*No JSON result files*'
+    $result = & $script:AggregateScript -InputPath $noJsonDir -OutputFormat None -PassThru
+
+    $LASTEXITCODE | Should -Be 1
+    $result.Result | Should -Be 'FAIL'
   }
 
   It 'Fails when all discovered JSON result files are rejected' {
@@ -412,6 +540,7 @@ Describe '00-Report-Aggregate orchestration' {
 
     $result = & $script:AggregateScript -InputPath $badDir -OutputFormat None -PassThru 3>&1
     $resultObj = $result | Where-Object { $_ -isnot [System.Management.Automation.WarningRecord] }
+    $LASTEXITCODE | Should -Be 1
     $resultObj.Result | Should -Be 'FAIL'
     $resultObj.Summary.Files | Should -Be 0
     $resultObj.Summary.RejectedFiles | Should -Be 2
@@ -423,7 +552,27 @@ Describe '00-Report-Aggregate orchestration' {
     $doc | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $singleFile -Encoding UTF8
 
     $result = & $script:AggregateScript -InputPath $singleFile -OutputFormat None -PassThru
+    $LASTEXITCODE | Should -Be 2
     $result.Result | Should -Be 'WARN'
     $result.Summary.Files | Should -Be 1
+  }
+
+  It 'Returns WARN when valid input is accompanied by a rejected result file' {
+    $mixedDir = Join-Path $script:TempDir "mixed-$(Get-Random)"
+    New-Item -Path $mixedDir -ItemType Directory -Force | Out-Null
+
+    @{ ScriptName = '01-Test.ps1'; Mode = 'Audit'; Result = 'OK' } |
+      ConvertTo-Json | Set-Content -LiteralPath (Join-Path $mixedDir 'valid.json') -Encoding UTF8
+    @{ ScriptName = '02-Test.ps1'; Mode = 'Audit'; Result = 'UNKNOWN' } |
+      ConvertTo-Json | Set-Content -LiteralPath (Join-Path $mixedDir 'invalid.json') -Encoding UTF8
+
+    $output = & $script:AggregateScript -InputPath $mixedDir -OutputFormat None -PassThru 3>&1
+    $result = $output | Where-Object { $_ -isnot [System.Management.Automation.WarningRecord] }
+
+    $LASTEXITCODE | Should -Be 2
+    $result.Result | Should -Be 'WARN'
+    $result.Summary.Files | Should -Be 1
+    $result.Summary.RejectedFiles | Should -Be 1
+    @($result.Findings | Where-Object Code -eq 'Aggregate-InvalidResult').Count | Should -Be 1
   }
 }

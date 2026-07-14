@@ -166,10 +166,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '01-ASR-Defender-Allowlist.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '01-ASR-Defender-Allowlist.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # ----------------------------- Helpers --------------------------------------------
@@ -257,14 +258,14 @@ function Get-Config {
   try {
     $sanitized = if ([string]::IsNullOrWhiteSpace($Path)) { $null } else { Sanitize-Path -Path $Path -MustExist }
     if ($sanitized) {
-      return Get-Content -Raw -LiteralPath $sanitized -Encoding UTF8 | ConvertFrom-Json
+      return Get-BoundedUtf8FileContent -Path $sanitized -MaximumBytes 1048576 | ConvertFrom-Json
     }
 
     $here = Split-Path -Parent $MyInvocation.MyCommand.Path
     $alt  = Join-Path (Split-Path -Parent $here) "config\CONFIG.json"
     $sanitizedAlt = Sanitize-Path -Path $alt -MustExist
     if ($sanitizedAlt) {
-      return Get-Content -Raw -LiteralPath $sanitizedAlt -Encoding UTF8 | ConvertFrom-Json
+      return Get-BoundedUtf8FileContent -Path $sanitizedAlt -MaximumBytes 1048576 | ConvertFrom-Json
     }
   } catch {
     return $null
@@ -508,10 +509,11 @@ if (-not $isWindowsHost) {
       Write-UiLine ("{0,-45}  Add={1,3}  Rem={2,3}  Rej={3,3}" -f $row.Name,$row.Add,$row.Remove,$row.Rejected) -ForegroundColor Gray
     }
   }
-  $v2Result = Get-V2ResultObject -ScriptName '01-ASR-Defender-Allowlist.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $final -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $v2Result = Get-V2ResultObject -ScriptName '01-ASR-Defender-Allowlist.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $final -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $v2Result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 try {
@@ -537,7 +539,7 @@ try {
 
   if ($ExceptionsPath -and (Test-Path -LiteralPath $ExceptionsPath)) {
     try {
-      $raw = Get-Content -Raw -LiteralPath $ExceptionsPath -Encoding UTF8
+      $raw = Get-BoundedUtf8FileContent -Path $ExceptionsPath -MaximumBytes 1048576
       if ([string]::IsNullOrWhiteSpace($raw)) {
         $jsonError = "Allowlist JSON file is empty."
         if ($StrictJson) { throw $jsonError }
@@ -739,7 +741,8 @@ catch {
 
 # V2 output contract
 $resultToken = if ($final.Result -eq 'FAILED') { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+if ($Strict -and $resultToken -eq 'WARN') { $resultToken = 'FAIL' }
 $v2Result = Get-V2ResultObject -ScriptName '01-ASR-Defender-Allowlist.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary $final -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

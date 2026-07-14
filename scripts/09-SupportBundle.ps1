@@ -12,7 +12,8 @@
   - Forced mode (-Force): bypasses the registry trigger and always runs.
 
   Configuration is optionally loaded from a JSON file.
-  If the JSON file is missing or invalid, the script continues with built-in defaults.
+  If the implicit JSON file is missing or invalid, the script continues with built-in defaults.
+  An explicitly supplied invalid configuration fails closed.
 
   Output streams are separated by design:
   - Console: human-friendly status, separators, and colored messages are written via Write-UiLine or Write-Information.
@@ -160,6 +161,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'External.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
+. (Join-Path $PSScriptRoot 'internal/09-SupportBundle.helpers.ps1')
 
 Set-StrictMode -Version Latest
 # v2-init (migrated to Initialize-V2Context)
@@ -175,32 +177,24 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '09-SupportBundle.ps1' -Mode $Mode -Result 'WARN' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '09-SupportBundle.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 2
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # -------------------- Defaults (anonymized) --------------------
-$DefaultConfigPath = if ([string]::IsNullOrWhiteSpace($ConfigPath)) { Join-Path $PSScriptRoot 'support-bundle.json' } else { $ConfigPath }
-$DefaultProofDir   = Join-Path ([System.IO.Path]::GetTempPath()) 'win-mdm-support-bundles'
+$ConfigPathWasExplicit = $PSBoundParameters.ContainsKey('ConfigPath')
+$DefaultConfigPath = if (-not $ConfigPathWasExplicit) { Join-Path $PSScriptRoot 'support-bundle.json' } else { $ConfigPath }
+$DefaultProofDir   = SB_GetDefaultTrustedOutputRoot
 $DefaultKbFeedPath = Join-Path $PSScriptRoot 'kb-feed.json'
 
 # Registry trigger (anonymized)
 $FlagKey     = 'HKLM:\SOFTWARE\Company\Product\SupportBundle'
 $EventSource = 'SupportBundle'
 
-# -------------------- Console UI (no pipeline output) --------------------
-. (Join-Path $PSScriptRoot 'internal/09-SupportBundle.helpers.ps1')
-
 # -------------------- Event log (best effort) --------------------
-function SB_IsWindowsPlatform {
-  [CmdletBinding()]
-  param()
-
-  if ($PSVersionTable.PSEdition -eq 'Core') { return [bool]$IsWindows }
-  return $true
-}
 
 function SB_EnsureEventSource {
   [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
@@ -246,6 +240,32 @@ function SB_ResetRegistryTrigger {
     return (SB_NewRecord -Name 'RegistryReset' -Ok $true -ArtifactPath $null -Note 'Registry updated' -Error $null)
   } catch {
     return (SB_NewRecord -Name 'RegistryReset' -Ok $false -ArtifactPath $null -Note $null -Error $_.Exception.Message)
+  }
+}
+
+function SB_TestBundleArchive {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$ZipPath,
+    [Parameter(Mandatory)][string]$TrustedRoot
+  )
+
+  $archive = $null
+  try {
+    if (-not (Test-Path -LiteralPath $ZipPath -PathType Leaf)) { throw 'Archive was not created as a regular file.' }
+    $item = Get-Item -LiteralPath $ZipPath -Force -ErrorAction Stop
+    if ($item.PSIsContainer -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or $item.Length -le 0) { throw 'Archive must be a non-empty regular non-reparse file.' }
+    $root = (Resolve-Path -LiteralPath $TrustedRoot -ErrorAction Stop).Path
+    $resolved = (Resolve-Path -LiteralPath $ZipPath -ErrorAction Stop).Path
+    if (-not (Test-PathUnderRoot -Path $resolved -Root $root) -or (Test-PathContainsReparsePoint -Path $resolved -Root $root)) { throw 'Archive is outside the trusted output root or traverses a reparse point.' }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($resolved)
+    if (-not (@($archive.Entries | Where-Object { $_.FullName -ieq 'Summary.json' }))) { throw 'Archive does not contain the expected Summary.json entry.' }
+    return [pscustomobject]@{ Ok = $true; Path = $resolved; Error = $null }
+  } catch {
+    return [pscustomobject]@{ Ok = $false; Path = $null; Error = $_.Exception.Message }
+  } finally {
+    if ($null -ne $archive) { $archive.Dispose() }
   }
 }
 
@@ -322,40 +342,51 @@ try {
 
   $DefaultConfig = SB_NewDefaultConfig -ProofDirDefault $DefaultProofDir
   $ConfigPath    = $DefaultConfigPath
-  $Config        = SB_LoadJsonConfig -Path $ConfigPath -DefaultConfig $DefaultConfig
-  $ProofDir      = [string]$Config.Paths.ProofDir
-  Assert-NoPathTraversal -Path $ProofDir -ParameterName 'Config.Paths.ProofDir'
+  $configLoad    = SB_LoadJsonConfig -Path $ConfigPath -DefaultConfig $DefaultConfig -AllowDefaults:(-not $ConfigPathWasExplicit)
+  if (-not $configLoad.Ok) {
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Config' -Ok $false -ArtifactPath $ConfigPath -Note 'Explicit configuration rejected' -Error $configLoad.Error)
+    throw "Support bundle configuration rejected: $($configLoad.Error)"
+  }
+  $Config = $configLoad.Config
+  $ProofDir = SB_AssertTrustedOutputRoot -Path $DefaultProofDir
+  $configuredProofDir = [System.IO.Path]::GetFullPath([string]$Config.Paths.ProofDir)
+  if (-not $configuredProofDir.Equals($ProofDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Config' -Ok $false -ArtifactPath $ConfigPath -Note 'Unsafe proof root rejected' -Error 'Config.Paths.ProofDir must equal the fixed trusted proof root.')
+    throw 'Support bundle configuration rejected: unsafe proof root.'
+  }
 
   $Summary.ConfigPath = $ConfigPath
   $Summary.ProofDir   = $ProofDir
 
-  if (-not [string]::IsNullOrWhiteSpace($ConfigPath) -and (Test-Path -LiteralPath $ConfigPath)) {
-    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Config' -Ok $true -ArtifactPath $ConfigPath -Note 'Config loaded' -Error $null)
+  if (-not $configLoad.UsedDefault) {
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Config' -Ok $true -ArtifactPath $ConfigPath -Note 'Config loaded and schema validated' -Error $null)
   } else {
-    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Config' -Ok $true -ArtifactPath $null -Note "Config not found, using defaults: $ConfigPath" -Error $null)
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Config' -Ok $true -ArtifactPath $null -Note "Implicit config unavailable or invalid; using defaults: $ConfigPath" -Error $null)
   }
 
-  $bundleDir = Join-Path $ProofDir 'support'
-  $ts        = (Get-Date).ToString('yyyyMMdd-HHmmss')
-  $workDir   = Join-Path $bundleDir $ts
-  $zipPath   = Join-Path $bundleDir ("SupportBundle-{0}-{1}.zip" -f $ComputerName, $ts)
+  $bundleDir = SB_AssertTrustedChildDirectory -Path (Join-Path $ProofDir 'support') -TrustedRoot $ProofDir
+  $runId     = "{0}-{1}" -f (Get-Date).ToString('yyyyMMdd-HHmmss'), [guid]::NewGuid().ToString('N')
+  $workDir   = SB_AssertTrustedChildDirectory -Path (Join-Path $bundleDir $runId) -TrustedRoot $ProofDir
+  $zipPath   = Join-Path $bundleDir ("SupportBundle-{0}-{1}.zip" -f $ComputerName, $runId)
 
-  [void](Ensure-Directory -Path $workDir)
   $Summary.WorkDir = $workDir
-  $Summary.ZipPath = $zipPath
+  $Summary.ZipPath = $null
 
   $proofDest = Join-Path $workDir 'proofs'
   $proofCandidates = @(
-    $Config.ProofOutFiles.SysmonState,
-    $Config.ProofOutFiles.SysmonDriftState,
-    $Config.ProofOutFiles.SoftwareInventory,
-    $Config.ProofOutFiles.FirewallAudit,
-    $Config.ProofOutFiles.HardwareAudit
-  ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    @{ Name = 'SysmonState'; Expected = 'SysmonState.json' },
+    @{ Name = 'SysmonDriftState'; Expected = 'SysmonDriftState.json' },
+    @{ Name = 'SoftwareInventory'; Expected = 'SoftwareInventory.json' },
+    @{ Name = 'FirewallAudit'; Expected = 'FirewallAudit.json' },
+    @{ Name = 'HardwareAudit'; Expected = 'HardwareAudit.json' }
+  )
 
-  foreach ($p in $proofCandidates) {
-    Assert-NoPathTraversal -Path $p -ParameterName 'Config.ProofOutFiles'
-    SB_AddRecord -Summary $Summary -Record (SB_CopyIfExists -Path $p -DestDir $proofDest)
+  foreach ($proof in $proofCandidates) {
+    $configuredPath = [string]$Config.ProofOutFiles.($proof.Name)
+    if (-not [string]::IsNullOrWhiteSpace($configuredPath)) {
+      $trustedPath = SB_ResolveTrustedProofFile -ConfiguredPath $configuredPath -TrustedRoot $ProofDir -ExpectedFileName $proof.Expected -PropertyName $proof.Name
+      SB_AddRecord -Summary $Summary -Record (SB_CopyIfExists -Path $trustedPath -DestDir $proofDest)
+    }
   }
 
   SB_AddRecord -Summary $Summary -Record (SB_ExportKbStatus -KbFeedPath $DefaultKbFeedPath -OutFile (Join-Path $workDir 'KBStatus.json'))
@@ -412,26 +443,43 @@ try {
   if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue }
   try {
     Compress-Archive -Path (Join-Path $workDir '*') -DestinationPath $zipPath -Force
-    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:Zip' -Ok $true -ArtifactPath $zipPath -Note $null -Error $null)
+    $archiveValidation = SB_TestBundleArchive -ZipPath $zipPath -TrustedRoot $bundleDir
+    if (-not $archiveValidation.Ok) { throw $archiveValidation.Error }
+    $Summary.ZipPath = $archiveValidation.Path
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:Zip' -Ok $true -ArtifactPath $archiveValidation.Path -Note 'Archive integrity validated' -Error $null)
   } catch {
-    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:Zip' -Ok $false -ArtifactPath $zipPath -Note $null -Error $_.Exception.Message)
+    $Summary.ZipPath = $null
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:Zip' -Ok $false -ArtifactPath $null -Note $null -Error $_.Exception.Message)
   }
 
-  $sidecarSummaryPath = $zipPath + '.summary.json'
-  try {
-    SB_SaveJsonFile -Path $sidecarSummaryPath -Object $Summary
-    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:SidecarSummaryJson' -Ok $true -ArtifactPath $sidecarSummaryPath -Note $null -Error $null)
-  } catch {
-    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:SidecarSummaryJson' -Ok $false -ArtifactPath $sidecarSummaryPath -Note $null -Error $_.Exception.Message)
+  if ($Summary.ZipPath) {
+    $sidecarSummaryPath = $Summary.ZipPath + '.summary.json'
+    try {
+      SB_SaveJsonFile -Path $sidecarSummaryPath -Object $Summary
+      SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:SidecarSummaryJson' -Ok $true -ArtifactPath $sidecarSummaryPath -Note $null -Error $null)
+    } catch {
+      SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:SidecarSummaryJson' -Ok $false -ArtifactPath $sidecarSummaryPath -Note $null -Error $_.Exception.Message)
+    }
+  } else {
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'Bundle:SidecarSummaryJson' -Ok $true -ArtifactPath $null -Note 'Skipped because no validated archive exists' -Error $null)
   }
 
-  SB_AddRecord -Summary $Summary -Record (SB_ResetRegistryTrigger -KeyPath $FlagKey -ZipPath $zipPath)
+  if ($Summary.ZipPath) {
+    SB_AddRecord -Summary $Summary -Record (SB_ResetRegistryTrigger -KeyPath $FlagKey -ZipPath $Summary.ZipPath)
+  } else {
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'RegistryReset' -Ok $true -ArtifactPath $null -Note 'Request left pending because no validated archive exists' -Error $null)
+  }
 
   $hasErrors = @($Summary.Records | Where-Object { -not $_.Ok }).Count -gt 0
   if ($hasErrors) {
-    SB_WriteHealthEvent -Id 8110 -Msg ("SupportBundle finished with warnings/errors. ZIP: {0}" -f $zipPath) -Level 'Warning'
+    SB_WriteHealthEvent -Id 8110 -Msg ("SupportBundle finished with warnings/errors. ZIP: {0}" -f $Summary.ZipPath) -Level 'Warning'
   } else {
     SB_WriteHealthEvent -Id 8100 -Msg ("SupportBundle successfully created. ZIP: {0}" -f $zipPath) -Level 'Information'
+  }
+}
+catch {
+  if (-not (@($Summary.Records | Where-Object { $_.Name -eq 'Config' -and -not $_.Ok }))) {
+    SB_AddRecord -Summary $Summary -Record (SB_NewRecord -Name 'SupportBundle' -Ok $false -ArtifactPath $null -Note $null -Error $_.Exception.Message)
   }
 }
 finally {
@@ -446,7 +494,8 @@ finally {
 $records = @($Summary.Records)
 $recordsOk = @($records | Where-Object { $_.Ok })
 $recordsFailed = @($records | Where-Object { -not $_.Ok })
-$zipRecord = @($records | Where-Object { $_.Name -eq 'Bundle:Zip' })[-1]
+$zipRecords = @($records | Where-Object { $_.Name -eq 'Bundle:Zip' })
+$zipRecord = if ($zipRecords.Count -gt 0) { $zipRecords[$zipRecords.Count - 1] } else { $null }
 $zipCreated = [bool]($zipRecord -and $zipRecord.Ok)
 
 $Summary | Add-Member -NotePropertyName RecordsOk -NotePropertyValue $recordsOk.Count -Force
@@ -458,6 +507,4 @@ $findings = @($recordsFailed | ForEach-Object { SB_NewRecordFinding -Record $_ }
 $v2Result = Get-V2ResultObject -ScriptName '09-SupportBundle.ps1' -Mode $Mode -Result $resultToken -Findings $findings -Summary $Summary -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-if ($resultToken -eq 'FAIL') { exit 1 }
-if ($resultToken -eq 'WARN') { exit 2 }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

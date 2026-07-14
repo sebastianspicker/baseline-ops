@@ -41,8 +41,7 @@
   If the config file is missing or invalid, it is ignored and embedded defaults are used.
 
 .PARAMETER Strict
-  Switch. When specified, the script returns exit code 1 whenever drift is detected,
-  even if remediation was enabled and some items were successfully changed.
+  Switch. Enables strict compliance evaluation.
 
 
 .PARAMETER Mode
@@ -87,8 +86,7 @@
   - Can be overridden via the catalog field: Proof.OutFile
 
   Exit codes:
-  - 0: No drift detected (all checks compliant) and Strict is not set.
-  - 1: Drift detected, or Strict is set (Strict forces a non-zero exit code regardless of remediation outcome).
+  - 0 = OK, 2 = WARN, 1 = FAIL.
 
   Recommended usage:
   - Use audit mode for continuous compliance checks (e.g., scheduled task).
@@ -110,12 +108,12 @@
   .\04-OfficeBrowser-Hardening-Proof.ps1 -Mode Remediate
 
   Runs remediation mode: applies the baseline settings and re-checks compliance.
-  Returns exit code 1 only if drift remains (unless -Strict is also used).
+  Returns a V2 result and its corresponding process exit code.
 
 .EXAMPLE
   .\04-OfficeBrowser-Hardening-Proof.ps1 -Mode Remediate -Strict; exit $LASTEXITCODE
 
-  Runs remediation mode, but forces exit code 1 if any drift was detected at any point.
+  Runs remediation mode with strict compliance evaluation.
   Useful for CI-style compliance enforcement.
 
 .EXAMPLE
@@ -170,10 +168,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '04-OfficeBrowser-Hardening-Proof.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '04-OfficeBrowser-Hardening-Proof.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 if (-not $Quiet) { $InformationPreference = 'Continue' }   # Information stream shown by default
@@ -529,4 +528,4 @@ $v2Result = Get-V2ResultObject -ScriptName '04-OfficeBrowser-Hardening-Proof.ps1
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 
-if (-not $overallOk -or $Strict) { exit 1 } else { exit 0 }
+exit (Get-V2ExitCode -Result $resultToken)

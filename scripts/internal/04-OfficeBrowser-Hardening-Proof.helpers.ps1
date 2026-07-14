@@ -1,4 +1,6 @@
 # Helper functions extracted from 04-OfficeBrowser-Hardening-Proof.ps1
+Import-Module (Join-Path $PSScriptRoot '../../lib/Validation.psm1')
+
 function Get-TextOrNull {
   [CmdletBinding()]
   param($Value)
@@ -178,7 +180,7 @@ function Load-Catalog {
   if ($p) {
     if (Test-Path -LiteralPath $p) {
       try {
-        $cat = Get-Content -Raw -Path $p -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $cat = Get-BoundedUtf8FileContent -Path $p -MaximumBytes 1048576 | ConvertFrom-Json -ErrorAction Stop
         $loadedFrom = 'CatalogPath'
       } catch {
         $notes.Add('CatalogPath JSON parse failed; using embedded defaults.') | Out-Null
@@ -193,7 +195,7 @@ function Load-Catalog {
     if ($cp) {
       if (Test-Path -LiteralPath $cp) {
         try {
-          $cfg = Get-Content -Raw -Path $cp -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+          $cfg = Get-BoundedUtf8FileContent -Path $cp -MaximumBytes 1048576 | ConvertFrom-Json -ErrorAction Stop
           $cfgCat = $null
 
           if ($cfg -and $cfg.PSObject.Properties['OfficeBrowser']) {
@@ -206,7 +208,7 @@ function Load-Catalog {
           if ($cfgCat) {
             if (Test-Path -LiteralPath $cfgCat) {
               try {
-                $cat = Get-Content -Raw -Path $cfgCat -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+                $cat = Get-BoundedUtf8FileContent -Path $cfgCat -MaximumBytes 1048576 | ConvertFrom-Json -ErrorAction Stop
                 $loadedFrom = 'ConfigPath->OfficeBrowser.CatalogPath'
               } catch {
                 $notes.Add('Config-referenced catalog JSON parse failed; using embedded defaults.') | Out-Null
@@ -320,14 +322,15 @@ function Get-FirefoxDistDir {
   $explicit = Get-TextOrNull $FirefoxCfg.DistributionDir
   if ($explicit) { return $explicit }
 
-  $paths = @(
-    "$env:ProgramFiles\Mozilla Firefox\distribution",
-    "$env:ProgramFiles(x86)\Mozilla Firefox\distribution"
-  )
+  $paths = @(@(
+      [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles),
+      [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFilesX86)
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { Join-Path $_ 'Mozilla Firefox\distribution' })
   foreach($p in $paths) {
     if (Test-Path -LiteralPath (Split-Path -Parent $p)) { return $p }
   }
-  return $paths[0]
+  if ($paths.Count -gt 0) { return $paths[0] }
+  throw 'A trusted Program Files directory could not be resolved.'
 }
 
 function Build-FirefoxPolicies {
@@ -403,7 +406,7 @@ function Ensure-Firefox {
 
   $existingRaw = $null
   if (Test-Path -LiteralPath $polPath) {
-    try { $existingRaw = Get-Content -Raw -Path $polPath -Encoding UTF8 -ErrorAction Stop } catch { $existingRaw = $null }
+    try { $existingRaw = Get-BoundedUtf8FileContent -Path $polPath -MaximumBytes 1048576 } catch { $existingRaw = $null }
   }
 
   $same = $false

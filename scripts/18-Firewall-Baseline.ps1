@@ -78,7 +78,7 @@
     - 4800 indicates no errors and (when not strict) drift does not force a warning state.
     - 4810 indicates drift and/or errors (and in strict mode, any drift is considered non-compliant).
   Exit codes:
-  - The script does not set a custom process exit code; rely on pipeline output and the event log result.
+  - 0 = OK, 2 = WARN, 1 = FAIL.
 .EXAMPLE
   # Audit using built-in defaults (no changes)
   .\18-Firewall-Baseline.ps1
@@ -140,10 +140,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '18-Firewall-Baseline.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '18-Firewall-Baseline.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # -------------------------
@@ -223,7 +224,7 @@ function Try-ReadJsonFile {
   param([Parameter(Mandatory)][string]$Path)
   if (-not (Test-Path -LiteralPath $Path)) { return $null }
   try {
-    $raw = Get-Content -Raw -LiteralPath $Path -Encoding UTF8
+    $raw = Get-BoundedUtf8FileContent -Path $Path -MaximumBytes 1048576
     if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
     $raw | ConvertFrom-Json
   } catch {
@@ -723,4 +724,4 @@ $resultToken = if ($Strict -and $script:Findings.Count -gt 0) { 'FAIL' } elseif 
 $v2Result = Get-V2ResultObject -ScriptName '18-Firewall-Baseline.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Mode = $Mode; Duration = $duration }) -Metadata @{ Results = $results }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

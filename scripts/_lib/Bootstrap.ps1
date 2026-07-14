@@ -1,28 +1,19 @@
-# Resolve lib path relative to script directory only (not CWD) so Import-Module works regardless of current location
-$script:LibPath = Join-Path $PSScriptRoot '..\..\lib'
-if (-not (Test-Path -LiteralPath $script:LibPath)) {
-  $script:LibPath = Join-Path $PSScriptRoot '..\lib'
-}
-if (-not (Test-Path -LiteralPath $script:LibPath)) {
-  $script:LibPath = Join-Path $PSScriptRoot 'lib'
-}
-
-$scriptDir = $PSScriptRoot
-if (-not [string]::IsNullOrWhiteSpace($scriptDir) -and (Test-Path -LiteralPath $scriptDir -PathType Container)) {
-  Push-Location -LiteralPath $scriptDir
-  try {
-    $resolved = Resolve-Path -LiteralPath $script:LibPath -ErrorAction Stop
-    $script:LibPath = $resolved.Path
-  } catch {
-    $abs = [System.IO.Path]::GetFullPath((Join-Path $scriptDir $script:LibPath))
-    if (Test-Path -LiteralPath $abs) { $script:LibPath = $abs }
-  } finally {
-    Pop-Location
-  }
-} else {
-  # PSScriptRoot is null/empty - this means Bootstrap.ps1 was invoked interactively
-  # (e.g. dot-sourced from the console), which is not a supported execution path.
+# Resolve only fixed locations relative to this file, without command lookup or
+# the caller's working directory. This file executes before most module imports.
+if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) {
   throw "Bootstrap must be invoked from a script file, not interactively. `$PSScriptRoot is empty."
+}
+$script:LibPath = $null
+foreach ($candidatePath in @(
+  [System.IO.Path]::Combine($PSScriptRoot, '..', '..', 'lib')
+  [System.IO.Path]::Combine($PSScriptRoot, '..', 'lib')
+  [System.IO.Path]::Combine($PSScriptRoot, 'lib')
+)) {
+  $candidate = [System.IO.Path]::GetFullPath($candidatePath)
+  if ([System.IO.Directory]::Exists($candidate)) { $script:LibPath = $candidate; break }
+}
+if ([string]::IsNullOrWhiteSpace($script:LibPath)) {
+  throw 'Bootstrap could not resolve the repository lib directory.'
 }
 
 <#
@@ -93,6 +84,44 @@ function Initialize-V2Context {
     Strict       = [bool]$callerStrict
     Quiet        = [bool]$callerQuiet
     NoColor      = [bool]$callerNoColor
+  }
+
+  # File output is a run-level contract. Reject deterministic configuration
+  # errors before a script can inspect or mutate host state, and still return a
+  # terminal V2 object instead of letting the final serializer throw.
+  $effectiveOutputFormat = if ([string]::IsNullOrWhiteSpace([string]$callerOutputFormat)) {
+    'Console'
+  } else {
+    [string]$callerOutputFormat
+  }
+  $outputValidator = Get-Command -Name Get-V2OutputConfigurationError -ErrorAction SilentlyContinue
+  $outputConfigurationError = if ($outputValidator) {
+    Get-V2OutputConfigurationError -OutputFormat $effectiveOutputFormat -OutputPath $callerOutputPath
+  } elseif ($effectiveOutputFormat -in @('Json', 'Csv') -and [string]::IsNullOrWhiteSpace([string]$callerOutputPath)) {
+    "OutputPath is required when OutputFormat is $effectiveOutputFormat."
+  } else {
+    $null
+  }
+  if ($outputConfigurationError) {
+    $effectiveMode = if ($callerMode -eq 'Remediate') { 'Remediate' } else { 'Audit' }
+    $failureResult = Get-V2ResultObject `
+      -ScriptName $ScriptName `
+      -Mode $effectiveMode `
+      -Result 'FAIL' `
+      -Findings @([pscustomobject]@{
+          Code     = 'V2-OutputConfigurationInvalid'
+          Severity = 'High'
+          Message  = $outputConfigurationError
+        }) `
+      -Summary ([pscustomobject]@{
+          OutputFormat = $effectiveOutputFormat
+          OutputPath   = $callerOutputPath
+          Error        = $outputConfigurationError
+        }) `
+      -Metadata @{}
+
+    $failureResult
+    exit (Get-V2ExitCode -Result 'FAIL')
   }
 
   if ($BoundParameters.ContainsKey('Mode')) {

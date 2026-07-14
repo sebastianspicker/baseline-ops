@@ -152,17 +152,18 @@ if (-not $isWindowsHost) {
     Notes         = @('Skipped: App Control for Business auditing is only supported on Windows hosts.')
   }
 
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
   $resultObject = Get-V2ResultObject `
     -ScriptName '43-AppControlForBusiness-Audit.ps1' `
     -Mode 'Audit' `
-    -Result 'WARN' `
+    -Result $unsupportedResult `
     -Findings @() `
     -Summary $summary `
     -Metadata @{ UnsupportedHost = $true; Indicators = $null; PolicyFiles = @(); RecentEvents = @() }
 
   Write-ResultObject -ResultObject $resultObject -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $resultObject }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 if ($Mode -eq 'Remediate') {
@@ -417,17 +418,19 @@ if (-not $config.Enabled) {
     }
   }
 
+  $disabledFindings = @($script:Findings.ToArray())
+  $disabledResultToken = if ($strictModeEnabled -and $disabledFindings.Count -gt 0) { 'FAIL' } elseif ($disabledFindings.Count -gt 0) { 'WARN' } else { 'OK' }
   $disabledResult = Get-V2ResultObject `
     -ScriptName '43-AppControlForBusiness-Audit.ps1' `
     -Mode 'Audit' `
-    -Result 'WARN' `
-    -Findings $findingsArr `
+    -Result $disabledResultToken `
+    -Findings $disabledFindings `
     -Summary $summary `
     -Metadata @{ Indicators = $emptyIndicators; PolicyFiles = @(); RecentEvents = @() }
 
   Write-ResultObject -ResultObject $disabledResult -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $disabledResult }
-  exit 2
+  exit (Get-V2ExitCode -Result $disabledResultToken)
 }
 
 $runningAsAdmin = Test-IsAdmin
@@ -459,10 +462,12 @@ if ($ciLogInfo -and $ciLogInfo.IsEnabled) {
 }
 
 # 2) Policy files
+$windowsRoot = [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)
+if ([string]::IsNullOrWhiteSpace($windowsRoot)) { throw 'Trusted Windows directory is unavailable.' }
 $osRoots = @(
-  "$env:windir\System32\CodeIntegrity\CiPolicies\Active",
-  "$env:windir\System32\CodeIntegrity",
-  "$env:windir\System32\CodeIntegrity\CiPolicies"
+  ("{0}\System32\CodeIntegrity\CiPolicies\Active" -f $windowsRoot.TrimEnd('\')),
+  ("{0}\System32\CodeIntegrity" -f $windowsRoot.TrimEnd('\')),
+  ("{0}\System32\CodeIntegrity\CiPolicies" -f $windowsRoot.TrimEnd('\'))
 )
 
 $efiRoots = @()
@@ -570,5 +575,4 @@ if ($PassThru) {
   $resultObject
 }
 
-if ($resultToken -eq 'WARN') { exit 2 }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

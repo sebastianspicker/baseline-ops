@@ -75,7 +75,7 @@
   - Runtime state (Device Guard security services configured/running, VBS status)
   - Compliant (bool), Issues (string[]), Warnings (string[])
   - RemediationPerformed (bool), RemediationActions (string[]), RebootRequired (bool)
-  - ExitCode (0=OK, 1=NonCompliant, 2=Error) and EventId
+  - ExitCode and EventId; process exit codes are 0=OK, 2=WARN, 1=FAIL
 
   This enables examples like:
     .\Script.ps1 | ConvertTo-Json -Depth 5
@@ -162,10 +162,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '13-LSASS-CG-HVCI-VBS.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '13-LSASS-CG-HVCI-VBS.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # -----------------------------
@@ -226,7 +227,7 @@ function Try-LoadJsonConfig {
   }
 
   try {
-    $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-BoundedUtf8FileContent -Path $sanitized -MaximumBytes 1048576
     $obj = $raw | ConvertFrom-Json -ErrorAction Stop
 
     foreach ($k in $cfg.Keys) {
@@ -705,4 +706,4 @@ $v2Result = Get-V2ResultObject -ScriptName '13-LSASS-CG-HVCI-VBS.ps1' -Mode $Mod
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
 
-exit $result.ExitCode
+exit (Get-V2ExitCode -Result $resultToken)

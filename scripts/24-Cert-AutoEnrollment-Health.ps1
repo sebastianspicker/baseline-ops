@@ -101,6 +101,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -118,10 +119,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # C10: canonical findings list
@@ -393,7 +395,7 @@ if (-not (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
   $v2Result = Get-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result 'FAIL' -Findings @() -Summary @{ Error = $msg } -Metadata @{}
   Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $v2Result }
-  exit 1
+  exit (Get-V2ExitCode -Result 'FAIL')
 }
 
 # 1) Trigger autoenrollment (optional)
@@ -405,7 +407,8 @@ if ($NoPulse) {
   $autoEnrollError = "Skipped (NoPulse)."
 } else {
   try {
-    & certutil.exe -pulse | Out-Null
+    $pulse = Invoke-NativeCommand -Command 'certutil.exe' -Arguments @('-pulse') -CaptureOutput -Quiet -TimeoutSeconds 120 -MaxOutputBytes 262144
+    if ($null -eq $pulse -or -not $pulse.Success -or $pulse.TimedOut -or $pulse.OutputTruncated -or $pulse.StderrTruncated) { throw 'certutil -pulse timed out, failed, or produced truncated output.' }
     $autoEnrollTriggered = $true
   } catch {
     $autoEnrollTriggered = $false
@@ -534,4 +537,4 @@ $resultToken = if ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
 $v2Result = Get-V2ResultObject -ScriptName '24-Cert-AutoEnrollment-Health.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary $result -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

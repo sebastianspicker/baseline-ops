@@ -13,6 +13,10 @@ Uses Mock Write-Information to capture output for assertions.
 param()
 
 BeforeAll {
+  # Scripts exercised earlier in the full suite import Output into transient
+  # script scopes. Remove every stale module instance so Pester's ModuleName
+  # target is deterministic instead of failing on an ambiguous module name.
+  Get-Module -Name Output -All | Remove-Module -Force -ErrorAction SilentlyContinue
   Import-Module (Join-Path $PSScriptRoot '../../lib/Output.psm1') -Force
 
   function Join-TestOutputText {

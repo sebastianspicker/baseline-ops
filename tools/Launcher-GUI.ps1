@@ -35,6 +35,7 @@ try {
 }
 
 $script:CurrentProcess = $null
+$script:CurrentProcessJob = $null
 $script:CurrentOperation = $null
 $script:RunStarted = $null
 $script:StopRequested = $false
@@ -42,6 +43,8 @@ $script:CloseAfterStop = $false
 $script:ManifestPath = $null
 $script:FullLogPath = $null
 $script:OutputCollector = $null
+$script:OutputDrainTasks = @()
+$script:TrustedClosure = $null
 $script:OutputQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
 $script:VisibleLines = New-Object System.Collections.ArrayList
 $script:ScriptCatalog = @()
@@ -102,6 +105,10 @@ function Add-LauncherLine {
 }
 
 function Close-RunArtifact {
+  if ($null -ne $script:TrustedClosure) {
+    Exit-LauncherTrustedClosure -Closure $script:TrustedClosure
+    $script:TrustedClosure = $null
+  }
   if ($null -ne $script:OutputCollector) {
     try { $script:OutputCollector.Dispose() } catch { Write-Verbose ("Full log disposal failed: {0}" -f $_.Exception.Message) }
     $script:OutputCollector = $null
@@ -121,7 +128,7 @@ function Initialize-RunArtifact {
   $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'win-mdm-launcher'
   New-Item -Path $tempRoot -ItemType Directory -Force | Out-Null
   $id = [guid]::NewGuid().ToString('N')
-  $script:ManifestPath = Join-Path $tempRoot "$id.json"
+  $script:ManifestPath = $null
   $script:FullLogPath = Join-Path $tempRoot "$id.log"
   $script:OutputCollector = New-Object LauncherOutputCollector($script:FullLogPath, $script:MaxLogBytes, $script:MaxPendingLines)
   $script:OutputQueue = $script:OutputCollector.Pending
@@ -158,8 +165,23 @@ function Write-RunHeader {
 function Invoke-LauncherProcess {
   param($Manifest, [ValidateSet('validation', 'run')][string]$Purpose)
 
-  $Manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $script:ManifestPath -Encoding UTF8
+  $manifestJson = $Manifest | ConvertTo-Json -Depth 10 -Compress
+  $manifestBytes = [System.Text.Encoding]::UTF8.GetBytes($manifestJson)
+  if ($manifestBytes.Length -gt 16384) { throw 'Launcher manifest exceeds the 16 KiB inherited-data limit.' }
+  $manifestBase64 = [Convert]::ToBase64String($manifestBytes)
   $workerPath = Join-Path $PSScriptRoot 'Launcher-Worker.ps1'
+  $selectedExecutionPath = if ($Manifest.operation -eq 'run-script') {
+    Join-Path (Join-Path ([string]$Manifest.root) 'scripts') ([string]$Manifest.target)
+  } else {
+    [string]$Manifest.target
+  }
+  $script:TrustedClosure = Enter-LauncherTrustedClosure -RootPath ([string]$Manifest.root) -AdditionalPaths @(
+    $PSCommandPath,
+    $workerPath,
+    (Join-Path $PSScriptRoot 'Launcher.Core.psm1'),
+    (Join-Path $PSScriptRoot '../lib/Validation.psm1'),
+    $(if ($Manifest.operation -in @('validate-profile', 'run-profile')) { [string]$Manifest.target })
+  ) -Operation ([string]$Manifest.operation) -SelectedExecutionPath $selectedExecutionPath
   $executable = (Get-Process -Id $PID).Path
   $startInfo = New-Object System.Diagnostics.ProcessStartInfo
   $startInfo.FileName = $executable
@@ -169,21 +191,54 @@ function Invoke-LauncherProcess {
   $startInfo.CreateNoWindow = $true
   $startInfo.RedirectStandardOutput = $true
   $startInfo.RedirectStandardError = $true
-  $startInfo.EnvironmentVariables['WIN_MDM_LAUNCHER_MANIFEST'] = $script:ManifestPath
+  $startInfo.EnvironmentVariables['WIN_MDM_LAUNCHER_MANIFEST_B64'] = $manifestBase64
+  $startGateName = 'Local\WinMdmLauncherStart-{0}' -f [guid]::NewGuid().ToString('N')
+  $startGate = New-Object System.Threading.EventWaitHandle(
+    $false,
+    [System.Threading.EventResetMode]::ManualReset,
+    $startGateName
+  )
+  $startInfo.EnvironmentVariables['WIN_MDM_LAUNCHER_START_GATE'] = $startGateName
 
   $process = New-Object System.Diagnostics.Process
   $process.StartInfo = $startInfo
   $process.EnableRaisingEvents = $true
-  $process.add_OutputDataReceived($script:OutputCollector.OutputHandler)
-  $process.add_ErrorDataReceived($script:OutputCollector.ErrorHandler)
-
-  if (-not $process.Start()) { throw 'PowerShell worker process did not start.' }
+  try {
+    if (-not $process.Start()) { throw 'PowerShell worker process did not start.' }
+  } catch {
+    $startGate.Dispose()
+    $process.Dispose()
+    Exit-LauncherTrustedClosure -Closure $script:TrustedClosure
+    $script:TrustedClosure = $null
+    throw
+  }
+  $processJob = $null
+  try {
+    $processJob = New-LauncherProcessJob
+    if ($null -eq $processJob) {
+      throw 'The Windows Job Object required for process-tree control is unavailable.'
+    }
+    Add-LauncherProcessToJob -Job $processJob -Process $process
+    $script:OutputDrainTasks = [System.Threading.Tasks.Task[]]@(
+      $script:OutputCollector.DrainOutputAsync($process.StandardOutput),
+      $script:OutputCollector.DrainErrorAsync($process.StandardError)
+    )
+    [void]$startGate.Set()
+  } catch {
+    $startError = $_.Exception.Message
+    [void](Stop-LauncherProcessTree -Process $process -Job $processJob -WaitMilliseconds 5000)
+    $process.Dispose()
+    Exit-LauncherTrustedClosure -Closure $script:TrustedClosure
+    $script:TrustedClosure = $null
+    throw "Worker process-tree initialization failed: $startError"
+  } finally {
+    $startGate.Dispose()
+  }
   $script:CurrentProcess = $process
+  $script:CurrentProcessJob = $processJob
   $script:CurrentOperation = $Purpose
   $script:RunStarted = Get-Date
   $script:StopRequested = $false
-  $process.BeginOutputReadLine()
-  $process.BeginErrorReadLine()
   if ($Purpose -eq 'validation') { Write-LauncherState -State Validating -Detail 'Validating profile…' } else { Write-LauncherState -State Running -Detail 'Worker started' }
 }
 
@@ -192,11 +247,32 @@ function Complete-LauncherProcess {
   $process = $script:CurrentProcess
   $purpose = $script:CurrentOperation
   try {
-    $process.WaitForExit()
+    if (-not $process.WaitForExit(1000)) {
+      throw 'Worker was reported as exited but did not reach a terminal process state within 1 second.'
+    }
     $exitCode = $process.ExitCode
   } catch {
     $exitCode = 1
     Add-LauncherLine "ERROR: Could not read worker exit status: $($_.Exception.Message)"
+  }
+
+  if ($null -ne $script:CurrentProcessJob) {
+    try { $script:CurrentProcessJob.Dispose() } catch { Add-LauncherLine "ERROR: Worker process-tree cleanup failed: $($_.Exception.Message)" }
+    $script:CurrentProcessJob = $null
+  }
+  if ($null -ne $script:TrustedClosure) {
+    Exit-LauncherTrustedClosure -Closure $script:TrustedClosure
+    $script:TrustedClosure = $null
+  }
+  if (@($script:OutputDrainTasks).Count -gt 0) {
+    try {
+      if (-not [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$script:OutputDrainTasks, 5000)) {
+        Add-LauncherLine 'ERROR: Worker output streams did not drain within 5 seconds.'
+      }
+    } catch {
+      Add-LauncherLine "ERROR: Worker output stream drain failed: $($_.Exception.Message)"
+    }
+    $script:OutputDrainTasks = @()
   }
 
   $elapsed = if ($null -ne $script:RunStarted) { (Get-Date) - $script:RunStarted } else { [timespan]::Zero }
@@ -231,6 +307,32 @@ function Complete-LauncherProcess {
   $script:CurrentProcess = $null
   $script:CurrentOperation = $null
   if ($script:CloseAfterStop) { $form.Close() }
+}
+
+function Request-LauncherProcessStop {
+  [CmdletBinding()]
+  [OutputType([bool])]
+  param([Parameter(Mandatory)][string]$Detail)
+
+  if ($null -eq $script:CurrentProcess) { return $true }
+  $previousState = $script:State
+  $script:StopRequested = $true
+  Write-LauncherState -State Stopping -Detail $Detail
+  $stopped = Stop-LauncherProcessTree `
+    -Process $script:CurrentProcess `
+    -Job $script:CurrentProcessJob `
+    -WaitMilliseconds 5000
+  $script:CurrentProcessJob = $null
+  if ($stopped) { return $true }
+
+  $script:StopRequested = $false
+  Add-LauncherLine 'ERROR: The worker process tree did not terminate within 5 seconds.'
+  if ($previousState -eq 'Validating') {
+    Write-LauncherState -State Validating -Detail 'Stop failed; validation is still running'
+  } else {
+    Write-LauncherState -State Running -Detail 'Stop failed; worker may still be running'
+  }
+  return $false
 }
 
 function Get-ScriptCatalogView {
@@ -601,7 +703,8 @@ $rbRemediate.Text = '&Remediate'; $rbRemediate.AutoSize = $true; $rbRemediate.En
 $chkStrict = New-Object System.Windows.Forms.CheckBox
 $chkStrict.Text = '&Strict'; $chkStrict.AutoSize = $true
 $chkRequireSigned = New-Object System.Windows.Forms.CheckBox
-$chkRequireSigned.Text = 'Require valid &signature'; $chkRequireSigned.AutoSize = $true
+$chkRequireSigned.Text = 'Require valid &signature'; $chkRequireSigned.AutoSize = $true; $chkRequireSigned.Checked = $script:IsElevated
+$chkRequireSigned.AccessibleDescription = 'Defaults on for elevated sessions. Signature validation supplements the required protected-path ACL checks.'
 $lblHash = Get-LabelControl -Text 'Expected &hash:' -AccessibleName 'Expected hash label'
 $txtExpectedHash = New-Object System.Windows.Forms.TextBox
 $txtExpectedHash.Width = 190; $txtExpectedHash.AccessibleName = 'Expected script hash'
@@ -720,9 +823,7 @@ $btnStop.Add_Click({
     if ($null -eq $script:CurrentProcess) { return }
     $message = if ((Get-EffectiveMode) -eq 'Remediate') { 'Stop this remediation run? Completed changes are not rolled back. Rerun Audit afterward to establish final state.' } else { 'Stop this audit run?' }
     if ([System.Windows.Forms.MessageBox]::Show($form, $message, 'Stop active run', 'YesNo', 'Warning', 'Button2') -ne 'Yes') { return }
-    $script:StopRequested = $true
-    Write-LauncherState -State Stopping -Detail 'Waiting for worker termination…'
-    try { $script:CurrentProcess.Kill() } catch { Add-LauncherLine "ERROR: Stop request failed: $($_.Exception.Message)" }
+    [void](Request-LauncherProcessStop -Detail 'Waiting for process-tree termination…')
   })
 $btnClear.Add_Click({ $script:VisibleLines.Clear(); $txtOutput.Clear() })
 $btnSave.Add_Click({
@@ -753,9 +854,9 @@ $form.Add_FormClosing({
       $closingEvent.Cancel = $true
       if ($choice -eq 'Yes') {
         $script:CloseAfterStop = $true
-        $script:StopRequested = $true
-        Write-LauncherState -State Stopping -Detail 'Stopping before close…'
-        try { $script:CurrentProcess.Kill() } catch { Add-LauncherLine "ERROR: Stop request failed: $($_.Exception.Message)"; $script:CloseAfterStop = $false }
+        if (-not (Request-LauncherProcessStop -Detail 'Stopping process tree before close…')) {
+          $script:CloseAfterStop = $false
+        }
       }
     }
   })

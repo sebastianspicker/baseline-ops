@@ -35,6 +35,40 @@ Describe 'Get-V2ResultObject' {
   }
 }
 
+Describe 'Get-V2ExitCode' {
+  It 'Maps <Result> to exit code <ExitCode>' -ForEach @(
+    @{ Result = 'OK'; ExitCode = 0 }
+    @{ Result = 'WARN'; ExitCode = 2 }
+    @{ Result = 'FAIL'; ExitCode = 1 }
+  ) {
+    Get-V2ExitCode -Result $Result | Should -Be $ExitCode
+  }
+
+  It 'Rejects an unknown result token' {
+    { Get-V2ExitCode -Result 'UNKNOWN' } | Should -Throw
+  }
+}
+
+Describe 'Get-V2OutputConfigurationError' {
+  It 'accepts non-file formats without an output path' -ForEach @('Console', 'None') {
+    Get-V2OutputConfigurationError -OutputFormat $_ | Should -BeNullOrEmpty
+  }
+
+  It 'requires an output path for <_>' -ForEach @('Json', 'Csv') {
+    Get-V2OutputConfigurationError -OutputFormat $_ | Should -Be "OutputPath is required when OutputFormat is $_."
+  }
+
+  It 'rejects traversal before serialization' {
+    Get-V2OutputConfigurationError -OutputFormat Json -OutputPath '../escape.json' |
+      Should -BeLike '*path traversal*'
+  }
+
+  It 'rejects a directory as a file output path' {
+    Get-V2OutputConfigurationError -OutputFormat Json -OutputPath ([System.IO.Path]::GetTempPath()) |
+      Should -BeLike '*not a directory*'
+  }
+}
+
 Describe 'Save-Json' {
   It 'Writes JSON file' {
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("ser-{0}.json" -f [guid]::NewGuid().ToString('N'))

@@ -88,7 +88,7 @@
   # CI/MDM-style check (exit code indicates health)
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\02-LAPS-Hygiene.ps1
   if ($LASTEXITCODE -ne 0) { 'NOT OK' } else { 'OK' }
-  Uses the script exit code (0 = OK, 1 = NOT OK) for simple integration checks.
+  Uses the script exit code (0 = OK, 2 = WARN, 1 = FAIL) for simple integration checks.
 .NOTES
   Behavior and design decisions:
   - The pipeline output is always exactly one object; all “pretty” console formatting is printed separately.
@@ -129,10 +129,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '02-LAPS-Hygiene.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '02-LAPS-Hygiene.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # --------------------------- Defaults / Config -------------------------------------
@@ -209,7 +210,7 @@ function Get-ConfigFromJson {
   try {
     $sanitized = Sanitize-Path -Path $Path -MustExist
     if (-not $sanitized) { return $cfg }
-    $raw = Get-Content -LiteralPath $sanitized -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-BoundedUtf8FileContent -Path $sanitized -MaximumBytes 1048576
     if (-not $raw -or -not $raw.Trim()) { return $cfg }
     $j = $raw | ConvertFrom-Json -ErrorAction Stop
     return (Merge-ConfigObject -Base $cfg -Override $j)
@@ -713,8 +714,8 @@ if ($result.DiagnosticsCollected) {
 }
 # V2 output contract
 $resultToken = if (-not $result.OkOverall) { 'FAIL' } elseif ($script:Findings.Count -gt 0) { 'WARN' } else { 'OK' }
+if ($Strict -and $resultToken -eq 'WARN') { $resultToken = 'FAIL' }
 $v2Result = Get-V2ResultObject -ScriptName '02-LAPS-Hygiene.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary $result -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-# Exit code for CI/MDM
-if ($result.OkOverall) { exit 0 } else { exit 1 }
+exit (Get-V2ExitCode -Result $resultToken)

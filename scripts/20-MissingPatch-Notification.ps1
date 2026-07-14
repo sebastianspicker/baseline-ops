@@ -105,7 +105,7 @@
   the script falls back to console-only output for the event message.
 
   Exit codes:
-  This script does not explicitly call exit. Use -PassThru and evaluate the returned object (EventId/EventLevel) if you need deterministic CI/task outcomes.
+  0=OK, 2=WARN, 1=FAIL.
 
 .EXAMPLE
   # Run with a real KB feed and write the state JSON.
@@ -173,10 +173,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # C10: canonical findings list
@@ -245,7 +246,7 @@ function Load-KBFeedSafe {
   }
 
   try {
-    $raw = Get-Content -Raw -LiteralPath $Path -Encoding UTF8
+    $raw = Get-BoundedUtf8FileContent -Path $Path -MaximumBytes 1048576
     if ([string]::IsNullOrWhiteSpace($raw)) {
       return [pscustomobject]@{ Feed = (Get-DefaultFeed); Status = 'InvalidOrEmpty'; Error = 'Feed file is empty.' }
     }
@@ -544,4 +545,4 @@ $resultToken = if ($report.Errors.Count -gt 0) { 'FAIL' } elseif ($script:Findin
 $v2Result = Get-V2ResultObject -ScriptName '20-MissingPatch-Notification.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $script:Findings) -Summary $report -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)
