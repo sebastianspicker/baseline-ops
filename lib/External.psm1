@@ -57,7 +57,8 @@ function Resolve-NativeExecutablePath {
     # The current PowerShell host is already executing and therefore has a
     # stable identity; permit only that exact host for bare-name self-spawns.
     $hostPath = try { (Get-Process -Id $PID -ErrorAction Stop).Path } catch { $null }
-    if (-not [string]::IsNullOrWhiteSpace($hostPath) -and [IO.Path]::GetFileName($hostPath) -ieq $Name) {
+    $requestedHostLeaf = if ([IO.Path]::HasExtension($Name)) { $Name } else { "$Name.exe" }
+    if (-not [string]::IsNullOrWhiteSpace($hostPath) -and [IO.Path]::GetFileName($hostPath) -ieq $requestedHostLeaf) {
       return [IO.Path]::GetFullPath($hostPath)
     }
     return $null

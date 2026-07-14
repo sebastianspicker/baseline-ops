@@ -111,6 +111,22 @@ jobs:
             Install-Module -Name Pester -RequiredVersion $version -Scope CurrentUser -Force -SkipPublisherCheck
           }
 
+      - name: Harden Windows test workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $trustedRoot = Split-Path -Parent (Split-Path -Parent $env:GITHUB_WORKSPACE)
+          $testTemp = Join-Path $trustedRoot 'pester-temp'
+          New-Item -Path $testTemp -ItemType Directory -Force | Out-Null
+
+          & icacls.exe $trustedRoot /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-18:(OI)(CI)F' /T /C
+          if ($LASTEXITCODE -ne 0) { throw "Failed to restrict ACLs under '$trustedRoot'." }
+          & icacls.exe $trustedRoot /setowner '*S-1-5-32-544' /T /C
+          if ($LASTEXITCODE -ne 0) { throw "Failed to set trusted ownership under '$trustedRoot'." }
+
+          "TEMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Run Pester
         shell: pwsh
         run: |

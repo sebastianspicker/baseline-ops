@@ -30,6 +30,9 @@ function ConvertTo-TrustedStateSidValue {
   param([Parameter(Mandatory)]$IdentityReference)
   try {
     if ($IdentityReference -is [Security.Principal.SecurityIdentifier]) { return $IdentityReference.Value }
+    if ($IdentityReference -is [string]) {
+      $IdentityReference = New-Object Security.Principal.NTAccount($IdentityReference)
+    }
     return $IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
   } catch { throw "State ACL contains an identity that cannot be resolved to a SID: $IdentityReference" }
 }
