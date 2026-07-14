@@ -111,26 +111,111 @@ jobs:
             Install-Module -Name Pester -RequiredVersion $version -Scope CurrentUser -Force -SkipPublisherCheck
           }
 
-      - name: Harden Windows test workspace
+      - name: Run Pester in a trusted Windows workspace
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $trustedRoot = Split-Path -Parent (Split-Path -Parent $env:GITHUB_WORKSPACE)
-          $testTemp = Join-Path $trustedRoot 'pester-temp'
-          New-Item -Path $testTemp -ItemType Directory -Force | Out-Null
+          $trustedRoot = Join-Path $env:ProgramData "WinMdmCi-$env:GITHUB_RUN_ID"
+          $trustedWorkspace = Join-Path $trustedRoot 'workspace'
+          $testTemp = Join-Path $trustedRoot 'temp'
+          $runnerScript = Join-Path $trustedRoot 'run-pester.ps1'
+          $pesterDestination = Join-Path $trustedRoot 'Pester'
+          $taskName = "WinMdmCi-$env:GITHUB_RUN_ID"
+          $pester = Get-Module -ListAvailable -Name Pester |
+            Where-Object Version -eq $env:PESTER_VERSION |
+            Select-Object -First 1
+          if ($null -eq $pester) { throw "Pester $env:PESTER_VERSION is unavailable." }
 
-          & icacls.exe $trustedRoot /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-18:(OI)(CI)F' /T /C
-          if ($LASTEXITCODE -ne 0) { throw "Failed to restrict ACLs under '$trustedRoot'." }
-          & icacls.exe $trustedRoot /setowner '*S-1-5-32-544' /T /C
-          if ($LASTEXITCODE -ne 0) { throw "Failed to set trusted ownership under '$trustedRoot'." }
+          New-Item -Path $trustedRoot, $testTemp -ItemType Directory -Force | Out-Null
+          Copy-Item -LiteralPath $env:GITHUB_WORKSPACE -Destination $trustedWorkspace -Recurse -Force
+          Copy-Item -LiteralPath $pester.ModuleBase -Destination $pesterDestination -Recurse -Force
+          @"
+          `$ErrorActionPreference = 'Stop'
+          `$env:TEMP = '$testTemp'
+          `$env:TMP = '$testTemp'
+          Import-Module '$pesterDestination\Pester.psd1' -Force
+          Set-Location '$trustedWorkspace'
+          `$configuration = New-PesterConfiguration
+          `$configuration.Run.Path = '.\tests'
+          `$configuration.Run.PassThru = `$true
+          `$configuration.Output.Verbosity = 'Detailed'
+          `$configuration.Output.CIFormat = 'GithubActions'
+          `$configuration.TestResult.Enabled = `$true
+          `$configuration.TestResult.OutputPath = 'testResults.xml'
+          `$result = Invoke-Pester -Configuration `$configuration
+          exit [Math]::Min([int]`$result.FailedCount, 255)
+          "@ | Set-Content -LiteralPath $runnerScript -Encoding utf8
 
-          "TEMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "TMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $administrators = New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')
+          $system = New-Object Security.Principal.SecurityIdentifier('S-1-5-18')
+          $runner = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+            [Security.AccessControl.InheritanceFlags]::ObjectInherit
+          $items = @(Get-ChildItem -LiteralPath $trustedRoot -Recurse -Force) |
+            Sort-Object { $_.FullName.Length } -Descending
+          $items += Get-Item -LiteralPath $trustedRoot -Force
+          foreach ($item in $items) {
+            $isDirectory = $item -is [System.IO.DirectoryInfo]
+            $security = if ($isDirectory) {
+              New-Object Security.AccessControl.DirectorySecurity
+            } else {
+              New-Object Security.AccessControl.FileSecurity
+            }
+            $security.SetOwner($administrators)
+            $security.SetAccessRuleProtection($true, $false)
+            $itemInheritance = if ($isDirectory) {
+              $inheritance
+            } else {
+              [Security.AccessControl.InheritanceFlags]::None
+            }
+            foreach ($sid in @($administrators, $system)) {
+              [void]$security.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
+                    $sid,
+                    [Security.AccessControl.FileSystemRights]::FullControl,
+                    $itemInheritance,
+                    [Security.AccessControl.PropagationFlags]::None,
+                    [Security.AccessControl.AccessControlType]::Allow)))
+            }
+            [void]$security.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
+                  $runner,
+                  [Security.AccessControl.FileSystemRights]::ReadAndExecute,
+                  $itemInheritance,
+                  [Security.AccessControl.PropagationFlags]::None,
+                  [Security.AccessControl.AccessControlType]::Allow)))
+            Set-Acl -LiteralPath $item.FullName -AclObject $security -ErrorAction Stop
+          }
 
-      - name: Run Pester
-        shell: pwsh
-        run: |
-          Invoke-Pester -Path .\tests -Output Detailed -CI
+          $hostPath = (Get-Process -Id $PID -ErrorAction Stop).Path
+          $action = New-ScheduledTaskAction -Execute $hostPath `
+            -Argument "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runnerScript`""
+          $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+          $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
+          try {
+            Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+            Start-ScheduledTask -TaskName $taskName
+            $deadline = [DateTime]::UtcNow.AddMinutes(8)
+            do {
+              Start-Sleep -Seconds 1
+              $task = Get-ScheduledTask -TaskName $taskName
+              $taskInfo = Get-ScheduledTaskInfo -TaskName $taskName
+            } while (
+              [DateTime]::UtcNow -lt $deadline -and
+              ($task.State -eq 'Running' -or $taskInfo.LastRunTime.Year -le 1)
+            )
+            if ($task.State -eq 'Running' -or $taskInfo.LastRunTime.Year -le 1) {
+              Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+              throw 'The SYSTEM Pester task did not finish within eight minutes.'
+            }
+            $resultPath = Join-Path $trustedWorkspace 'testResults.xml'
+            if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
+              Copy-Item -LiteralPath $resultPath -Destination (Join-Path $env:GITHUB_WORKSPACE 'testResults.xml') -Force
+            }
+            if ($taskInfo.LastTaskResult -ne 0) {
+              throw "The SYSTEM Pester task failed with exit code $($taskInfo.LastTaskResult)."
+            }
+          } finally {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+          }
 
       - name: Upload test results
         if: always()
