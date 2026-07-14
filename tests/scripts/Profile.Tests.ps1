@@ -66,6 +66,20 @@ Describe '00-Validate-Profile' {
     }
   }
 
+  It 'rejects an oversized profile before JSON parsing' {
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("oversized-profile-{0}.json" -f [guid]::NewGuid().ToString('N'))
+    try {
+      [System.IO.File]::WriteAllBytes($temp, (New-Object byte[] (1048577)))
+      $run = Invoke-ProfileValidation -ProfilePath $temp
+
+      $run.ExitCode | Should -Be 1
+      $run.Result.Result | Should -Be 'FAIL'
+      @($run.Result.Findings | Where-Object { $_.Code -eq 'PROFILE-TOO-LARGE' }).Count | Should -Be 1
+    } finally {
+      if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
+    }
+  }
+
   It 'Reports unsafe profile paths with a structured finding code' {
     $unsafePath = (Join-Path ([System.IO.Path]::GetTempPath()) '../unsafe-profile.json')
 
@@ -123,6 +137,32 @@ Describe '00-Validate-Profile' {
         Should -Be 1
     } finally {
       if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
+    }
+  }
+
+  It 'rejects string values for profile booleans instead of coercing them' {
+    $cases = @(
+      @{ Name = 'ContinueOnError'; Code = 'PROFILE-STEP-CONTINUE-TYPE'; Mutate = { param($p) $p.Steps[0].ContinueOnError = 'false' } },
+      @{ Name = 'Defaults.Strict'; Code = 'PROFILE-DEFAULTS-STRICT-TYPE'; Mutate = { param($p) $p.Defaults.Strict = 'false' } },
+      @{ Name = 'Integrity.RequireSigned'; Code = 'PROFILE-INTEGRITY-SIGNED-TYPE'; Mutate = { param($p) $p.Integrity.RequireSigned = 'false' } }
+    )
+
+    foreach ($case in $cases) {
+      $temp = Join-Path $TestDrive ("bad-boolean-{0}.json" -f $case.Name.Replace('.', '-'))
+      $profileSpec = [ordered]@{
+        ProfileName = 'bad-boolean'
+        Version = '2.0'
+        Defaults = [ordered]@{ Mode = 'Audit'; Strict = $false }
+        Steps = @([ordered]@{ Script = '01-ASR-Defender-Allowlist.ps1'; Args = @(); ContinueOnError = $false; DependsOn = @() })
+        Integrity = [ordered]@{ RequireSigned = $false; ExpectedHashes = [ordered]@{} }
+      }
+      & $case.Mutate $profileSpec
+      $profileSpec | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $temp -Encoding UTF8
+
+      $run = Invoke-ProfileValidation -ProfilePath $temp
+
+      $run.ExitCode | Should -Be 1 -Because $case.Name
+      @($run.Result.Findings | Where-Object Code -eq $case.Code).Count | Should -Be 1 -Because $case.Name
     }
   }
 }

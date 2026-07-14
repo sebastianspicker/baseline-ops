@@ -3,12 +3,14 @@
 Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
   BeforeAll {
     $script:WinGetRunnerScript = Join-Path $PSScriptRoot '../../scripts/25-WinGet-Config-Baseline-Runner.ps1'
+    Import-Module (Join-Path $PSScriptRoot '../../lib/External.psm1') -Force
 
     function Invoke-WinGetConfigBaselineCase {
       [CmdletBinding()]
       param(
         [Parameter(Mandatory)][string]$ConfigPath,
-        [Parameter(Mandatory)][string]$SummaryJsonPath
+        [Parameter(Mandatory)][string]$SummaryJsonPath,
+        [string[]]$ExtraArgs = @()
       )
 
       $oldOS = $env:OS
@@ -44,14 +46,25 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
           Set-Variable -Name LASTEXITCODE -Scope Global -Value 0
         }
 
-        $output = & $script:WinGetRunnerScript `
-          -ConfigPath $ConfigPath `
-          -SummaryJsonPath $SummaryJsonPath `
-          -OutputFormat None `
-          -PassThru `
-          -QuietConsole `
-          -NoColor `
-          -Confirm:$false 2>&1 3>&1 6>&1
+        Mock -CommandName Invoke-NativeCommand -ModuleName External -MockWith {
+          param([string]$Command, [string[]]$Arguments, [switch]$CaptureOutput, [switch]$Quiet, [int]$TimeoutSeconds, [int]$MaxOutputBytes)
+          $null = $Command, $CaptureOutput, $Quiet, $TimeoutSeconds, $MaxOutputBytes
+          $invocations = Get-Variable -Name WinGetConfigBaselineInvocations -Scope Global -ValueOnly
+          [void]$invocations.Add(@($Arguments))
+          [pscustomobject]@{ ExitCode = 0; Output = ''; Stdout = ''; Stderr = ''; TimedOut = $false; OutputTruncated = $false; StderrTruncated = $false }
+        }
+
+        $runnerParameters = @{
+          ConfigPath = $ConfigPath
+          SummaryJsonPath = $SummaryJsonPath
+          OutputFormat = 'None'
+          PassThru = $true
+          QuietConsole = $true
+          NoColor = $true
+          Confirm = $false
+        }
+        if ($ExtraArgs.Count -gt 0) { $runnerParameters.ExtraArgs = $ExtraArgs }
+        $output = & $script:WinGetRunnerScript @runnerParameters 2>&1 3>&1 6>&1
         $exitCode = $LASTEXITCODE
       } finally {
         if ($null -eq $oldOS) {
@@ -94,7 +107,7 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
     Remove-Variable -Name WinGetConfigBaselineInvocations -Scope Global -ErrorAction SilentlyContinue
   }
 
-  It 'reports invalid explicit summary JSON as WARN instead of clean OK' {
+  It 'reports invalid explicit summary JSON as WARN instead of clean OK' -Skip:(-not $IsWindows) {
     $configPath = Join-Path $TestDrive 'baseline.dsc.yaml'
     Set-Content -LiteralPath $configPath -Value 'properties: {}' -Encoding UTF8
     $summaryJsonPath = Join-Path $TestDrive 'bad-summary.json'
@@ -102,9 +115,36 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
 
     $run = Invoke-WinGetConfigBaselineCase -ConfigPath $configPath -SummaryJsonPath $summaryJsonPath
 
-    $run.ExitCode | Should -Be 0
+    $run.ExitCode | Should -Be 2
     $run.Result.Result | Should -Be 'WARN'
     @($run.Result.Findings | Where-Object Code -eq 'WINGET-ConfigLoadFailed').Count | Should -Be 1
     @($run.Invocations).Count | Should -Be 2
+  }
+
+  It 'reports unsafe extra arguments as a V2 FAIL result before invoking WinGet' -TestCases @(
+    @{ ExtraArgs = @('--header=one;two'); Expected = 'shell metacharacters' }
+    @{ ExtraArgs = @('--override=unsafe'); Expected = 'blocked flag' }
+  ) {
+    param($ExtraArgs, $Expected)
+
+    $configPath = Join-Path $TestDrive 'baseline.dsc.yaml'
+    Set-Content -LiteralPath $configPath -Value 'properties: {}' -Encoding UTF8
+    $run = Invoke-WinGetConfigBaselineCase -ConfigPath $configPath -SummaryJsonPath (Join-Path $TestDrive 'summary.json') -ExtraArgs $ExtraArgs
+
+    $run.ExitCode | Should -Be 1
+    $run.Result.Result | Should -Be 'FAIL'
+    @($run.Result.Findings | Where-Object Code -eq 'WINGET-UnsafeExtraArgs').Count | Should -Be 1
+    @($run.Result.Findings | Where-Object Code -eq 'WINGET-UnsafeExtraArgs')[0].Message | Should -Match $Expected
+    @($run.Invocations).Count | Should -Be 0
+  }
+
+  It 'routes every WinGet phase through the bounded shared native helper' {
+    $content = Get-Content -LiteralPath $script:WinGetRunnerScript -Raw -Encoding UTF8
+    $content | Should -Match 'Resolve-TrustedWingetPath'
+    $content | Should -Match 'Invoke-NativeCommand -Command \$script:WingetExecutablePath'
+    $content | Should -Not -Match 'Invoke-NativeCommand -Command ''winget\.exe'''
+    $content | Should -Not -Match '& winget\.exe'
+    $content | Should -Match 'WINGET-Timeout'
+    $content | Should -Match 'WINGET-OutputTruncated'
   }
 }

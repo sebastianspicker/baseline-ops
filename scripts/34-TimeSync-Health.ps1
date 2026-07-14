@@ -81,6 +81,7 @@ Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Common.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
 
 
@@ -98,10 +99,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '34-TimeSync-Health.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '34-TimeSync-Health.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # ----------------------------
@@ -122,14 +124,27 @@ function Invoke-NativeCommandSoft {
     [Parameter(Mandatory)][string[]]$Arguments
   )
 
-  $text = (& $FilePath @Arguments 2>&1 | Out-String).Trim()
-  $exit = $LASTEXITCODE
+  $native = Invoke-NativeCommand -Command $FilePath -Arguments $Arguments -CaptureOutput -Quiet -TimeoutSeconds 30 -MaxOutputBytes 262144
+  $complete = ($null -ne $native -and $native.Success -and -not $native.TimedOut -and -not $native.OutputTruncated -and -not $native.StderrTruncated)
+  $failureReason = if ($null -eq $native) {
+    'start failure'
+  } elseif ($native.TimedOut) {
+    'timeout'
+  } elseif ($native.OutputTruncated -or $native.StderrTruncated) {
+    'truncated output'
+  } elseif (-not $native.Success) {
+    'non-zero exit code'
+  } else {
+    $null
+  }
 
   [pscustomobject]@{
     FilePath  = $FilePath
     Arguments = ($Arguments -join ' ')
-    ExitCode  = $exit
-    Text      = $text
+    ExitCode  = if ($null -ne $native) { $native.ExitCode } else { -1 }
+    Text      = if ($null -ne $native) { [string]$native.Output } else { '' }
+    Complete  = [bool]$complete
+    FailureReason = $failureReason
   }
 }
 
@@ -193,7 +208,7 @@ function Load-Config {
   }
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-BoundedUtf8FileContent -Path $Path -MaximumBytes 1048576
     $obj = $raw | ConvertFrom-Json -ErrorAction Stop
   } catch {
     $result.LoadDetail = 'JSON config could not be loaded/parsed; using defaults.'
@@ -320,9 +335,9 @@ if ($shouldRunW32tm) {
   $cfgText  = $cfgR.Text
 
   foreach ($r in @($srcR, $statR, $cfgR)) {
-    if ($r.ExitCode -ne 0) {
+    if (-not $r.Complete) {
       $sev = if ($ConfigUsed.Behavior.TreatW32tmFailureAsHighFinding) { 'High' } else { 'Medium' }
-      Add-Finding -FindingList $script:Findings -Code 'TIME-W32tmCommandFailed' -Severity $sev -Message ("w32tm failed: {0} {1} (ExitCode={2})." -f $r.FilePath, $r.Arguments, $r.ExitCode) -Extra @{ Data = $r.Text }
+      Add-Finding -FindingList $script:Findings -Code 'TIME-W32tmCommandFailed' -Severity $sev -Message ("w32tm evidence is incomplete: {0} {1} ({2}; ExitCode={3})." -f $r.FilePath, $r.Arguments, $r.FailureReason, $r.ExitCode) -Extra @{ Data = $r.Text }
     }
   }
 
@@ -421,4 +436,4 @@ $resultToken = if ($Strict -and $findingsCount -gt 0) { 'FAIL' } elseif ($findin
 $v2Result = Get-V2ResultObject -ScriptName '34-TimeSync-Health.ps1' -Mode $Mode -Result $resultToken -Findings $Findings -Summary $result.Summary -Metadata @{ Raw = $result.Raw; ConfigUsed = $result.ConfigUsed; ConfigMeta = $result.ConfigMeta }
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

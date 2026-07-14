@@ -1,5 +1,7 @@
 Set-StrictMode -Version Latest
 
+Import-Module (Join-Path $PSScriptRoot 'Validation.psm1')
+
 <#
 .SYNOPSIS
 Configuration loading and merging utilities.
@@ -108,7 +110,7 @@ function Read-ConfigWithDefaults {
   $Path = $sanitized # Use sanitized path for Get-Content
 
   try {
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-BoundedUtf8FileContent -Path $Path -MaximumBytes 1048576
     if ([string]::IsNullOrWhiteSpace($raw)) {
       $meta.Error = 'Config file is empty.'
       $meta.UsedDefaultsBecause = $meta.Error

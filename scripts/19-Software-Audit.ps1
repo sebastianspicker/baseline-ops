@@ -21,8 +21,8 @@
 
   Exit codes:
   - 0 = OK (EventId 4900): no unknown and no blacklisted entries
-  - 1 = Warning (EventId 4901): unknown entries exist (and none are blacklisted)
-  - 2 = Error (EventId 4902): blacklisted entries exist, or a runtime error occurred 
+  - 2 = WARN (EventId 4901): unknown entries or catalog warnings exist
+  - 1 = FAIL (EventId 4902): blacklisted entries exist, or a runtime error occurred
 
 .PARAMETER CatalogPath
   Path to a JSON catalog file containing Whitelist and/or Blacklist rule arrays. 
@@ -155,10 +155,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '19-Software-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '19-Software-Audit.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # -------------------- Settings --------------------
@@ -481,6 +482,11 @@ if (-not (Ensure-EventSource)) {
   Write-Warning "EventSource could not be registered. EventLog tracing will be unavailable."
 }
 
+$result = $null
+$status = $null
+$findings = @()
+$runtimeError = $null
+
 try {
   $catalogPathProvided = $PSBoundParameters.ContainsKey('CatalogPath')
   $configPathProvided = $PSBoundParameters.ContainsKey('ConfigPath')
@@ -571,15 +577,17 @@ try {
   Write-ConsoleList -Header "Blacklisted items:" -Items $blNames -HeaderColor 'Red' -ItemColor 'Red' -MaxItems 20
   Write-ConsoleList -Header "Unknown items:"     -Items $ukNames -HeaderColor 'Yellow' -ItemColor 'Yellow' -MaxItems 20
 
-  # Pipeline output (structured object only)
-  $result
-
-  if     ($status.EventId -eq 4902) { exit 2 }
-  elseif ($status.EventId -eq 4901) { exit 1 }
-  else                              { exit 0 }
-
 } catch {
   $errMsg = [string]("SW Inventory Error: " + $_.Exception.Message)
+  $runtimeError = $errMsg
+  $status = [pscustomobject]@{ EventId = 4902; Level = 'Error' }
+  $findings = @(
+    [pscustomobject]@{
+      Code     = 'SW-AuditFailed'
+      Severity = 'High'
+      Message  = $errMsg
+    }
+  )
 
   Write-HealthEvent -Id 4902 -Msg $errMsg -Level 'Error' | Out-Null
 
@@ -592,11 +600,20 @@ try {
   }
 
   Write-UiLine ""
-  exit 2
 }
 
 # V2 output contract
-$v2Result = Get-V2ResultObject -ScriptName '19-Software-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary ([pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Timestamp = Get-Date }) -Metadata @{}
+$resultToken = if ($runtimeError -or $status.EventId -eq 4902) { 'FAIL' } elseif ($status.EventId -eq 4901) { 'WARN' } else { 'OK' }
+$v2Summary = if ($result) {
+  $result
+} else {
+  [pscustomobject]@{
+    ComputerName = $env:COMPUTERNAME
+    Timestamp    = Get-Date
+    Error        = $runtimeError
+  }
+}
+$v2Result = Get-V2ResultObject -ScriptName '19-Software-Audit.ps1' -Mode $Mode -Result $resultToken -Findings @($findings) -Summary $v2Summary -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

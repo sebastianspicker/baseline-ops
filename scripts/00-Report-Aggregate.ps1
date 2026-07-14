@@ -27,6 +27,7 @@ param(
 . (Join-Path $PSScriptRoot '_lib/Bootstrap.ps1')
 Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Serialization.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'Validation.psm1')
 
 Set-StrictMode -Version Latest
 # v2-init (migrated to Initialize-V2Context)
@@ -45,19 +46,47 @@ foreach ($p in $InputPath) {
 }
 
 if ($files.Count -eq 0) {
-  throw 'No JSON result files found in InputPath.'
+  $message = 'No JSON result files found in InputPath.'
+  $finding = [pscustomobject]@{
+    Code     = 'Aggregate-NoInputFiles'
+    Severity = 'High'
+    Message  = $message
+  }
+  $report = Get-V2ResultObject `
+    -ScriptName '00-Report-Aggregate.ps1' `
+    -Mode $Mode `
+    -Result 'FAIL' `
+    -Findings @($finding) `
+    -Summary ([pscustomobject]@{ Files = 0; RejectedFiles = 0; OK = 0; WARN = 0; FAIL = 0; Error = $message }) `
+    -Metadata @{ Items = @() }
+  Write-ResultObject -ResultObject $report -OutputFormat $OutputFormat -OutputPath $OutputPath
+  if ($PassThru) { $report }
+  exit (Get-V2ExitCode -Result 'FAIL')
 }
 
 $items = New-Object System.Collections.ArrayList
+$rejectionFindings = New-Object System.Collections.ArrayList
 $rejectedFiles = 0
 foreach ($file in $files) {
   try {
-    $obj = Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+    $obj = Get-BoundedUtf8FileContent -Path $file -MaximumBytes 16777216 | ConvertFrom-Json -ErrorAction Stop
     # Validate that parsed JSON has required v2 result properties before including
     $props = if ($null -ne $obj) { @($obj.PSObject.Properties.Name) } else { @() }
-    if ($props -notcontains 'ScriptName' -or $props -notcontains 'Result' -or $props -notcontains 'Mode') {
-      Write-Warning "Skipping '$file': missing required properties (ScriptName, Result, Mode)."
+    $shapeValid = $props -contains 'ScriptName' -and $props -contains 'Result' -and $props -contains 'Mode'
+    $valuesValid = $shapeValid `
+      -and -not [string]::IsNullOrWhiteSpace([string]$obj.ScriptName) `
+      -and @('OK','WARN','FAIL') -contains [string]$obj.Result `
+      -and @('Audit','Remediate') -contains [string]$obj.Mode
+    if (-not $valuesValid) {
+      $message = "Skipping '$file': invalid v2 result shape or values (ScriptName, Result, Mode)."
+      Write-Warning $message
       $rejectedFiles++
+      [void]$rejectionFindings.Add([pscustomobject]@{
+          Code     = 'Aggregate-InvalidResult'
+          Severity = 'Medium'
+          Message  = $message
+          File     = $file
+        })
       continue
     }
     [void]$items.Add([pscustomobject]@{
@@ -67,8 +96,15 @@ foreach ($file in $files) {
         Mode   = [string]$obj.Mode
       })
   } catch {
-    Write-Warning "Skipping '$file': failed to parse JSON - $($_.Exception.Message)"
+    $message = "Skipping '$file': failed to parse JSON - $($_.Exception.Message)"
+    Write-Warning $message
     $rejectedFiles++
+    [void]$rejectionFindings.Add([pscustomobject]@{
+        Code     = 'Aggregate-InvalidJson'
+        Severity = 'Medium'
+        Message  = $message
+        File     = $file
+      })
   }
 }
 
@@ -77,7 +113,8 @@ $ok = @($arr | Where-Object { $_.Result -eq 'OK' }).Count
 $warn = @($arr | Where-Object { $_.Result -eq 'WARN' }).Count
 $fail = @($arr | Where-Object { $_.Result -eq 'FAIL' }).Count
 
-$token = if ($arr.Count -eq 0 -and $rejectedFiles -gt 0) { 'FAIL' } elseif ($fail -gt 0) { 'FAIL' } elseif ($warn -gt 0) { 'WARN' } else { 'OK' }
+$token = if ($arr.Count -eq 0 -and $rejectedFiles -gt 0) { 'FAIL' } elseif ($fail -gt 0) { 'FAIL' } elseif ($warn -gt 0 -or $rejectedFiles -gt 0) { 'WARN' } else { 'OK' }
+if ($Strict -and $token -eq 'WARN') { $token = 'FAIL' }
 $summary = [pscustomobject]@{
   Files         = $arr.Count
   RejectedFiles = $rejectedFiles
@@ -90,7 +127,7 @@ $report = Get-V2ResultObject `
   -ScriptName '00-Report-Aggregate.ps1' `
   -Mode $Mode `
   -Result $token `
-  -Findings @() `
+  -Findings @($rejectionFindings) `
   -Summary $summary `
   -Metadata @{ Items = $arr }
 
@@ -106,8 +143,4 @@ Write-ResultObject -ResultObject $report -OutputFormat $OutputFormat -OutputPath
 
 if ($PassThru) { $report }
 
-if ($arr.Count -eq 0 -and $rejectedFiles -gt 0) { exit 1 }
-if ($fail -gt 0) { exit 1 }
-if ($warn -gt 0) { exit 2 }
-exit 0
-
+exit (Get-V2ExitCode -Result $token)

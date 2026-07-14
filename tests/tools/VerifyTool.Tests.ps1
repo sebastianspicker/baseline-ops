@@ -46,6 +46,18 @@ function Write-UiLine { param([string]$Message) Write-Host $Message }
     }
   }
 
+  It 'uses bounded, NUL-delimited Git public-surface enumeration' {
+    $toolText = Get-Content -LiteralPath $script:VerifyTool -Raw -Encoding UTF8
+
+    $toolText | Should -Match 'Invoke-NativeCommand\s+-Command\s+''git'''
+    $toolText | Should -Match "'ls-files', '-z'"
+    $toolText | Should -Match 'TimeoutSeconds\s+30'
+    $toolText | Should -Match 'OutputTruncated'
+    $toolText | Should -Match 'git returned an unsafe repository-relative path'
+    $toolText | Should -Match 'Test-PathUnderRoot'
+    $toolText | Should -Not -Match '&\s*\$git\.Source\b'
+  }
+
   It 'Reports explicit analyzer skip as partial verification instead of full success' {
     $root = Join-Path $TestDrive 'verify-skip-analyzer'
     Get-MinimalVerifyRoot -Path $root

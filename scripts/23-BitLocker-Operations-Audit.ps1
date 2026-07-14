@@ -172,10 +172,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '23-BitLocker-Operations-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '23-BitLocker-Operations-Audit.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 
@@ -226,7 +227,7 @@ function Import-JsonConfigOrDefault {
   try {
     if (-not (Test-Path -LiteralPath $Path)) { return $cfg }
 
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+    $raw = Get-BoundedUtf8FileContent -Path $Path -MaximumBytes 1048576
     if ([string]::IsNullOrWhiteSpace($raw)) { return $cfg }
 
     # ConvertFrom-Json should be guarded via try/catch for invalid JSON. [web:56]
@@ -410,7 +411,9 @@ if ($cfg.IncludeProtectorCount) {
 $manageBdeText = $null
 $manageBdeErrorText = $null
 try {
-  $manageBdeText = (& manage-bde -status $mp 2>&1 | Out-String).Trim()  # Documented. [web:21]
+  $manageBdeStatus = Invoke-NativeCommand -Command 'manage-bde.exe' -Arguments @('-status',$mp) -CaptureOutput -Quiet -TimeoutSeconds 60 -MaxOutputBytes 1048576
+  if ($null -eq $manageBdeStatus -or -not $manageBdeStatus.Success -or $manageBdeStatus.TimedOut -or $manageBdeStatus.OutputTruncated -or $manageBdeStatus.StderrTruncated) { throw 'manage-bde status timed out, failed, or produced truncated output.' }
+  $manageBdeText = $manageBdeStatus.Output.Trim()  # Documented. [web:21]
 } catch {
   $manageBdeErrorText = $_.Exception.Message
   $manageBdeText = $null
@@ -427,8 +430,9 @@ $manageBdeProtectionCheckError = $null
 
 if ($cfg.UseManageBdeProtectionExitCode) {
   try {
-    $null = & manage-bde -status $mp -protectionaserrorlevel 2>$null
-    $manageBdeProtectionExitCode = $LASTEXITCODE
+    $manageBdeProtection = Invoke-NativeCommand -Command 'manage-bde.exe' -Arguments @('-status',$mp,'-protectionaserrorlevel') -CaptureOutput -Quiet -TimeoutSeconds 60 -MaxOutputBytes 65536
+    if ($null -eq $manageBdeProtection -or $manageBdeProtection.TimedOut -or $manageBdeProtection.OutputTruncated -or $manageBdeProtection.StderrTruncated) { throw 'manage-bde protection check timed out or produced truncated output.' }
+    $manageBdeProtectionExitCode = $manageBdeProtection.ExitCode
 
     if ($manageBdeProtectionExitCode -eq 0) { $manageBdeIsProtected = $true }
     elseif ($manageBdeProtectionExitCode -eq 1) { $manageBdeIsProtected = $false }
@@ -534,4 +538,4 @@ $resultToken = if ($Strict -and $findings.Count -gt 0) { 'FAIL' } elseif ($findi
 $v2Result = Get-V2ResultObject -ScriptName '23-BitLocker-Operations-Audit.ps1' -Mode $Mode -Result $resultToken -Findings (ConvertTo-ObjectArray -InputObject $findings) -Summary $result -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

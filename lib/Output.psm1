@@ -12,7 +12,7 @@ host-colored summaries live in Console.psm1.
 #>
 
 if (-not (Get-Command -Name Get-CallerValue -CommandType Function -ErrorAction SilentlyContinue)) {
-  Import-Module (Join-Path $PSScriptRoot 'Common.psm1') -Global -DisableNameChecking
+  Microsoft.PowerShell.Core\Import-Module ([System.IO.Path]::Combine($PSScriptRoot, 'Common.psm1')) -Global -DisableNameChecking
 }
 
 $script:UiDefaults = [ordered]@{

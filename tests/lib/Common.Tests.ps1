@@ -262,3 +262,16 @@ Describe "Get-SafeFileName" {
 # Read-JsonConfig was removed in Phase 4.1 dedup. JSON reading is now handled by
 # Read-JsonFileSafe (JsonCatalog.psm1) for simple reads, and
 # Read-ConfigWithDefaults (Config.psm1) for config loading with defaults.
+
+Describe 'Has-Property' {
+  It 'recognizes both object properties and dictionary keys' {
+    Has-Property -Object ([pscustomobject]@{ Name = 'value' }) -Name 'Name' | Should -BeTrue
+    Has-Property -Object @{ Name = 'value' } -Name 'Name' | Should -BeTrue
+    Has-Property -Object ([ordered]@{ Name = 'value' }) -Name 'Name' | Should -BeTrue
+  }
+
+  It 'returns false for absent keys and null objects' {
+    Has-Property -Object @{ Present = $true } -Name 'Missing' | Should -BeFalse
+    Has-Property -Object $null -Name 'Missing' | Should -BeFalse
+  }
+}

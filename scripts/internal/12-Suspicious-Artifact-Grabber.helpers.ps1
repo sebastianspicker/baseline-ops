@@ -72,6 +72,16 @@ function Get-BaseClone {
   # JSON roundtrip clone to avoid accidental cross-run mutation
   return ($Obj | ConvertTo-Json -Depth 30 | ConvertFrom-Json)
 }
+function New-ArtifactRegex { param([Parameter(Mandatory)][string]$Pattern,[Parameter(Mandatory)][string]$Label); if ($Pattern.Length -gt 1024) { throw "Grabber $Label regex exceeds the 1024-character limit." }; try { New-Object System.Text.RegularExpressions.Regex($Pattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant, (New-TimeSpan -Milliseconds 250)) } catch { throw "Grabber $Label regex is invalid: $($_.Exception.Message)" } }
+function Initialize-ArtifactRegexRules {
+  param([Parameter(Mandatory)]$Catalog)
+  foreach ($rule in @(@{ Section='Process'; Property='UserPathsRegex'; Compiled='__UserPathsRegex' },@{ Section='Samples'; Property='PathIncludeRegex'; Compiled='__PathIncludeRegex' },@{ Section='Tasks'; Property='SuspiciousRegex'; Compiled='__SuspiciousRegex' })) {
+    $section = $Catalog.($rule.Section); $patterns = @($section.($rule.Property))
+    if ($patterns.Count -gt 256) { throw "Grabber $($rule.Section).$($rule.Property) supports at most 256 patterns." }
+    $compiled = foreach ($pattern in $patterns) { if ($pattern -isnot [string]) { throw "Grabber $($rule.Section).$($rule.Property) must contain strings." }; New-ArtifactRegex -Pattern $pattern -Label "$($rule.Section).$($rule.Property)" }
+    $section | Add-Member -NotePropertyName $rule.Compiled -NotePropertyValue @($compiled) -Force
+  }
+}
 
 # -------------------------
 # Defaults (used when JSON is missing/unreadable)
@@ -149,32 +159,43 @@ function Load-Catalog {
   $CatalogLoadNote.Value = $null
   $cat = $null
 
-  $sanitizedCatalog = Sanitize-Path -Path $CatalogPath -MustExist
-  if ($sanitizedCatalog) {
-    $cat = Read-JsonFileSafe -Path $sanitizedCatalog
-    if ($cat) { $CatalogLoadNote.Value = "Catalog loaded from -CatalogPath" }
+  if (-not [string]::IsNullOrWhiteSpace($CatalogPath)) {
+    $sanitizedCatalog = Sanitize-Path -Path $CatalogPath -MustExist
+    if ([string]::IsNullOrWhiteSpace($sanitizedCatalog)) { throw 'Explicit artifact catalog path is missing or unsafe.' }
+    $catalogResult = Read-JsonFileWithStatus -Path $sanitizedCatalog
+    if (-not $catalogResult.Meta.Loaded) {
+      throw "Explicit artifact catalog failed to load ($($catalogResult.Meta.Status)): $($catalogResult.Meta.Error)"
+    }
+    $cat = $catalogResult.Data
+    $CatalogLoadNote.Value = "Catalog loaded from -CatalogPath"
   }
 
   if ($null -eq $cat -and $ConfigPath) {
     $sanitizedConfig = Sanitize-Path -Path $ConfigPath -MustExist
-    if ($sanitizedConfig) {
-      $cfg = Read-JsonFileSafe -Path $sanitizedConfig
+    if ([string]::IsNullOrWhiteSpace($sanitizedConfig)) { throw 'Explicit artifact config path is missing or unsafe.' }
+    $configResult = Read-JsonFileWithStatus -Path $sanitizedConfig
+    if (-not $configResult.Meta.Loaded) {
+      throw "Explicit artifact config failed to load ($($configResult.Meta.Status)): $($configResult.Meta.Error)"
+    }
+    $cfg = $configResult.Data
+    $p = $null
+    try { $p = $cfg.Grabber.CatalogPath } catch {
+      Write-Verbose ("Config CatalogPath lookup failed: {0}" -f $_.Exception.Message)
       $p = $null
-      try { $p = $cfg.Grabber.CatalogPath } catch {
-        Write-Verbose ("Config CatalogPath lookup failed: {0}" -f $_.Exception.Message)
-        $p = $null
+    }
+    if ($p) {
+      $sanitizedP = Sanitize-Path -Path $p -MustExist
+      if ([string]::IsNullOrWhiteSpace($sanitizedP)) { throw 'Artifact catalog referenced by ConfigPath is missing or unsafe.' }
+      $catalogResult = Read-JsonFileWithStatus -Path $sanitizedP
+      if (-not $catalogResult.Meta.Loaded) {
+        throw "Artifact catalog referenced by ConfigPath failed to load ($($catalogResult.Meta.Status)): $($catalogResult.Meta.Error)"
       }
-      if ($p) {
-        $sanitizedP = Sanitize-Path -Path $p -MustExist
-        if ($sanitizedP) {
-          $cat = Read-JsonFileSafe -Path $sanitizedP
-          if ($cat) { $CatalogLoadNote.Value = "Catalog loaded from ConfigPath reference" }
-        }
-      }
+      $cat = $catalogResult.Data
+      $CatalogLoadNote.Value = "Catalog loaded from ConfigPath reference"
     }
   }
 
-  if ($null -eq $cat) { $CatalogLoadNote.Value = "Using defaults (no JSON or unreadable JSON)" }
+  if ($null -eq $cat) { $CatalogLoadNote.Value = "Using defaults (no catalog configured)" }
 
   $baseClone = Get-BaseClone $DefaultCatalog
   return (Merge-Catalog -base $baseClone -override $cat)
@@ -236,7 +257,7 @@ function Collect-Processes {
   try {
     [void](Ensure-Directory $outDir)
 
-    $rxList=@(); try { $rxList=@($cat.Process.UserPathsRegex) } catch {
+    $rxList=@(); try { $rxList=@($cat.Process.__UserPathsRegex) } catch {
       Write-Verbose ("Process UserPathsRegex lookup failed: {0}" -f $_.Exception.Message)
     }
     $hashUserlandOnly = Safe-ToBool $cat.Process.HashUserlandOnly $true
@@ -248,7 +269,7 @@ function Collect-Processes {
       }
 
       $userlandMatch=$false
-      if ($path) { foreach ($rx in $rxList) { if ($path -match $rx) { $userlandMatch=$true; break } } }
+      if ($path) { foreach ($rx in $rxList) { if ($rx.IsMatch($path)) { $userlandMatch=$true; break } } }
 
       $doHash=$false
       if ($hashAll) { $doHash=$true }
@@ -277,6 +298,8 @@ function Collect-Processes {
 
     $rows | Export-Csv -NoTypeInformation -Encoding UTF8 -Path $csv
     $res.Counts.Count = @($rows).Count
+  } catch [System.Text.RegularExpressions.RegexMatchTimeoutException] {
+    throw
   } catch {
     Add-Error $res ("process: " + $_.Exception.Message)
     $res.Counts.Count = 0
@@ -337,7 +360,11 @@ function Collect-NetworkNetstatFallback {
   $counts.Value.Udp = 0
 
   try {
-    $raw = & netstat.exe -ano 2>$null
+    $native = Invoke-NativeCommand -Command 'netstat.exe' -Arguments @('-ano') -CaptureOutput -Quiet -TimeoutSeconds 30 -MaxOutputBytes 1048576
+    if ($null -eq $native -or -not $native.Success -or $native.TimedOut -or $native.OutputTruncated -or $native.StderrTruncated) {
+      throw 'netstat fallback timed out, failed, or produced truncated output.'
+    }
+    $raw = $native.Stdout -split "`r?`n"
     $rows = foreach ($line in @($raw)) {
       $t = ($line -as [string]).Trim()
       if (-not $t) { continue }
@@ -492,7 +519,7 @@ function Collect-Tasks {
   param([string]$outDir,$cat)
 
   $res = Get-ResultObject 'Tasks'
-  $rx=@(); try { $rx=@($cat.Tasks.SuspiciousRegex) } catch {
+  $rx=@(); try { $rx=@($cat.Tasks.__SuspiciousRegex) } catch {
     Add-Note $res ("task suspicious-regex lookup failed: " + $_.Exception.Message)
   }
   $exportXml = Safe-ToBool $cat.Tasks.ExportXmlForSuspicious $true
@@ -509,7 +536,7 @@ function Collect-Tasks {
       $actionText = Convert-TaskActionsToText -Actions $actions
 
       $isSusp=$false
-      foreach ($r in $rx) { if ($actionText -match $r) { $isSusp=$true; break } }
+      foreach ($r in $rx) { if ($r.IsMatch($actionText)) { $isSusp=$true; break } }
 
       $state=$null
       try { $state = (Get-ScheduledTaskInfo -TaskName $t.TaskName -TaskPath $t.TaskPath -ErrorAction SilentlyContinue).State } catch {
@@ -545,6 +572,8 @@ function Collect-Tasks {
         }
         [void](Add-Finding -FindingList $script:Findings -Code 'Grabber-SuspiciousTask' -Severity 'Medium' -Message "Suspicious scheduled task detected: $($t.TaskPath)$($t.TaskName)" -Extra $extra)
     }
+  } catch [System.Text.RegularExpressions.RegexMatchTimeoutException] {
+    throw
   } catch {
     Add-Error $res ("tasks: " + $_.Exception.Message)
     $res.Counts.Total = 0

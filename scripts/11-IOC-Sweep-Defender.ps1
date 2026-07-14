@@ -31,7 +31,7 @@
 .OUTPUTS
   By default, none. With -PassThru, emits the structured proof object.
 .NOTES
-  Exit 0 means no findings/errors; exit 1 means findings, source errors, or Strict triggered a non-OK outcome. Evidence collection failures are recorded in Proof.Errors.
+  Process exit codes: 0 = OK, 2 = WARN, 1 = FAIL. Evidence collection failures are recorded in Proof.Errors.
 .EXAMPLE
   .\11-IOC-Sweep-Defender.ps1
 .EXAMPLE
@@ -83,10 +83,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '11-IOC-Sweep-Defender.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '11-IOC-Sweep-Defender.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 Set-StrictMode -Version Latest
@@ -104,116 +105,7 @@ $DefaultEvidenceDir  = Join-Path ([System.IO.Path]::GetTempPath()) 'IOC-Sweep-De
 # Save-Json: using canonical Save-Json from lib/Serialization.psm1
 # Expand-Env imported from lib/Evidence.psm1
 # Read-Json replaced by Read-JsonFileSafe from lib/JsonCatalog.psm1
-function Get-ObjPropValue {
-  param(
-    [Parameter(Mandatory=$true)] $Obj,
-    [Parameter(Mandatory=$true)] [string] $Name
-  )
-  try {
-    if ($null -eq $Obj) { return $null }
-    $p = $Obj.PSObject.Properties[$Name]
-    if ($p) { return $p.Value }
-  } catch {
-    Write-Verbose ("IOC object property access failed for '{0}': {1}" -f $Name,$_.Exception.Message)
-  }
-  return $null
-}
-function Get-OrDefault([object]$Value, [object]$Default){
-  if ($null -ne $Value -and "$Value" -ne "") { return $Value }
-  return $Default
-}
-function Get-DefaultCatalog {
-  $cat = New-Object psobject
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name Proof       -Value ([pscustomobject]@{ OutFile = $DefaultProofOutFile })
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name EvidenceDir -Value $DefaultEvidenceDir
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name Files          -Value @()
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name FileGlobs      -Value @()
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name Registry       -Value @()
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name Services       -Value @()
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name ScheduledTasks -Value @()
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name Processes      -Value @()
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name IPs            -Value @()
-  Add-Member -InputObject $cat -MemberType NoteProperty -Name Domains        -Value @()
-  return $cat
-}
-function Load-Catalog {
-  param([string]$CatalogPath,[string]$ConfigPath)
-  $res = [ordered]@{ Catalog = $null; Source = 'Default'; Errors = @() }
-  $sanitizedCatalog = if ([string]::IsNullOrWhiteSpace($CatalogPath)) { $null } else { Sanitize-Path -Path $CatalogPath -MustExist }
-  if ($sanitizedCatalog) {
-    $c = Read-JsonFileSafe -Path $sanitizedCatalog
-    if ($c) { $res.Catalog = $c; $res.Source = 'CatalogPath'; return $res }
-    $res.Errors += ("CatalogPath not loaded: {0}" -f $sanitizedCatalog)
-  }
-  $cfg = $null
-  $sanitizedConfig = if ([string]::IsNullOrWhiteSpace($ConfigPath)) { $null } else { Sanitize-Path -Path $ConfigPath -MustExist }
-  if ($sanitizedConfig) {
-    $cfg = Read-JsonFileSafe -Path $sanitizedConfig
-    if (-not $cfg) { $res.Errors += ("ConfigPath not loaded: {0}" -f $sanitizedConfig) }
-  }
-  $p = $null
-  try { if ($cfg -and $cfg.IOC -and $cfg.IOC.CatalogPath) { $p = [string]$cfg.IOC.CatalogPath } } catch { $p = $null }
-  if ($p) {
-    $sanitizedP = Sanitize-Path -Path $p -MustExist
-    if ($sanitizedP) {
-      $c2 = Read-JsonFileSafe -Path $sanitizedP
-      if ($c2) { $res.Catalog = $c2; $res.Source = 'Config->IOC.CatalogPath'; return $res }
-      $res.Errors += ("Config IOC.CatalogPath not loaded: {0}" -f $sanitizedP)
-    }
-  }
-  $res.Catalog = (Get-DefaultCatalog)
-  $res.Source  = 'Default'
-  return $res
-}
-function Get-ProcessImageSha256([int]$ProcessId){
-  try {
-    $p = Get-Process -Id $ProcessId -ErrorAction Stop
-    if ($p.Path) { return Get-FileSha256 -Path $p.Path }
-  } catch {
-    Write-Verbose ("Process image hash lookup failed for PID {0}: {1}" -f $ProcessId,$_.Exception.Message)
-  }
-  return $null
-}
-function Get-FilePublisher([string]$File){
-  if (-not $File -or -not (Test-Path -LiteralPath $File)) { return $null, $false }
-  try {
-    $sig = Get-AuthenticodeSignature -FilePath $File -ErrorAction Stop
-    return $sig.SignerCertificate.Subject, ($sig.Status -eq 'Valid')
-  } catch {
-    return $null, $false
-  }
-}
-function Convert-RegProviderToRegExePath([string]$KeyPath){
-  if (-not $KeyPath) { return $null }
-  $p = $KeyPath
-  if ($p -like 'Registry::*') { $p = $p -replace '^Registry::','' }
-  $p = $p.Replace('HKLM:\','HKEY_LOCAL_MACHINE\')
-  $p = $p.Replace('HKCU:\','HKEY_CURRENT_USER\')
-  $p = $p.Replace('HKCR:\','HKEY_CLASSES_ROOT\')
-  $p = $p.Replace('HKU:\','HKEY_USERS\')
-  $p = $p.Replace('HKCC:\','HKEY_CURRENT_CONFIG\')
-  return $p
-}
-function Export-Reg([string]$RegPath,[string]$OutFile){
-  try {
-    [void](Ensure-Directory (Split-Path -Parent $OutFile))
-    $res = Invoke-RegExe -Arguments @('export', $RegPath, $OutFile, '/y')
-    if ($res -eq $true) { return $true, $OutFile }
-    return $false, 'reg-export-failed'
-  } catch {
-    return $false, $_.Exception.Message
-  }
-}
-function Find-MpCmdRun {
-  $cands = @(
-    "$env:ProgramFiles\Windows Defender\MpCmdRun.exe",
-    "$env:ProgramFiles\Microsoft Defender\MpCmdRun.exe"
-  )
-  foreach ($c in $cands) {
-    if (Test-Path -LiteralPath $c) { return $c }
-  }
-  return $null
-}
+. (Join-Path $PSScriptRoot 'internal/11-IOC-Sweep-Defender.helpers.ps1')
 # -----------------------------
 # Proof object (data only)
 # -----------------------------
@@ -249,28 +141,6 @@ $Proof = [ordered]@{
 }
 $script:Findings = Get-FindingsList
 
-function Add-IocSourceStatus {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Name,
-    [Parameter(Mandatory)][bool]$Attempted,
-    [Parameter(Mandatory)][bool]$Succeeded,
-    [string]$ErrorMessage
-  )
-
-  $Proof.SourceStatus[$Name] = [ordered]@{
-    Attempted = $Attempted
-    Succeeded = $Succeeded
-    Error = $ErrorMessage
-  }
-
-  if ($Attempted -and -not $Succeeded -and -not [string]::IsNullOrWhiteSpace($ErrorMessage)) {
-    $msg = "{0} source failed: {1}" -f $Name, $ErrorMessage
-    $Proof.Errors += $msg
-    [void](Add-Finding -Code 'IOC-SourceFailed' -Severity 'High' -Message $msg -Extra @{ Source = $Name })
-  }
-}
-
 if (-not (Ensure-EventSource)) {
   Write-Warning "EventSource could not be registered. EventLog tracing will be unavailable."
 }
@@ -282,6 +152,7 @@ $cat      = $null
 try {
   $catLoad = Load-Catalog -CatalogPath $CatalogPath -ConfigPath $ConfigPath
   $cat = $catLoad.Catalog
+  Initialize-IocRegexRules -Catalog $cat
   $Proof.Catalog.Source = $catLoad.Source
   $Proof.Catalog.Errors = @($catLoad.Errors)
   $proofObj = Get-ObjPropValue $cat 'Proof'
@@ -308,18 +179,24 @@ try {
             $results = @()
             foreach ($item in $expanded) {
               $scanArgs = @("-Scan","-ScanType","3","-File",$item)
-              $p = Start-Process -FilePath $mp -ArgumentList $scanArgs -PassThru -Wait -WindowStyle Hidden
-              $results += ("custom:{0} exit:{1}" -f $item, $p.ExitCode)
-              if ($p.ExitCode -eq 2) {
+              $native = Invoke-NativeCommand -Command $mp -Arguments $scanArgs -CaptureOutput -Quiet -TimeoutSeconds 3600 -MaxOutputBytes 1048576
+              if ($null -eq $native -or $native.TimedOut -or $native.OutputTruncated -or $native.StderrTruncated) {
+                $ok = $false
+                $results += ("custom:{0} incomplete native evidence" -f $item)
+                [void](Add-Finding -FindingList $script:Findings -Code 'IOC-DefenderError' -Severity 'Medium' -Message 'Defender scan timed out or produced truncated output.' -Extra @{ MpCmdRun = $mp; ScanType = 'Custom'; CustomScanPath = $item })
+                continue
+              }
+              $results += ("custom:{0} exit:{1}" -f $item, $native.ExitCode)
+              if ($native.ExitCode -eq 2) {
                 $foundAny = $true
                 [void](Add-Finding -FindingList $script:Findings -Code 'IOC-DefenderDetection' -Severity 'High' `
                     -Message "Defender scan reported threat(s) detected (MpCmdRun exit 2)." `
                     -Extra @{ MpCmdRun = $mp; ScanType = 'Custom'; CustomScanPath = $item })
-              } elseif ($p.ExitCode -ne 0) {
+              } elseif ($native.ExitCode -ne 0) {
                 $ok = $false
                 [void](Add-Finding -FindingList $script:Findings -Code 'IOC-DefenderError' -Severity 'Medium' `
-                    -Message ("Defender scan exited with unexpected code {0}." -f $p.ExitCode) `
-                    -Extra @{ ExitCode = $p.ExitCode; MpCmdRun = $mp; ScanType = 'Custom'; CustomScanPath = $item })
+                    -Message ("Defender scan exited with unexpected code {0}." -f $native.ExitCode) `
+                    -Extra @{ ExitCode = $native.ExitCode; MpCmdRun = $mp; ScanType = 'Custom'; CustomScanPath = $item })
               }
             }
             $scanInfo.Result = ($results -join "; ")
@@ -331,21 +208,27 @@ try {
         $type = 2
         if ($ScanType -eq 'Quick') { $type = 1 }
         $scanArgs = @("-Scan","-ScanType", "$type")
-        $p = Start-Process -FilePath $mp -ArgumentList $scanArgs -PassThru -Wait -WindowStyle Hidden
-        $scanInfo.Result = "exit:$($p.ExitCode)"
-        if ($p.ExitCode -eq 2) {
+        $native = Invoke-NativeCommand -Command $mp -Arguments $scanArgs -CaptureOutput -Quiet -TimeoutSeconds 3600 -MaxOutputBytes 1048576
+        if ($null -eq $native -or $native.TimedOut -or $native.OutputTruncated -or $native.StderrTruncated) {
+          $scanInfo.Result = 'incomplete native evidence'
+          $ok = $false
+          [void](Add-Finding -FindingList $script:Findings -Code 'IOC-DefenderError' -Severity 'Medium' -Message 'Defender scan timed out or produced truncated output.' -Extra @{ MpCmdRun = $mp; ScanType = $ScanType })
+        } else {
+        $scanInfo.Result = "exit:$($native.ExitCode)"
+        if ($native.ExitCode -eq 2) {
           $foundAny = $true
           [void](Add-Finding -FindingList $script:Findings -Code 'IOC-DefenderDetection' -Severity 'High' `
               -Message "Defender scan reported threat(s) detected (MpCmdRun exit 2)." `
               -Extra @{ MpCmdRun = $mp; ScanType = $ScanType })
-        } elseif ($p.ExitCode -ne 0) {
+        } elseif ($native.ExitCode -ne 0) {
           $ok = $false
           [void](Add-Finding -FindingList $script:Findings -Code 'IOC-DefenderError' -Severity 'Medium' `
-              -Message ("Defender scan exited with unexpected code {0}." -f $p.ExitCode) `
-              -Extra @{ ExitCode = $p.ExitCode; MpCmdRun = $mp; ScanType = $ScanType })
+              -Message ("Defender scan exited with unexpected code {0}." -f $native.ExitCode) `
+              -Extra @{ ExitCode = $native.ExitCode; MpCmdRun = $mp; ScanType = $ScanType })
+        }
+        }
         }
       }
-    }
     $Proof['Scan'] = $scanInfo
   } catch {
     if (-not $Proof['Scan'] -or -not $Proof['Scan'].ContainsKey('Requested')) {
@@ -444,7 +327,7 @@ try {
     if ($okReg) {
       $regexOk = $true
       $dr = [string](Get-ObjPropValue $r 'DataRegex')
-      if ($dr) { $regexOk = ($data -match $dr) }
+      if ($dr) { $regexOk = $r.__IocDataRegex.IsMatch([string]$data) }
       if ($regexOk) {
         $foundAny = $true
         $regExp = $null
@@ -491,7 +374,7 @@ try {
       $img = $svc.PathName
       $match = $true
       $imgRx = [string](Get-ObjPropValue $s 'ImagePathRegex')
-      if ($imgRx) { if ($img -notmatch $imgRx) { $match = $false } }
+      if ($imgRx) { if (-not $s.__IocImagePathRegex.IsMatch([string]$img)) { $match = $false } }
       if ($match) {
         $foundAny = $true
         $action = [string](Get-ObjPropValue $s 'Action')
@@ -547,7 +430,7 @@ try {
     if (-not $rx) { continue }
     foreach ($task in $allTasks) {
       $full = $task.TaskPath + $task.TaskName
-      if ($full -match $rx) {
+      if ($t.__IocTaskRegex.IsMatch([string]$full)) {
         $foundAny = $true
         $state = "Unknown"
         try {
@@ -599,7 +482,7 @@ try {
       $img = $null
       try { $img = $pr.Path } catch { $img = $null }
       if (-not $img) { continue }
-      if ($img -match $imgRx) {
+      if ($pRule.__IocImageRegex.IsMatch([string]$img)) {
         $sha = Get-ProcessImageSha256 -ProcessId $pr.Id
         $pub,$valid = Get-FilePublisher $img
         $signer = [string](Get-ObjPropValue $pRule 'Signer')
@@ -791,4 +674,4 @@ $resultToken = if ($exitCode -ne 0) { 'FAIL' } elseif ($script:Findings.Count -g
 $v2Result = Get-V2ResultObject -ScriptName '11-IOC-Sweep-Defender.ps1' -Mode $Mode -Result $resultToken -Findings $script:Findings.ToArray() -Summary $Proof -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit $exitCode
+exit (Get-V2ExitCode -Result $resultToken)

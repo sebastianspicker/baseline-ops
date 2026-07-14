@@ -82,6 +82,7 @@ Import-Module (Join-Path $script:LibPath 'Console.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Serialization.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Registry.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force -DisableNameChecking
 
 Set-StrictMode -Version Latest
 # v2-init (migrated to Initialize-V2Context)
@@ -97,10 +98,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '49-DriverSigning-Integrity-Audit.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '49-DriverSigning-Integrity-Audit.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # ----------------------------
@@ -117,7 +119,9 @@ $bcdeditRaw        = $null
 
 # 1. Check bcdedit flags (TESTSIGNING, NOINTEGRITYCHECKS)
 try {
-  $bcdeditOutput = (& bcdedit.exe /enum '{current}' 2>&1 | Out-String).Trim()
+  $bcdedit = Invoke-NativeCommand -Command 'bcdedit.exe' -Arguments @('/enum','{current}') -CaptureOutput -Quiet -TimeoutSeconds 30 -MaxOutputBytes 262144
+  if ($null -eq $bcdedit -or -not $bcdedit.Success -or $bcdedit.TimedOut -or $bcdedit.OutputTruncated -or $bcdedit.StderrTruncated) { throw 'bcdedit query timed out, failed, or produced truncated output.' }
+  $bcdeditOutput = $bcdedit.Output.Trim()
   $bcdeditRaw = $bcdeditOutput
 
   # Parse testsigning
@@ -240,4 +244,4 @@ $v2Result = Get-V2ResultObject -ScriptName '49-DriverSigning-Integrity-Audit.ps1
 
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

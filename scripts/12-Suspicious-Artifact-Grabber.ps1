@@ -24,14 +24,14 @@
 .PARAMETER CatalogPath
   Optional path to a JSON “catalog” that defines output base path, trigger locations, and collection policies.
 
-  If provided and readable, it overrides the built-in defaults. If missing/unreadable, the script continues with
-  safe defaults.
+  If provided, it overrides the built-in defaults and must exist and parse successfully. Invalid explicit input fails
+  before any collection begins.
 
 .PARAMETER ConfigPath
   Optional path to a JSON config file that can point to a catalog (for example, via a property like Grabber.CatalogPath).
 
-  If CatalogPath is not specified or cannot be loaded, the script attempts to load a catalog via ConfigPath.
-  If that also fails, built-in defaults are used.
+  If CatalogPath is not specified, the script attempts to load a catalog reference via ConfigPath. An explicitly
+  provided ConfigPath must parse successfully; a valid config without a catalog reference uses built-in defaults.
 
 .PARAMETER Force
   Runs the script immediately, even if no registry/file trigger is present.
@@ -153,6 +153,7 @@ Import-Module (Join-Path $script:LibPath 'Output.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'EventLog.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Results.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'Evidence.psm1') -Force
+Import-Module (Join-Path $script:LibPath 'External.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $script:LibPath 'Validation.psm1') -Force
 Import-Module (Join-Path $script:LibPath 'JsonCatalog.psm1') -Force
 Import-Module (Join-Path $script:LibPath Serialization.psm1) -Force
@@ -172,10 +173,11 @@ if (-not $isWindowsHost) {
     Supported    = $false
     Notes        = @('Skipped: this script is only supported on Windows hosts.')
   }
-  $result = Get-V2ResultObject -ScriptName '12-Suspicious-Artifact-Grabber.ps1' -Mode $Mode -Result 'OK' -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
+  $unsupportedResult = if ($Strict) { 'FAIL' } else { 'WARN' }
+  $result = Get-V2ResultObject -ScriptName '12-Suspicious-Artifact-Grabber.ps1' -Mode $Mode -Result $unsupportedResult -Findings @() -Summary $summary -Metadata @{ UnsupportedHost = $true }
   Write-ResultObject -ResultObject $result -OutputFormat $OutputFormat -OutputPath $OutputPath
   if ($PassThru) { $result }
-  exit 0
+  exit (Get-V2ExitCode -Result $unsupportedResult)
 }
 
 # Make Write-Information visible for humans; it is controlled by InformationPreference.
@@ -231,9 +233,6 @@ function Reset-Trigger {
 # MAIN
 # -------------------------
 $script:Findings = Get-FindingsList
-if (-not (Ensure-EventSource)) {
-  Write-Warning "EventSource could not be registered. EventLog tracing will be unavailable."
-}
 
 $errors   = New-Object System.Collections.Generic.List[string]
 $hasFindings = $false
@@ -246,6 +245,8 @@ try {
 
   $cat = Load-Catalog -CatalogPath $CatalogPath -ConfigPath $ConfigPath -CatalogLoadNote ([ref]$catalogNote)
   if (-not $cat) { $cat = Get-BaseClone $DefaultCatalog }
+  Initialize-ArtifactRegexRules -Catalog $cat
+  if (-not (Ensure-EventSource)) { Write-Warning "EventSource could not be registered. EventLog tracing will be unavailable." }
 
   $tr = Read-Trigger -cat $cat -Force:$Force -CollectSamples:$CollectSamples
   if (-not $tr.Want) {
@@ -352,7 +353,7 @@ try {
         if (-not (Test-Path -LiteralPath $path)) { continue }
 
         $pick = $false
-        foreach ($rx in @($cat.Samples.PathIncludeRegex)) { if ($path -match $rx) { $pick = $true; break } }
+        foreach ($rx in @($cat.Samples.__PathIncludeRegex)) { if ($rx.IsMatch($path)) { $pick = $true; break } }
         if (-not $pick) { continue }
 
         if (Safe-ToBool $cat.Samples.OnlyUnsignedOrUnknown $true) {
@@ -409,8 +410,12 @@ try {
   Reset-Trigger -cat $cat
 
 } catch {
-  $errMsg = "IR Grabber fatal: " + $_.Exception.Message
+  $isRegexTimeout = $_.Exception -is [System.Text.RegularExpressions.RegexMatchTimeoutException] -or $_.Exception.InnerException -is [System.Text.RegularExpressions.RegexMatchTimeoutException]
+  $prefix = if ($isRegexTimeout) { 'IR Grabber incomplete evidence: regex match timed out: ' } else { 'IR Grabber fatal: ' }
+  $errMsg = $prefix + $_.Exception.Message
   [void]$errors.Add($errMsg)
+  if ($null -eq $summary) { $summary = [ordered]@{ Errors = @($errors); IncompleteEvidence = $isRegexTimeout } }
+  elseif ($isRegexTimeout) { $summary['IncompleteEvidence'] = $true }
   Write-HealthEvent 10021 $errMsg 'Error'
 } finally {
   if ($null -ne $summary) {
@@ -428,4 +433,4 @@ $resultToken = if ($errors.Count -gt 0) { 'FAIL' } elseif ($hasFindings -or $scr
 $v2Result = Get-V2ResultObject -ScriptName '12-Suspicious-Artifact-Grabber.ps1' -Mode $Mode -Result $resultToken -Findings $script:Findings.ToArray() -Summary $summary -Metadata @{}
 Write-ResultObject -ResultObject $v2Result -OutputFormat $OutputFormat -OutputPath $OutputPath
 if ($PassThru) { $v2Result }
-exit 0
+exit (Get-V2ExitCode -Result $resultToken)

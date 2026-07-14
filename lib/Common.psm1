@@ -1,5 +1,5 @@
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot 'Validation.psm1') -Force -Global
+Microsoft.PowerShell.Core\Import-Module ([System.IO.Path]::Combine($PSScriptRoot, 'Validation.psm1')) -Force -Global
 
 <#
 .SYNOPSIS
@@ -216,7 +216,11 @@ function Sanitize-Path {
 #>
 function Has-Property {
   param([object]$Object, [string]$Name)
-  return $null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name
+  if ($null -eq $Object) { return $false }
+  if ($Object -is [System.Collections.IDictionary]) {
+    return $Object.Contains($Name)
+  }
+  return $Object.PSObject.Properties.Name -contains $Name
 }
 
 <#
