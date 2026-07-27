@@ -4,7 +4,13 @@ Thumbs.db
 .vscode/
 .idea/
 .cursor/
+.agents/
+.continue/
 .codex/
+.codegraph/
+.serena/
+.windsurf/
+.aider*
 
 # PowerShell
 *.ps1~
@@ -34,79 +40,95 @@ Thumbs.db
 *.har
 *.clixml
 *.nupkg
+*.db
+*.sqlite
+*.sqlite3
+
+# Allow reviewed text fixtures and examples despite the artifact extensions above.
+!/examples/**/*.csv
+!/examples/**/*.tsv
+!/examples/**/*.jsonl
+!/tests/fixtures/**
 
 # Common output folders (support bundles / proofs)
-support/
-proof/
-proofs/
-evidence/
-reports/
-eventlogs/
-defender/
-defender-support/
-_extracted/
-tmp/
-temp/
+/support/
+/proof/
+/proofs/
+/evidence/
+/reports/
+/eventlogs/
+/defender/
+/defender-support/
+/_extracted/
+/tmp/
+/temp/
+/recordings/
+/screenshots/
 
 # Environment files and credentials
 .env
 .env.*
+!.env.example
+!.env.sample
+!.env.template
+.envrc
+.direnv/
 *.pem
 *.key
 *.pfx
 *.p12
 *.cer
+*.jks
+*.kdbx
+*.ppk
 id_rsa
 id_ed25519
 *.keystore
+credentials/
+secrets/
 
 # Local docs (findings/logs/decisions)
-DECISIONS.md
-FINDINGS.md
-LOG.md
-REFACTOR_PLAN.md
-PHYSICS_AUDIT.md
-validation.md
-HANDOFF.md
-progress.md
+/DECISIONS.md
+/FINDINGS.md
+/LOG.md
+/REFACTOR_PLAN.md
+/PHYSICS_AUDIT.md
+/validation.md
+/HANDOFF.md
+/progress.md
+/RELEASE_STATUS.md
 
 # Development artifacts
-ralph-loop/
-plans/
-.claude/
-.codacy/
+/ralph-loop/
+/plans/
+/.claude/
+/.codacy/
 
-# Local harness and audit workspace state
-.agents/
-.github/codex/
-.github/workflows/codex.yml
-AGENTS.md
-AUDIT.md
-HARNESS_PRINCIPLES.md
-code_review.md
-archive/
-docs/archive/
-docs/agent/
-docs/source-audit/
-docs/tmp/
-docs/temp/
-docs/*audit*.md
-docs/*remediation*.md
-docs/*plan*.md
-docs/*ledger*.md
-docs/*status*.md
-docs/*findings*.md
-docs/*index*.md
-!docs/README.md
-!docs/assets/
-!docs/assets/**
-scripts/topology_inventory.sh
+# Local-only workspace and release-readiness state
+/AGENTS.md
+/AGENT.md
+/CLAUDE.md
+/CODEX.md
+/GEMINI.md
+/AUDIT.md
+/private/
+/docs/agent/
+/.github/agents/
+/.github/codex/
+/.github/copilot-instructions.md
+/.github/instructions/
+/.github/prompts/
+/.github/workflows/codex.yml
+/HARNESS_PRINCIPLES.md
+/code_review.md
+/archive/
+/scripts/topology_inventory.sh
 
 # Vendored, copied, or external source trees
-vendor/
-third_party/
-third-party/
-external/
+/vendor/
+/third_party/
+/third-party/
+/external/
 
 # CI/test artifacts
 coverage/
@@ -123,6 +145,10 @@ junit.xml
 .ruff_cache/
 .cache/
 .terraform/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
 node_modules/
 dist/
 build/

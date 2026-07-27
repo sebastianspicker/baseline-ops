@@ -16,7 +16,8 @@ Unit tests for the Registry module functions including:
 [CmdletBinding()]
 param()
 
-$script:SkipRegistryTests = (-not $IsWindows) -or (-not (Get-PSDrive -Name HKCU -ErrorAction SilentlyContinue))
+$script:IsWindowsHost = ($env:OS -eq 'Windows_NT')
+$script:SkipRegistryTests = (-not $script:IsWindowsHost) -or (-not (Get-PSDrive -Name HKCU -ErrorAction SilentlyContinue))
 
 $allowedPrefixSetters = @(
   [pscustomobject]@{ Name = 'Set-RegDword'; Args = @{ Value = 1 } }
@@ -67,6 +68,26 @@ Describe "Set-Reg* AllowedPrefixes" {
     }
 
     { & $case.Name @params } | Should -Throw '*allowed prefixes*'
+  }
+}
+
+Describe "Set-RegTypedValue ShouldProcess" {
+  It "Does not create a key when WhatIf declines the write" {
+    InModuleScope Registry {
+      Mock Ensure-RegistryKey { throw 'Ensure-RegistryKey should not run under WhatIf.' }
+      Mock New-ItemProperty { throw 'New-ItemProperty should not run under WhatIf.' }
+
+      $result = Set-RegTypedValue -Path 'HKCU:\Software\RegistryModuleTests\WhatIf' `
+        -Name 'Value' `
+        -Value 1 `
+        -PropertyType DWord `
+        -DisplayType 'REG_DWORD' `
+        -WhatIf
+
+      $result | Should -Be $false
+      Should -Invoke Ensure-RegistryKey -Times 0 -Exactly
+      Should -Invoke New-ItemProperty -Times 0 -Exactly
+    }
   }
 }
 

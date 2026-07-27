@@ -1,4 +1,11 @@
 #requires -version 5.1
+<#
+.SYNOPSIS
+Pester coverage for repository tooling contracts.
+
+.DESCRIPTION
+Verifies tooling safeguards that protect maintainers and releases.
+#>
 
 Describe 'tools/verify.ps1 gate reporting' {
   BeforeAll {
@@ -31,6 +38,31 @@ function Write-UiLine { param([string]$Message) Write-Host $Message }
 
       'param()' | Set-Content -LiteralPath (Join-Path $scriptsDir '01-Smoke.ps1') -Encoding UTF8
     }
+
+    function Add-VerifyFile {
+      [CmdletBinding()]
+      param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$RelativePath
+      )
+
+      $path = Join-Path $Root $RelativePath
+      $parent = Split-Path -Parent $path
+      New-Item -Path $parent -ItemType Directory -Force | Out-Null
+      'fixture content' | Set-Content -LiteralPath $path -Encoding UTF8
+    }
+  }
+
+  It 'uses bounded, NUL-delimited Git public-surface enumeration' {
+    $toolText = Get-Content -LiteralPath $script:VerifyTool -Raw -Encoding UTF8
+
+    $toolText | Should -Match 'Invoke-NativeCommand\s+-Command\s+''git'''
+    $toolText | Should -Match "'ls-files', '-z'"
+    $toolText | Should -Match 'TimeoutSeconds\s+30'
+    $toolText | Should -Match 'OutputTruncated'
+    $toolText | Should -Match 'git returned an unsafe repository-relative path'
+    $toolText | Should -Match 'Test-PathUnderRoot'
+    $toolText | Should -Not -Match '&\s*\$git\.Source\b'
   }
 
   It 'Reports explicit analyzer skip as partial verification instead of full success' {
@@ -59,5 +91,113 @@ function Write-UiLine { param([string]$Message) Write-Host $Message }
     $text | Should -Match 'Analyzer.*FAILED'
     $text | Should -Match 'VERDICT: FAILED'
     $text | Should -Not -Match 'completed successfully'
+  }
+
+  It 'Allows the internal helper layer and normal public documentation' {
+    $root = Join-Path $TestDrive 'verify-public-surface-allowed'
+    Get-MinimalVerifyRoot -Path $root
+    Add-VerifyFile -Root $root -RelativePath 'scripts/internal/helper.ps1'
+    Add-VerifyFile -Root $root -RelativePath 'docs/README.md'
+    Add-VerifyFile -Root $root -RelativePath 'docs/alpha-release.md'
+    Add-VerifyFile -Root $root -RelativePath 'docs/launcher-gui.md'
+    Add-VerifyFile -Root $root -RelativePath 'SECURITY.md'
+
+    $output = & pwsh -NoProfile -File $script:VerifyTool -RootPath $root -SkipAnalyzer 2>&1
+    $exitCode = $LASTEXITCODE
+    $text = $output | Out-String
+
+    $exitCode | Should -Be 0
+    $text | Should -Match 'PublicSurface.*PASS'
+    $text | Should -Match 'VERDICT: PARTIAL'
+  }
+
+  It 'rejects unreviewed documentation outside the public allowlist' {
+    $root = Join-Path $TestDrive 'verify-doc-allowlist'
+    Get-MinimalVerifyRoot -Path $root
+    Add-VerifyFile -Root $root -RelativePath 'docs/unreviewed-notes.md'
+
+    $output = & pwsh -NoProfile -File $script:VerifyTool -RootPath $root -SkipAnalyzer 2>&1
+    $exitCode = $LASTEXITCODE
+    $text = $output | Out-String
+
+    $exitCode | Should -Be 1
+    $text | Should -Match 'docs[\\/]unreviewed-notes\.md'
+    $text | Should -Match 'public allowlist'
+  }
+
+  It 'rejects unreviewed assets outside the public allowlist' {
+    $root = Join-Path $TestDrive 'verify-asset-allowlist'
+    Get-MinimalVerifyRoot -Path $root
+    Add-VerifyFile -Root $root -RelativePath 'docs/assets/unreviewed.svg'
+
+    $output = & pwsh -NoProfile -File $script:VerifyTool -RootPath $root -SkipAnalyzer 2>&1
+    $exitCode = $LASTEXITCODE
+    $text = $output | Out-String
+
+    $exitCode | Should -Be 1
+    $text | Should -Match 'docs[\\/]assets[\\/]unreviewed\.svg'
+    $text | Should -Match 'public allowlist'
+  }
+
+  It 'checks untracked non-ignored files inside a git worktree' {
+    if (-not (Get-Command -Name git -ErrorAction SilentlyContinue)) {
+      Set-ItResult -Skipped -Because 'git is not available.'
+      return
+    }
+    $root = Join-Path $TestDrive 'verify-untracked-git'
+    Get-MinimalVerifyRoot -Path $root
+    & git -C $root init --quiet
+    & git -C $root add scripts lib
+    Add-VerifyFile -Root $root -RelativePath 'private/untracked-note.md'
+
+    $output = & pwsh -NoProfile -File $script:VerifyTool -RootPath $root -SkipAnalyzer 2>&1
+    $exitCode = $LASTEXITCODE
+    $text = $output | Out-String
+
+    $exitCode | Should -Be 1
+    $text | Should -Match 'private[\\/]untracked-note\.md'
+  }
+
+  It 'Fails on prohibited public-surface paths without reading their contents' {
+    $root = Join-Path $TestDrive 'verify-public-surface-forbidden'
+    Get-MinimalVerifyRoot -Path $root
+    Add-VerifyFile -Root $root -RelativePath 'scripts/private/helper.ps1'
+    Add-VerifyFile -Root $root -RelativePath 'docs/agent/remediation-ledger.md'
+    Add-VerifyFile -Root $root -RelativePath '.codex/state.json'
+    Add-VerifyFile -Root $root -RelativePath '.github/prompts/review.md'
+    Add-VerifyFile -Root $root -RelativePath 'REMEDIATION_PLAN.md'
+    Add-VerifyFile -Root $root -RelativePath 'archive/audit.md'
+    Add-VerifyFile -Root $root -RelativePath 'credentials/token.txt'
+    Add-VerifyFile -Root $root -RelativePath 'config/.env.local'
+    Add-VerifyFile -Root $root -RelativePath 'certificates/signing.pem'
+
+    $output = & pwsh -NoProfile -File $script:VerifyTool -RootPath $root -SkipAnalyzer 2>&1
+    $exitCode = $LASTEXITCODE
+    $text = $output | Out-String
+
+    $exitCode | Should -Be 1
+    $text | Should -Match 'PublicSurface.*FAILED'
+    $text | Should -Match 'scripts[\\/]private[\\/]helper\.ps1'
+    $text | Should -Match 'docs[\\/]agent[\\/]remediation-ledger\.md'
+    $text | Should -Match '\.codex[\\/]state\.json'
+    $text | Should -Match '\.github[\\/]prompts[\\/]review\.md'
+    $text | Should -Match 'REMEDIATION_PLAN.md'
+    $text | Should -Match 'VERDICT: FAILED'
+  }
+
+  It 'Parses PowerShell modules under tools' {
+    $root = Join-Path $TestDrive 'verify-tool-module'
+    Get-MinimalVerifyRoot -Path $root
+    $toolsDir = Join-Path $root 'tools'
+    New-Item -Path $toolsDir -ItemType Directory -Force | Out-Null
+    'function Broken-ToolModule {' | Set-Content -LiteralPath (Join-Path $toolsDir 'Broken.psm1') -Encoding UTF8
+
+    $output = & pwsh -NoProfile -File $script:VerifyTool -RootPath $root -SkipAnalyzer 2>&1
+    $exitCode = $LASTEXITCODE
+    $text = $output | Out-String
+
+    $exitCode | Should -Be 1
+    $text | Should -Match 'Parse.*FAILED'
+    $text | Should -Match 'Broken\.psm1'
   }
 }

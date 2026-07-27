@@ -1,45 +1,60 @@
-const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
-const { mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
-const { tmpdir } = require('node:os');
-const { join, resolve } = require('node:path');
-const test = require('node:test');
+// Property-tests the profile validator with bounded generated documents,
+// exercising rejection paths that are easy to miss with hand-written fixtures.
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import process from 'node:process';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-const fc = require('fast-check');
+import fc from 'fast-check';
 
-const repoRoot = resolve(__dirname, '../..');
+import { resolvePwshBinary } from './helpers/pwsh-path.mjs';
+
+const testDirectory = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(testDirectory, '../..');
 const validator = join(repoRoot, 'scripts', '00-Validate-Profile.ps1');
 
-function runValidator(profile) {
+function runValidator(profile, pwshOptions) {
+  const previousCwd = process.cwd();
   const workDir = mkdtempSync(join(tmpdir(), 'profile-fuzz-'));
-  const profilePath = join(workDir, 'profile.json');
-  const outputPath = join(workDir, 'result.json');
 
   try {
-    writeFileSync(profilePath, JSON.stringify(profile), 'utf8');
+    process.chdir(workDir);
+    writeFileSync('profile.json', JSON.stringify(profile), 'utf8');
+
+    const pwshBinary = resolvePwshBinary(pwshOptions);
     const result = spawnSync(
-      'pwsh',
+      pwshBinary,
       [
         '-NoProfile',
         '-File',
         validator,
         '-ProfilePath',
-        profilePath,
+        'profile.json',
         '-RootPath',
         repoRoot,
         '-OutputFormat',
         'Json',
         '-OutputPath',
-        outputPath,
+        'result.json',
         '-Mode',
         'Audit'
       ],
-      { cwd: repoRoot, encoding: 'utf8' }
+      { encoding: 'utf8' }
     );
+
+    if (result.error) {
+      throw new Error(`Failed to start PowerShell at "${pwshBinary}": ${result.error.message}`, {
+        cause: result.error
+      });
+    }
 
     let parsed = null;
     try {
-      parsed = JSON.parse(readFileSync(outputPath, 'utf8'));
+      parsed = JSON.parse(readFileSync('result.json', 'utf8'));
     } catch {
       parsed = null;
     }
@@ -51,6 +66,7 @@ function runValidator(profile) {
       result: parsed
     };
   } finally {
+    process.chdir(previousCwd);
     rmSync(workDir, { recursive: true, force: true });
   }
 }
@@ -63,14 +79,18 @@ const validProfileArbitrary = fc.record({
     OutputFormat: fc.constantFrom('Console', 'Json', 'Csv', 'None')
   }),
   Steps: fc.uniqueArray(
-    fc.constantFrom('00-Report-Aggregate.ps1', '00-Validate-Profile.ps1'),
+    // Profiles may only schedule workload scripts. The 00-* scripts are
+    // control-plane entry points and the validator must reject them.
+    fc.constantFrom('01-ASR-Defender-Allowlist.ps1', '19-Software-Audit.ps1'),
     { minLength: 1, maxLength: 2 }
   ).chain((scripts) =>
     fc.tuple(
       ...scripts.map((script) =>
         fc.record({
           Script: fc.constant(script),
-          Args: fc.array(fc.string({ maxLength: 16 }).filter((value) => !/^\s*$/.test(value)), { maxLength: 3 }),
+          // Profile JSON is untrusted orchestration input. The runner-owned
+          // authority contract permits the schema field but requires it empty.
+          Args: fc.constant([]),
           DependsOn: fc.constant([])
         })
       )
@@ -93,8 +113,24 @@ const invalidProfileArbitrary = fc.oneof(
   validProfileArbitrary.map((profile) => ({
     ...profile,
     Integrity: { ExpectedHashes: { '../escape.ps1': 'SHA256:abc' } }
+  })),
+  validProfileArbitrary.map((profile) => ({
+    ...profile,
+    Steps: profile.Steps.map((step, index) =>
+      index === 0 ? { ...step, Args: ['untrusted-profile-argument'] } : step
+    )
   }))
 );
+
+test('validator reports spawn errors and restores the original working directory', () => {
+  const originalCwd = process.cwd();
+
+  assert.throws(
+    () => runValidator({}, { platform: 'linux', override: '/definitely-missing/pwsh' }),
+    /Failed to start PowerShell at "\/definitely-missing\/pwsh"/
+  );
+  assert.equal(process.cwd(), originalCwd);
+});
 
 test('generated valid profile JSON is accepted by the profile validator', () => {
   fc.assert(

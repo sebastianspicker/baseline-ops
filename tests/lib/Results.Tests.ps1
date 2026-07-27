@@ -24,6 +24,10 @@ Describe 'Get-FindingsList' {
     $list.GetType().Name | Should -Match 'List'
   }
 
+  It 'Returns the empty list as a single object' {
+    @(Get-FindingsList).Count | Should -Be 1
+  }
+
   It 'Returns a list that supports Add method' {
     $list = Get-FindingsList
     { $list.Add('test') } | Should -Not -Throw
@@ -66,7 +70,7 @@ Describe 'Get-FindingObject' {
 Describe 'Add-Finding' {
   It 'Adds a finding to the provided list' {
     $list = Get-FindingsList
-    $result = Add-Finding -FindingList $list -Code 'ADD-001' -Severity 'Warn' -Message 'Added finding'
+    Add-Finding -FindingList $list -Code 'ADD-001' -Severity 'Warn' -Message 'Added finding' | Out-Null
     $list.Count | Should -Be 1
     $list[0].Code | Should -Be 'ADD-001'
   }
@@ -90,9 +94,18 @@ Describe 'Add-Finding' {
     { Add-Finding -Code 'NOPE-001' -Severity 'Fail' -Message 'No list' } | Should -Throw '*FindingList*'
   }
 
-  It 'Returns the FindingList after adding' {
+  It 'does not emit the mutated list by default' {
     $list = Get-FindingsList
-    $result = Add-Finding -FindingList $list -Code 'RET-001' -Severity 'OK' -Message 'Return test'
+    $output = @(Add-Finding -FindingList $list -Code 'QUIET-001' -Severity 'OK' -Message 'Quiet mutation test')
+
+    $output.Count | Should -Be 0
+    $list.Count | Should -Be 1
+    $list[0].Code | Should -Be 'QUIET-001'
+  }
+
+  It 'returns the FindingList when PassThru is requested' {
+    $list = Get-FindingsList
+    $result = Add-Finding -FindingList $list -Code 'RET-001' -Severity 'OK' -Message 'Return test' -PassThru
     $result | Should -Not -BeNullOrEmpty
     $result.Count | Should -Be 1
     [object]::ReferenceEquals($list, $result) | Should -BeTrue

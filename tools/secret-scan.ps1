@@ -1,18 +1,18 @@
 #requires -version 5.1
-<#!
+<#
 .SYNOPSIS
 Basic secret scan for common patterns.
 
 .DESCRIPTION
-Scans tracked files for common secret patterns without printing secret values.
-Outputs file path, line number, and pattern label. Fails with exit code 1 if any
-matches are found (default).
+Scans tracked and untracked non-ignored files for common secret patterns without
+printing secret values. Outputs file path, line number, and pattern label. Fails
+with exit code 1 if any matches are found (default).
 
 .PARAMETER RootPath
 Root path to scan (default: repo root).
 
-.PARAMETER FailOnMatch
-If set (default), exits with code 1 when matches are found.
+.PARAMETER NoFail
+Report matches without exiting with code 1.
 
 .PARAMETER Exclude
 Folder names to exclude from scanning.
@@ -21,12 +21,15 @@ Folder names to exclude from scanning.
 [CmdletBinding()]
 param(
   [string]$RootPath = '',
-  [switch]$FailOnMatch = $true,
+  [switch]$NoFail,
   [string[]]$Exclude = @('.git','node_modules','bin','obj','dist','_extracted')
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+Import-Module (Join-Path $PSScriptRoot '../lib/External.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '../lib/Validation.psm1')
 
 if ([string]::IsNullOrWhiteSpace($RootPath)) {
   $scriptPath = $MyInvocation.MyCommand.Path
@@ -40,6 +43,10 @@ if ([string]::IsNullOrWhiteSpace($RootPath)) {
   }
 
   $RootPath = (Resolve-Path (Join-Path $scriptDir '..')).Path
+}
+$RootPath = (Resolve-Path -LiteralPath $RootPath -ErrorAction Stop).Path
+if (-not (Test-Path -LiteralPath $RootPath -PathType Container)) {
+  throw "Secret scan root is not a directory: $RootPath"
 }
 
 $patterns = @(
@@ -55,34 +62,98 @@ $patterns = @(
 
 $allowedExt = @(
   '.ps1','.psm1','.psd1',
-  '.md','.txt','.json','.yml','.yaml','.xml','.cfg','.ini','.toml','.csv','.log'
+  '.md','.txt','.json','.yml','.yaml','.xml','.cfg','.ini','.toml','.csv','.log',
+  '.sh','.js','.mjs','.cjs','.svg','.html','.css','.properties'
 )
 
-$files = @()
-if (Get-Command -Name git -ErrorAction SilentlyContinue) {
-  $gitRootCheck = & git -C $RootPath rev-parse --is-inside-work-tree 2>$null
-  if ($LASTEXITCODE -eq 0 -and [string]$gitRootCheck -eq 'true') {
-    $files = & git -C $RootPath ls-files
-    $files = $files | ForEach-Object { Join-Path $RootPath $_ }
+<#
+.SYNOPSIS
+Tests whether a candidate path contains an excluded directory segment.
+.DESCRIPTION
+Matches complete path segments so similarly named files are not silently skipped.
+#>
+function Test-ExcludedPath {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$Path,
+    [string[]]$ExcludedSegments
+  )
+
+  $segments = [regex]::Split($Path, '[\\/]+') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+  foreach ($segment in $segments) {
+    if ($ExcludedSegments -contains $segment) {
+      return $true
+    }
   }
 
-  if (-not $files -or @($files).Count -eq 0) {
-    $global:LASTEXITCODE = 0
+  return $false
+}
+
+<#
+.SYNOPSIS
+Runs a Git discovery command with bounded output and duration.
+.DESCRIPTION
+Prevents repository metadata enumeration from blocking or exhausting the scan.
+#>
+function Invoke-BoundedGitCommand {
+  [CmdletBinding()]
+  param([Parameter(Mandatory)][string[]]$Arguments)
+
+  return Invoke-NativeCommand -Command 'git' -Arguments $Arguments -CaptureOutput -Quiet `
+    -TimeoutSeconds 30 -MaxOutputBytes 1048576
+}
+
+<#
+.SYNOPSIS
+Converts one Git-reported path to a validated absolute scan path.
+.DESCRIPTION
+Rejects rooted, control-character, and escaping paths before any file is read.
+#>
+function ConvertTo-RootedGitFilePath {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$RelativePath,
+    [Parameter(Mandatory)][string]$Root
+  )
+
+  if ([string]::IsNullOrWhiteSpace($RelativePath) -or
+      [System.IO.Path]::IsPathRooted($RelativePath) -or
+      $RelativePath -match '[\x00-\x1F\x7F]') {
+    throw 'git returned an unsafe repository-relative path.'
+  }
+
+  $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
+  $candidateFull = [System.IO.Path]::GetFullPath((Join-Path $rootFull $RelativePath))
+  if (-not (Test-PathUnderRoot -Path $candidateFull -Root $rootFull)) {
+    throw 'git returned a path outside the requested scan root.'
+  }
+
+  return $candidateFull
+}
+
+$files = @()
+if (Test-CommandExists -Name 'git') {
+  $gitRootCheck = Invoke-BoundedGitCommand -Arguments @('-C', $RootPath, 'rev-parse', '--is-inside-work-tree')
+  if ($gitRootCheck -and $gitRootCheck.Success -and -not $gitRootCheck.TimedOut -and -not $gitRootCheck.OutputTruncated -and
+      -not $gitRootCheck.StderrTruncated -and $gitRootCheck.Stdout.Trim() -eq 'true') {
+    $gitFiles = Invoke-BoundedGitCommand -Arguments @('-C', $RootPath, 'ls-files', '-z', '--cached', '--others', '--exclude-standard')
+    if ($gitFiles -and $gitFiles.Success -and -not $gitFiles.TimedOut -and -not $gitFiles.OutputTruncated -and -not $gitFiles.StderrTruncated) {
+      $files = @($gitFiles.Stdout.Split([char]0, [System.StringSplitOptions]::RemoveEmptyEntries) |
+        ForEach-Object { ConvertTo-RootedGitFilePath -RelativePath $_ -Root $RootPath })
+    }
   }
 }
 
 if (-not $files -or @($files).Count -eq 0) {
   Write-Warning 'git tracked-file list unavailable; falling back to recursive file scan.'
   $files = Get-ChildItem -Path $RootPath -File -Recurse | ForEach-Object { $_.FullName }
+  $global:LASTEXITCODE = 0
 }
 
 $filtered = @()
 foreach ($f in $files) {
   if (-not (Test-Path -LiteralPath $f)) { continue }
-  $skip = $false
-  foreach ($ex in $Exclude) {
-    if ($f -match ([regex]::Escape("${ex}"))) { $skip = $true; break }
-  }
+  $skip = Test-ExcludedPath -Path $f -ExcludedSegments $Exclude
   if ($skip) { continue }
   $ext = [System.IO.Path]::GetExtension($f)
   if ($ext -and ($allowedExt -notcontains $ext)) { continue }
@@ -108,7 +179,7 @@ if ($findings.Count -gt 0) {
   $findings | Sort-Object File,Line | ForEach-Object {
     Write-Information -MessageData ("- {0}:{1} ({2})" -f $_.File, $_.Line, $_.Pattern) -InformationAction Continue
   }
-  if ($FailOnMatch) { exit 1 }
+  if (-not $NoFail) { exit 1 }
 } else {
   Write-Information -MessageData 'Secret scan: no matches found.' -InformationAction Continue
 }

@@ -1,279 +1,395 @@
-# Windows MDM Endpoint Security Hardening Kit
+# BaselineOps for Windows
 
-[![CI](https://github.com/sebastianspicker/win-mdm-security-hardening-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/win-mdm-security-hardening-kit/actions/workflows/ci.yml)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/9a0b314d7fd6478cae7c2854167922b5)](https://app.codacy.com/gh/sebastianspicker/win-mdm-security-hardening-kit/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sebastianspicker/win-mdm-security-hardening-kit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sebastianspicker/win-mdm-security-hardening-kit)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13161/badge)](https://www.bestpractices.dev/projects/13161)
+BaselineOps for Windows is a collection of PowerShell scripts for auditing Windows endpoint configuration, collecting diagnostic evidence, detecting drift, and applying selected configuration changes. It is intended for endpoint administrators and security engineers working with Windows devices, including devices managed through MDM.
 
-PowerShell toolkit for Windows endpoint hardening, drift detection, triage, and controlled remediation in MDM-managed environments.
+The repository contains individual endpoint scripts, profile and batch runners, shared PowerShell modules, example JSON inputs, a Windows Forms launcher, verification tools, and automated tests. It does not install or run a background service.
 
-## Quick start
+## Project scope
 
-Run a single script from an elevated PowerShell prompt:
+The numbered scripts cover Microsoft Defender, Attack Surface Reduction, Windows Firewall, BitLocker, LAPS, Credential Guard, VBS, HVCI, LSA protection, AppLocker, App Control for Business, PowerShell logging, Windows Update, WinGet, Sysmon, remote access, event logs, storage, backup readiness, identity, and related endpoint state.
 
-```powershell
-# Defender health check (audit mode, no changes)
-.\scripts\27-Defender-Health-Audit.ps1
+The toolkit supports three execution patterns:
 
-# Any script with structured JSON output
-.\scripts\27-Defender-Health-Audit.ps1 -PassThru | ConvertTo-Json -Depth 6
+- Run a numbered script directly for script-specific parameters.
+- Run one script through `scripts/00-Run-Local.ps1` for path and integrity checks.
+- Run an ordered JSON profile or a curated batch through the orchestration layer.
 
-# Run a profile (multiple scripts in sequence)
-.\scripts\00-Run-Profile.ps1 -ProfilePath .\examples\profiles\rapid-triage.json
-```
+See the [script catalog](scripts/README.md) for the complete list.
 
-## Repository policy
+## Current capabilities and limitations
 
-This repository keeps the root lean. The tracked top-level docs are:
+Current capabilities:
 
-- `README.md`
-- `CONTRIBUTING.md`
-- `SECURITY.md`
-- `CHANGELOG.md`
+- 52 numbered endpoint scripts and six `00-*` orchestration, copy, validation, and reporting scripts
+- Audit, collection, monitoring, and selected remediation operations
+- Console output and a shared v2 result object for JSON, CSV, and pipeline use
+- Profile validation, dependency ordering, strict result handling, signature checks, and SHA-256, SHA-384, or SHA-512 hash checks
+- Seven example profiles and four script-specific configuration examples
+- A Windows Forms launcher for individual scripts and profiles
+- PowerShell parsing, PSScriptAnalyzer, Pester, documentation, secret-scan, and Node property-test automation
 
-Public subfolder docs are limited to `docs/README.md`, `scripts/README.md`,
-`lib/README.md`, and `examples/README.md`. Internal audit notes, remediation
-plans, ledgers, status logs, deprecated docs, generated evidence, local archive
-packets, local Codacy Analysis CLI artifacts, vendored source snapshots, and
-machine-specific harness artifacts are ignored through `.gitignore` and should
-not be committed.
+Limitations:
 
-## Current status
-
-The maintained project surface is the v2 orchestration model documented below.
-Use `-Mode Audit` for read-only checks and `-Mode Remediate` only for scripts
-that explicitly support state changes and `ShouldProcess`.
-
-Local cross-platform verification covers parsing, orchestration contracts, and
-Pester tests. Windows-only runtime behavior still needs validation on a Windows
-lab host or CI runner before production rollout.
+- Endpoint scripts depend on Windows APIs, commands, features, editions, and privileges. Unsupported or unavailable features produce script-specific warnings or failures.
+- Remediation exists only in scripts listed for the batch runner's `Remediation` category or otherwise documented by the target script. Review the script help and code before using it.
+- Audit and collection operations can write reports, logs, archives, or other evidence. Audit mode is not a general no-write mode.
+- Profile JSON cannot pass arguments to child scripts. `Steps[].Args` must be empty.
+- A profile cannot activate remediation by declaring `Defaults.Mode` as `Remediate`. The trusted runner command must include `-Mode Remediate`.
+- `Defaults.OutputFormat` and `Defaults.OutputPath` are validated but ignored by the runner. Use runner command-line parameters for output.
+- `-WhatIf` on a profile or batch previews orchestration without executing child scripts. It does not inspect endpoint state and returns warning exit code `2` because steps were skipped.
+- The source files are not Authenticode-signed.
+- The Windows Forms launcher has automated policy and worker tests, but its interactive accessibility, scaling, and endpoint-remediation behavior still requires manual validation. See the [launcher guide](docs/launcher-gui.md).
+- Windows endpoint behavior varies by operating system and installed feature. Validate the selected scripts and rollback procedure on disposable test devices before deployment.
 
 ## Requirements
 
-- Windows 10/11 or Windows Server (script dependent)
-- PowerShell 5.1+ (PowerShell 7.x supported for local dev tooling)
-- Elevated shell for scripts that modify system state
-- Optional components by script: Defender, BitLocker, Sysmon, WinGet
+Operator requirements:
 
-## Core structure
+- Windows with the APIs and features required by the selected script
+- PowerShell 7.6.3 for the primary PowerShell Core path, or Windows PowerShell 5.1 for the compatibility path
+- Administrator rights for most remediation operations and some audits
+- Script-specific components such as Microsoft Defender, BitLocker, WinGet, or Sysmon
 
-- `scripts/` : operational scripts (52 scripts across audit, remediation, collection, monitoring)
-- `lib/` : shared modules (Output, Console, Results, Config, Registry, etc.)
-- `examples/` : sample JSON configs and profiles
-- `docs/` : public docs index and assets only
-- `tests/` : Pester tests
-- `tools/` : CI and operator utilities (GUI launcher, verify, secret scan)
-- `.github/` : workflows, templates, and repo policy metadata
+Launcher requirements:
 
-## How to navigate the code
+- Windows Forms
+- Windows PowerShell 5.1 with .NET Framework 4.8, or PowerShell 7.6.3
+- An elevated process to select Remediate mode
 
-Start with the v2 orchestration scripts if you need the main control flow:
-`00-Validate-Profile.ps1` checks profile shape and integrity, `00-Run-Profile.ps1`
-orders profile steps and owns run-level safety defaults, and `00-Run-Local.ps1`
-executes exactly one numbered script after path and integrity checks.
+Development requirements:
 
-Numbered scripts are the operational surface. Each one should be readable in
-three layers: comment-based help for operator intent, the parameter block for
-the public contract, and the final v2 result object for automation output.
-Shared behavior belongs in `lib/`, while script-specific Windows/domain logic
-stays next to the script that owns it.
+- PowerShell 7.6.3
+- PSScriptAnalyzer 1.25.0
+- Pester 5.8.0
+- Node.js for the property tests. CI uses Node 24 and the release workflow uses Node 22.
+- npm, using the committed `package-lock.json`
+- Bash for `scripts/ci-local.sh`
+- Windows PowerShell 5.1 for the compatibility gates
 
-Tests mirror those contracts. `tests/scripts/V2Contract.Tests.ps1` protects the
-shared v2 parameter surface, `ScriptShouldProcess.Tests.ps1` protects
-destructive-operation safety, and focused tests cover runner behavior and module
-helpers.
+Earlier PowerShell Core versions are not part of the repository's verified toolchain.
 
-## Script catalog (at a glance)
+## Installation
 
-| # | Script | Category | Audit | Remediate |
-|---|--------|----------|:-----:|:---------:|
-| 01 | ASR-Defender-Allowlist | Defender | x | x |
-| 02 | LAPS-Hygiene | Identity | x | x |
-| 03 | LocalAdmins-Guardrail | Identity | x | x |
-| 04 | OfficeBrowser-Hardening-Proof | Hardening | x | x |
-| 05 | WUFB-Proofing | Patching | x | x |
-| 06 | UpdateHealth-SSU-Proof | Patching | x | |
-| 07 | ScheduledTasks-Hygiene | Hygiene | x | x |
-| 08 | WinGet-SelfHeal | Utility | x | |
-| 09 | SupportBundle | Collection | x | |
-| 10 | SupportBundle-Parser | Collection | x | |
-| 11 | IOC-Sweep-Defender | IR/Triage | x | |
-| 12 | Suspicious-Artifact-Grabber | IR/Triage | x | |
-| 13 | LSASS-CG-HVCI-VBS | Credential | x | x |
-| 14 | SecureRemoteAccessGuardrails | Hardening | x | x |
-| 15 | HardwareTPM-Audit | Hardware | x | |
-| 16 | Sysmon-Config-Updater | Monitoring | x | x |
-| 17 | Sysmon-Rule-Drift-Sensor | Monitoring | x | |
-| 18 | Firewall-Baseline | Network | x | x |
-| 19 | Software-Audit | Inventory | x | |
-| 20 | MissingPatch-Notification | Patching | x | |
-| 21 | EmergencyKillSwitch | IR/Triage | | x |
-| 22 | SMB-Encryption-Enforcer | Network | x | x |
-| 23 | BitLocker-Operations-Audit | Encryption | x | |
-| 24 | Cert-AutoEnrollment-Health | PKI | x | |
-| 25 | WinGet-Config-Baseline-Runner | Utility | x | |
-| 26 | Get-WinEvent-FastTriage | IR/Triage | x | |
-| 27 | Defender-Health-Audit | Defender | x | |
-| 28 | Join-Identity-Audit | Identity | x | |
-| 29 | Network-Config-Audit | Network | x | |
-| 30 | Service-Process-Audit | Inventory | x | |
-| 31 | PowerShell-Logging-Baseline | Logging | x | x |
-| 32 | Firewall-Logging-Audit | Logging | x | |
-| 33 | AdvancedAuditPolicy-Audit | Logging | x | x |
-| 34 | TimeSync-Health | Health | x | |
-| 35 | Storage-Reliability-Audit | Health | x | |
-| 36 | Backup-Readiness-Audit | Health | x | |
-| 37 | Remote-Surface-Audit | Hardening | x | |
-| 38 | SecurityOptions-Drift | Compliance | x | |
-| 39 | CredentialGuard-VBS-AuditRemediate | Credential | x | x |
-| 40 | AddedLSAProtection-RunAsPPL-AuditRemediate | Credential | x | x |
-| 41 | NTLM-Audit-Client | Identity | x | |
-| 42 | Client-SecurityBaseline-Report-IntuneRef | Compliance | x | |
-| 43 | AppControlForBusiness-Audit | Hardening | x | |
-| 44 | Defender-Ransomware-NetworkProtection | Defender | x | x |
-| 45 | WEF-Client-Forwarding-Readiness | Monitoring | x | |
-| 46 | SecureBoot-UEFI-Audit | Hardware | x | |
-| 47 | WDAG-Readiness-Audit | Hardening | x | |
-| 48 | ExploitProtection-Audit | Hardening | x | |
-| 49 | DriverSigning-Integrity-Audit | Hardening | x | |
-| 50 | AMSI-Audit | Hardening | x | |
-| 51 | AppLocker-Audit | Hardening | x | |
-| 52 | DoH-Audit | Network | x | |
+### Source checkout
 
-See [scripts/README.md](scripts/README.md) for full parameter documentation per script.
-
-## v2 execution model
-
-New orchestration scripts provide a normalized execution layer:
-
-- `scripts/00-Validate-Profile.ps1` : validates profile JSON
-- `scripts/00-Run-Profile.ps1` : executes profile steps with dependency/order controls
-- `scripts/00-Run-Batch.ps1` : runs category-based script batches
-- `scripts/00-Report-Aggregate.ps1` : aggregates multiple JSON outputs
-
-Deployment helpers:
-
-- `scripts/00-Copy-Local.ps1`
-- `scripts/00-Run-Local.ps1`
-
-### v2 execution flow
-
-```mermaid
-flowchart TD
-    A["00-Validate-Profile.ps1\n(schema + integrity check)"] --> B["00-Run-Profile.ps1\n(step orchestration)"]
-    B -->|"per step"| C["00-Run-Local.ps1\n(elevated invocation)"]
-    C --> D["NN-Script.ps1\n(audit / remediate)"]
-    D -->|"v2 result object"| E["lib/Serialization.psm1\nConvertTo-V2Json"]
-    B -->|"all results"| F["00-Report-Aggregate.ps1\n(summary rollup)"]
-    B2["00-Run-Batch.ps1\n(category filter)"] -->|"delegates to"| B
-```
-
-### Breaking changes (v2 hard cutover)
-
-- `-Mode` is the normalized execution switch (`Audit|Remediate`) for productive scripts.
-- Legacy top-level `-Remediate` parameters were removed from productive scripts.
-- Legacy `AuditOnly` mode values were removed from script parameter contracts.
-
-## Profile schema (v2)
-
-`examples/profiles/*.json` follow this shape:
-
-- `ProfileName`
-- `Version`
-- `Defaults`
-  - `Mode` (`Audit` or `Remediate`)
-  - `Strict`
-  - `OutputFormat` (`Console|Json|Csv|None`)
-  - `OutputPath`
-- `Steps[]`
-  - `Script`
-  - `Args`
-  - `ContinueOnError`
-  - `DependsOn`
-- `Integrity`
-  - `RequireSigned`
-  - `ExpectedHashes`
-
-## Validation and local CI
-
-From repository root:
+Clone the repository for development and standard-user inspection:
 
 ```powershell
-# Validate an orchestration profile before execution
-pwsh -NoProfile -File .\scripts\00-Validate-Profile.ps1 -ProfilePath .\examples\profiles\baseline-audit.json
-
-# Smoke the documented baseline audit profile
-pwsh -NoProfile -File .\scripts\00-Run-Profile.ps1 -ProfilePath .\examples\profiles\baseline-audit.json -Mode Audit -OutputFormat None -Confirm:$false
-
-# Parse checks only
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1 -SkipAnalyzer
-
-# Parse + PSScriptAnalyzer
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\verify.ps1
-
-# Secret scan
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1
-
-# Tests
-pwsh -NoProfile -Command "Invoke-Pester -Path .\tests -Output Detailed"
+git clone https://github.com/sebastianspicker/win-mdm-security-hardening-kit.git baselineops-windows
+Set-Location -LiteralPath .\baselineops-windows
 ```
 
-Cross-platform local CI wrapper:
+Install the pinned development modules in the current user's module path if they are absent:
+
+```powershell
+Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser
+Install-Module Pester -RequiredVersion 5.8.0 -Scope CurrentUser -SkipPublisherCheck
+```
+
+Do not run privileged scripts from a user-owned checkout or Downloads extraction. Elevated runners validate the toolkit root and its ancestors before importing repository code. For privileged operation, authenticate a release package and install it in a protected directory as described in the [release and deployment guide](docs/alpha-release.md#install-a-protected-windows-copy).
+
+### Extracted release ZIP
+
+Run package validation without elevation from the extracted package root. These checks inspect the package but do not create a trusted location for privileged execution:
+
+```powershell
+pwsh -NoProfile -File .\scripts\00-Validate-Profile.ps1 `
+  -ProfilePath .\examples\profiles\baseline-audit.json -RootPath .
+
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1 -RootPath .
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-Documentation.ps1 -RootPath .
+pwsh -NoProfile -ExecutionPolicy Bypass -Command `
+  "Import-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force; & .\tools\verify.ps1 -RootPath ."
+```
+
+The operator ZIP excludes `tests/`, `package.json`, `package-lock.json`, `.github/`, `.clusterfuzzlite/`, and `scripts/ci-local.sh`.
+
+### Full tag checkout
+
+Install the Node dependencies from a complete checkout:
+
+```powershell
+npm ci --ignore-scripts
+```
+
+No npm package is published. `package.json` is a private development harness at version `0.0.0`.
+
+## Configuration
+
+Configuration is script-specific. The files under `examples/configs/` are direct inputs to named script parameters:
+
+| File | Script | Parameter |
+| --- | --- | --- |
+| `asr-defender-allowlist.json` | `01-ASR-Defender-Allowlist.ps1` | `-ExceptionsPath` |
+| `local-admins-allowlist.json` | `03-LocalAdmins-Guardrail.ps1` | `-AllowListPath` |
+| `firewall-baseline.json` | `18-Firewall-Baseline.ps1` | `-CatalogPath` |
+| `wufb-proofing.json` | `05-WUFB-Proofing.ps1` | `-CatalogPath` |
+
+These files are examples, not organizational policy. The allow lists and custom firewall rules are empty. Target release pinning and active hours are disabled in the Windows Update example. Copy and review a file before using it for remediation.
+
+`-ConfigPath` is a separate wrapper configuration mechanism used by individual scripts. A wrapper can point to the direct inputs above through script-specific keys. See [examples/README.md](examples/README.md) for those keys.
+
+Profiles under `examples/profiles/` have this shape:
+
+```json
+{
+  "ProfileName": "example",
+  "Version": "2.0",
+  "Defaults": {
+    "Mode": "Audit",
+    "Strict": false,
+    "OutputFormat": "Console",
+    "OutputPath": null
+  },
+  "Steps": [
+    {
+      "Script": "27-Defender-Health-Audit.ps1",
+      "Args": [],
+      "ContinueOnError": false,
+      "DependsOn": []
+    }
+  ],
+  "Integrity": {
+    "RequireSigned": false,
+    "ExpectedHashes": {}
+  }
+}
+```
+
+Script names must resolve under `scripts/`, may not reference `00-*` control scripts, and may not repeat. Dependencies must name other steps in the same profile. Profile files are limited to 1 MiB by the validator.
+
+## Usage
+
+Run a read-only Defender health audit:
+
+```powershell
+.\scripts\27-Defender-Health-Audit.ps1
+```
+
+Return its structured result to the pipeline:
+
+```powershell
+$result = .\scripts\27-Defender-Health-Audit.ps1 -PassThru
+$result | ConvertTo-Json -Depth 6
+```
+
+Validate and run an example profile:
+
+```powershell
+pwsh -NoProfile -File .\scripts\00-Validate-Profile.ps1 `
+  -ProfilePath .\examples\profiles\baseline-audit.json -RootPath .
+
+pwsh -NoProfile -File .\scripts\00-Run-Profile.ps1 `
+  -ProfilePath .\examples\profiles\baseline-audit.json `
+  -RootPath . -Mode Audit -OutputFormat None -Confirm:$false
+```
+
+Run one script through the local runner:
+
+```powershell
+pwsh -NoProfile -File .\scripts\00-Run-Local.ps1 `
+  -ScriptName 27-Defender-Health-Audit.ps1 -RootPath . `
+  -Mode Audit -OutputFormat Console
+```
+
+Preview a remediation profile without running child scripts:
+
+```powershell
+pwsh -NoProfile -File .\scripts\00-Run-Profile.ps1 `
+  -ProfilePath .\examples\profiles\hardening-remediate.json `
+  -RootPath . -Mode Remediate -Strict -OutputFormat None `
+  -WhatIf -Confirm:$false
+```
+
+The preview returns exit `2`. `-Confirm:$false` alone is not a dry run.
+
+Batch categories are `All`, `Audit`, `Remediation`, `Collection`, `Utility`, and `Monitoring`:
+
+```powershell
+pwsh -NoProfile -File .\scripts\00-Run-Batch.ps1 `
+  -Category Audit -RootPath . -Mode Audit -OutputFormat None `
+  -ContinueOnError -Confirm:$false
+```
+
+Start the optional launcher from a protected installation:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Launcher-GUI.ps1
+```
+
+Use `Get-Help` for a script's complete parameter contract:
+
+```powershell
+Get-Help .\scripts\18-Firewall-Baseline.ps1 -Full
+```
+
+## Output and exit codes
+
+Scripts using the shared v2 result contract return these top-level fields: `SchemaVersion`, `ScriptName`, `Mode`, `ComputerName`, `TimestampUtc`, `Result`, `Findings`, `Summary`, and `Metadata`.
+
+The orchestration layer maps results to process exit codes:
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Completed with result `OK` |
+| `1` | Failed with result `FAIL` |
+| `2` | Completed with result `WARN` |
+
+`-OutputFormat` accepts `Console`, `Json`, `Csv`, or `None`. Use `-OutputPath` for JSON or CSV output. Use `-PassThru` to emit the result object. Script-specific exports may use parameters such as `-ExportPath`, `-AuditPath`, or `-ProofPath` instead.
+
+## Repository structure
+
+```text
+.
+|-- .clusterfuzzlite/   ClusterFuzzLite build and target configuration
+|-- .github/            GitHub Actions, issue templates, and repository policy
+|-- docs/               Release, operation, and launcher documentation
+|-- examples/
+|   |-- configs/        Script-specific JSON examples
+|   `-- profiles/       Orchestration profiles
+|-- lib/                Shared PowerShell modules
+|-- scripts/
+|   |-- _lib/           Common script bootstrap
+|   `-- internal/       Script-specific helpers, not operator entry points
+|-- tests/              Pester and Node property tests
+|-- tools/              Verification, scaffolding, secret scan, and launcher files
+|-- package.json        Private Node test harness
+`-- PSScriptAnalyzerSettings.psd1
+```
+
+## Development workflow
+
+1. Create a branch from the intended base.
+2. Make one focused change and add or update tests for behavior changes.
+3. Use shared modules under `lib/` instead of duplicating cross-script behavior.
+4. Run the focused test file, then the complete local checks that apply to the change.
+5. Inspect `git diff --check` and the final diff.
+6. Open a pull request that describes scope, operational risk, and validation performed.
+
+Use `tools/new-script.ps1` when adding a numbered script:
+
+```powershell
+pwsh -NoProfile -File .\tools\new-script.ps1 -Name 53-Example-Audit
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for source, test, and documentation requirements.
+
+## Testing
+
+Run the complete PowerShell 7 gate from Bash or Git Bash:
 
 ```bash
 ./scripts/ci-local.sh
 ```
 
-On non-Windows developer hosts, orchestration-level verification is supported with PowerShell 7. Windows-only numbered scripts that cannot execute meaningfully on the host should return a structured unsupported-host result rather than failing profile startup.
+The wrapper requires PowerShell Core 7.6.3, installs missing PSScriptAnalyzer 1.25.0 and Pester 5.8.0 in the current-user scope, runs the secret scan, runs static verification, and runs Pester. Set `PWSH_BIN` to an absolute PowerShell 7.6.3 executable path when it is not available as `pwsh`:
 
-GitHub Actions run the same basic gates through the CI and lint workflows. The
-OpenSSF Scorecard workflow runs on `main`, a weekly schedule, and manual
-dispatch.
-
-## Launcher GUI
-
-Run the launcher from repository root:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File .\tools\Launcher-GUI.ps1
+```bash
+PWSH_BIN='/absolute/path/to/pwsh' ./scripts/ci-local.sh
 ```
 
-Launcher supports:
+Run gates separately from PowerShell:
 
-- single script runs via `00-Run-Local.ps1`
-- profile runs via `00-Run-Profile.ps1`
-- argument presets and live output
-- saving output to log file
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1 -RootPath .
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-Documentation.ps1 -RootPath .
+pwsh -NoProfile -ExecutionPolicy Bypass -Command `
+  "Import-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force; & .\tools\verify.ps1 -RootPath ."
+pwsh -NoProfile -Command `
+  "Import-Module Pester -RequiredVersion 5.8.0 -Force; Invoke-Pester -Path .\tests -CI -Output Detailed"
+```
 
-## Screenshots
+Run the Windows PowerShell 5.1 compatibility checks on Windows:
 
-### GUI Launcher
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
+  "Import-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force; & .\tools\verify.ps1 -RootPath ."
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
+  "Import-Module Pester -RequiredVersion 5.8.0 -Force; Invoke-Pester -Path .\tests -CI -Output Detailed"
+```
 
-![Launcher GUI Preview](./docs/assets/launcher-gui-preview.png)
+Run the Node property tests:
 
-The GUI launcher (`tools/Launcher-GUI.ps1`) provides a point-and-click interface for
-selecting scripts, choosing Audit or Remediate mode, and viewing live output.
+```powershell
+npm ci --ignore-scripts
+$env:PWSH_BIN = (Get-Command pwsh -CommandType Application -ErrorAction Stop |
+  Select-Object -First 1).Source
+npm test
+Remove-Item -LiteralPath Env:PWSH_BIN
+```
 
-### Console output
+`PWSH_BIN` must resolve to PowerShell 7.6.3 for the supported test contract. Standard-user test runs skip cases that require LocalSystem, protected workspace ownership, unavailable Windows features, or another operating system. CI contains separate Windows, Windows PowerShell 5.1, LocalSystem, Linux smoke, and Node lanes.
 
-Scripts use consistent color coding for scannable results:
+## Deployment and operation
 
-- **Green** (`[OK]` / `[PASS]`) -- check passed, compliant
-- **Yellow** (`[WARN]` / `[MED]`) -- drift detected, review recommended
-- **Red** (`[FAIL]` / `[HIGH]` / `[CRIT]`) -- non-compliant, action required
-- **Gray** (`[INFO]` / `[SKIP]`) -- informational or skipped
+The release workflow runs for semantic version tags matching `v*`, validates the resolved tag, runs the pinned verification suites, and creates `baselineops-windows-<tag>.zip`. It excludes development-only files from the operator package, generates ZIP and per-file SHA-256 records, creates a GitHub build provenance attestation, and publishes the release after checking repository release controls.
 
-## Security and safety notes
+Deployment is file-based. There is no installer, daemon, or scheduled service in the repository. Authenticate the release assets, install the extracted files under a protected Windows directory, then invoke scripts or the launcher from that directory. See [docs/alpha-release.md](docs/alpha-release.md) for the workflow contract and protected installation procedure.
 
-- Validate all remediation flows in a lab before production.
-- Prefer `-WhatIf` / `-Confirm` when supported.
-- Use script signing or expected hash checks in deployment pipelines.
-- Treat generated evidence and export artifacts as sensitive.
+For operation:
 
-## Related docs
+- Start with Audit mode on a disposable device.
+- Review script-specific inputs and output paths.
+- Use `-WhatIf` for state-changing scripts that implement `ShouldProcess`.
+- Treat exit `2` as a completed run that requires review, not as success equivalent to exit `0`.
+- Rerun Audit after remediation. Stopping a process does not roll back completed changes.
 
-- [docs/README.md](docs/README.md)
-- [scripts/README.md](scripts/README.md)
-- [lib/README.md](lib/README.md)
-- [examples/README.md](examples/README.md)
-- [SECURITY.md](SECURITY.md)
+## Troubleshooting
+
+`PowerShell runtime drift`
+
+: Use PowerShell 7.6.3. If it is installed outside `PATH`, set `PWSH_BIN` to its absolute executable path for `scripts/ci-local.sh` and Node tests.
+
+`PSScriptAnalyzer 1.25.0 is unavailable`
+
+: Install the exact module version. `tools/verify.ps1 -SkipAnalyzer` performs parsing only and is not the complete static gate.
+
+Exit code `2`
+
+: Inspect warnings and findings. This is also the expected result for profile and batch `-WhatIf` previews because no child steps execute.
+
+Elevated runner rejects the toolkit root
+
+: The root or an ancestor is owned or writable by an untrusted SID, or contains a reparse point. Use the protected installation procedure. Do not relax the check or run privileged code from Downloads.
+
+Elevated launcher rejects unsigned scripts
+
+: The launcher enables `Require valid signature` by default when elevated. Sign the scripts according to the deployment trust policy. A lab-only opt-out weakens this check and does not make a user-writable root trusted.
+
+Profile validation rejects `Args`
+
+: Profile arguments are intentionally disabled. Run the target through `00-Run-Local.ps1` or invoke it directly with trusted command-line arguments.
+
+Documentation or secret scanning includes ignored local files
+
+: On Windows, the verifier and secret scanner accept bare Git only from standard Program Files locations. Without trusted Git they use recursive package discovery. Run release evidence against a clean staged surface or extracted package.
+
+## Security considerations
+
+- Treat profiles, configuration files, script arguments, and downloaded artifacts as untrusted input.
+- Authenticate release provenance and checksums before privileged installation.
+- Do not execute elevated repository code from a user-owned or user-writable directory.
+- Use `-RequireSigned` or `-ExpectedHash` where the deployment model supplies trusted signatures or hashes.
+- Review every remediation path, required privilege, reboot effect, and rollback procedure before use.
+- Store JSON, CSV, logs, support bundles, launcher output, and test XML as sensitive endpoint data.
+- Do not commit credentials, tokens, private keys, endpoint evidence, or unredacted logs.
+- Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+## Contributing
+
+Contributions should include focused tests and documentation for changed behavior. Run the relevant PowerShell 7.6.3 checks and, for Windows-sensitive changes, the Windows PowerShell 5.1 compatibility checks. Do not weaken path, ACL, signature, hash, confirmation, or input-validation controls to make a test pass.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## Documentation
+
+- [Documentation index](docs/README.md)
+- [Release and deployment guide](docs/alpha-release.md)
+- [Launcher guide](docs/launcher-gui.md)
+- [Script catalog](scripts/README.md)
+- [Configuration and profile examples](examples/README.md)
+- [Shared module reference](lib/README.md)
+- [Security policy](SECURITY.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [MIT license](LICENSE)

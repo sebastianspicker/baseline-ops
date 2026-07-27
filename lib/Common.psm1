@@ -1,5 +1,3 @@
-Set-StrictMode -Version Latest
-
 <#
 .SYNOPSIS
 Common utility functions shared across all scripts.
@@ -9,6 +7,9 @@ Provides general-purpose helpers for caller variable lookup, admin detection,
 directory creation, path sanitization, and property existence checks.
 #>
 
+Set-StrictMode -Version Latest
+Microsoft.PowerShell.Core\Import-Module ([System.IO.Path]::Combine($PSScriptRoot, 'Validation.psm1'))
+
 <#
 .SYNOPSIS
   Retrieves a variable value from a caller scope.
@@ -16,30 +17,41 @@ directory creation, path sanitization, and property existence checks.
   Variable name to look up in parent scopes.
 #>
 function Get-CallerValue {
-  [CmdletBinding()]
-  param([Parameter(Mandatory)][string]$Name)
 
-  # Ambient variable contract for remaining callers:
+  [CmdletBinding()]
+
+  param(
+    [Parameter(Mandatory)][string]$Name,
+    [ValidateRange(1, 10)][int]$ScopeDepth = 3,
+    [switch]$IncludeGlobal
+  )
+
+  # Ambient remaining callers:
   # - Output.psm1: Write-UiLine reads NoConsole, Quiet,
-  #   UseWriteInformation, UseInformationStream, NoColor, and UseColor;
-  #   Write-ConsoleLine reads NoConsole, Quiet, NoColor, and UseColor;
-  #   Write-KeyValue reads UseWriteInformation and UseInformationStream.
+  #   UseWriteInformation, UseInformationStream, NoColor, UseColor.
+  # - Results.psm1: Add-Finding can fall back to caller $Findings.
   # - EventLog.psm1: Ensure-EventSource and Write-HealthEvent read
-  #   EventSource and EventLogName. Deprecated EventSourceName/EventLog
-  #   fallback reads warn before use.
-  # TODO: Replace these hidden caller-scope contracts with explicit parameters.
-  # Search scopes 1 through 3 (immediate caller up to 3 levels up).
-  # Scope 1 = direct caller, 2 = caller's caller, 3 = one more level up.
-  # Limitation: variables defined more than 3 scopes above will not be found.
-  # This covers the common patterns: script -> module function -> helper.
-  foreach ($scope in 1..3) {
+  #   EventSource/EventLogName, with deprecated global aliases only when asked.
+  # Compatibility limitation: these modules still depend on caller-scope state
+  # instead of explicit parameters.
+  foreach ($scope in 1..$ScopeDepth) {
     try {
       $var = Get-Variable -Name $Name -Scope $scope -ErrorAction Stop
       return $var.Value
     } catch {
-      # continue
+      continue
     }
   }
+
+  if ($IncludeGlobal) {
+    try {
+      $var = Get-Variable -Name $Name -Scope Global -ErrorAction Stop
+      return $var.Value
+    } catch {
+      return $null
+    }
+  }
+
   return $null
 }
 
@@ -119,14 +131,13 @@ function Ensure-Directory {
   param([Parameter(Mandatory)][AllowEmptyString()][string]$Path)
 
   if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
-  if ($Path -match '\.\.') {
-    Write-Warning "Ensure-Directory: Path must not contain '..' (path traversal not allowed)."
+  if (Validation\Test-PathTraversal -Path $Path) {
+    Write-Warning "Ensure-Directory: Path must not contain path traversal segments ('..')."
     return $false
   }
   try {
     if (-not (Test-Path -LiteralPath $Path)) {
-      $literalSafePath = [System.Management.Automation.WildcardPattern]::Escape($Path)
-      New-Item -Path $literalSafePath -ItemType Directory -Force -ErrorAction Stop | Out-Null
+      [void][System.IO.Directory]::CreateDirectory([System.IO.Path]::GetFullPath($Path))
     }
     return $true
   } catch {
@@ -173,16 +184,15 @@ function Sanitize-Path {
     $expanded = [Environment]::ExpandEnvironmentVariables($Path)
     if ([string]::IsNullOrWhiteSpace($expanded)) { return $null }
 
-    # Reject any path containing ".." to prevent traversal (covers "..\", "../", "....\", leading "\..", etc.)
-    if ($expanded -match '\.\.') {
-      Write-Warning "Path traversal not allowed (contains '..'): path rejected."
+    if (Validation\Test-PathTraversal -Path $expanded) {
+      Write-Warning "Path traversal not allowed: path rejected."
       return $null
     }
 
     if ($MustExist) {
       if (Test-Path -LiteralPath $expanded) {
         $resolved = [System.IO.Path]::GetFullPath($expanded)
-        if ($resolved -match '\.\.') { return $null }
+        if (Validation\Test-PathTraversal -Path $resolved) { return $null }
         return $resolved
       }
       return $null
@@ -206,7 +216,11 @@ function Sanitize-Path {
 #>
 function Has-Property {
   param([object]$Object, [string]$Name)
-  return $null -ne $Object -and $Object.PSObject.Properties.Name -contains $Name
+  if ($null -eq $Object) { return $false }
+  if ($Object -is [System.Collections.IDictionary]) {
+    return $Object.Contains($Name)
+  }
+  return $Object.PSObject.Properties.Name -contains $Name
 }
 
 <#

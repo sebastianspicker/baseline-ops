@@ -1,5 +1,3 @@
-Set-StrictMode -Version Latest
-
 <#
 .SYNOPSIS
 Windows Registry read/write helpers.
@@ -9,6 +7,8 @@ Provides type-safe functions for reading and writing registry values (DWord,
 QWord, String, ExpandString, MultiString, Binary) with automatic key creation
 and consistent error handling.
 #>
+
+Set-StrictMode -Version Latest
 
 <#
 .SYNOPSIS
@@ -47,6 +47,12 @@ function Get-RegValue {
   }
 }
 
+<#
+.SYNOPSIS
+  Sets a registry value with an explicit registry value kind.
+.DESCRIPTION
+  Centralizes key creation and ShouldProcess-protected typed value writes.
+#>
 function Set-RegTypedValue {
   [CmdletBinding(SupportsShouldProcess = $true)]
   param(
@@ -66,10 +72,10 @@ function Set-RegTypedValue {
   }
 
   try {
-    Ensure-RegistryKey -Path $Path
     if (-not $PSCmdlet.ShouldProcess("$Path\$Name", "Set $DisplayType registry value")) {
       return $false
     }
+    Ensure-RegistryKey -Path $Path
     $null = New-ItemProperty -LiteralPath $Path -Name $Name -PropertyType $PropertyType -Value $Value -Force -ErrorAction Stop
     return $true
   } catch {

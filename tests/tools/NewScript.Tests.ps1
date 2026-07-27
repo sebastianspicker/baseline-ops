@@ -1,4 +1,11 @@
 #requires -version 5.1
+<#
+.SYNOPSIS
+Pester coverage for repository tooling contracts.
+
+.DESCRIPTION
+Verifies tooling safeguards that protect maintainers and releases.
+#>
 
 [CmdletBinding()]
 param()
@@ -23,6 +30,12 @@ Describe 'tools/new-script.ps1' {
     $content | Should -Not -Match 'SupportsShouldProcess'
     $content | Should -Not -Match 'Remediate not supported'
     $content | Should -Not -Match '\$Mode -eq ''Remediate'''
+    $content | Should -Not -Match 'TODO'
+    $content | Should -Not -Match 'Summarize what this script checks'
+    $content | Should -Not -Match 'Describe the audit signal'
+    $content | Should -Match "-Result 'WARN'"
+    $content | Should -Match 'ScaffoldNotImplemented'
+    $content | Should -Match 'exit 2'
   }
 
   It 'emits remediation support only when requested' {
@@ -38,5 +51,7 @@ Describe 'tools/new-script.ps1' {
     $content | Should -Match "\[ValidateSet\('Audit','Remediate'\)\]"
     $content | Should -Match 'SupportsShouldProcess = \$true'
     $content | Should -Match '\$Mode -eq ''Remediate'''
+    $content | Should -Not -Match 'TODO'
+    $content | Should -Match "throw 'Remediation logic must be implemented before Remediate mode is used\.'"
   }
 }
