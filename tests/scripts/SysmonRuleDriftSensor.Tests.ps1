@@ -74,6 +74,7 @@ Describe '17-Sysmon-Rule-Drift-Sensor hardened input and mode contract' -Tag 'Sy
       $env:OS = 'Windows_NT'
       $catalogPath = Join-Path $TestDrive 'valid-optional-catalog.json'
       Set-Content -LiteralPath $catalogPath -Encoding UTF8 -Value '{"RatioFloor":0,"MinBaselineToCompare":0,"Rules":[{"Id":1,"MinPerWindow":null,"MessageRegex":null}]}'
+      Mock Get-SysmonStatePath { Join-Path $TestDrive 'rule-drift-sensor-state.json' }
 
       $output = & $script:SensorScript -CatalogPath $catalogPath -PassThru -OutputFormat None -Quiet -Confirm:$false 2>&1 3>&1 6>&1
       $result = @($output | Where-Object { $_ -and $_.PSObject.Properties.Name -contains 'Result' })[-1]

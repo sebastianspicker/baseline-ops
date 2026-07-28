@@ -252,10 +252,10 @@ Describe '00-Run-Batch orchestration' {
 
       if (-not $PSCmdlet.ShouldProcess($Name, 'Create protected Run-Batch fixture root')) { return $null }
       if ($script:IsElevatedWindows) {
-        $programData = [System.Environment]::GetFolderPath(
-          [System.Environment+SpecialFolder]::CommonApplicationData
+        $systemDirectory = [System.Environment]::GetFolderPath(
+          [System.Environment+SpecialFolder]::System
         )
-        $trustedParent = Join-Path $programData 'Microsoft\Windows'
+        $trustedParent = Join-Path $systemDirectory 'config\systemprofile'
         return Join-Path $trustedParent ("BaselineOpsForWindows-OrchestrationTests-{0}-{1}" -f $Name, [guid]::NewGuid().ToString('N'))
       }
 
@@ -411,6 +411,10 @@ exit 0
     $source = Get-Content -LiteralPath $script:BatchScript -Raw
 
     $source | Should -Match 'CommonApplicationData'
+    $source | Should -Match 'Join-Path \$programData ''Microsoft\\Windows'''
+    $source | Should -Match 'Assert-RunBatchTrustedWindowsAcl -Path \$trustedParent -CheckAncestors'
+    $source | Should -Match 'BaselineOpsForWindows-Batch-{0}'
+    $source | Should -Not -Match 'BaselineOpsForWindows-Batch''\)'
     $source | Should -Match 'Set-BatchAdminSystemAcl -Path \$tempProfile'
     $source | Should -Match '\[System\.IO\.FileShare\]::Read'
     $source.IndexOf('$profileLockStream = New-Object System.IO.FileStream') |

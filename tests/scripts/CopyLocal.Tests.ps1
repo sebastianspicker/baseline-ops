@@ -317,9 +317,11 @@ Describe '00-Copy-Local v2 terminal result contract' {
     $hostPath = (Get-Process -Id $PID).Path
     $tempRoot = Join-Path '/private/tmp' ("copy-local-untrusted-repo-{0}" -f [guid]::NewGuid().ToString('N'))
     if ([Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+      . (Get-CopyLocalFunctionBody -Name 'Assert-CopyLocalAclObjectTrust')
+      . (Get-CopyLocalFunctionBody -Name 'Assert-CopyLocalDestinationAclTrust')
       . (Get-CopyLocalFunctionBody -Name 'Set-CopyLocalNewDestinationAcl')
-      $programData = [Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)
-      $trustedParent = Join-Path $programData 'Microsoft\Windows'
+      $systemDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::System)
+      $trustedParent = Join-Path $systemDirectory 'config\systemprofile'
       $tempRoot = Join-Path $trustedParent ("BaselineOpsForWindows-CopyLocalTests-{0}" -f [guid]::NewGuid().ToString('N'))
     }
     $destination = Join-Path $tempRoot 'destination'

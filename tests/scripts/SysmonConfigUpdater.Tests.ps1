@@ -43,6 +43,7 @@ Describe '16-Sysmon-Config-Updater channel failure reporting' -Tag 'Sysmon' -Ski
     Remove-Variable -Name OldComputerName -Scope Script -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath Function:\Get-Service -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath Function:\Test-TrustedSysmonExecutable -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath Function:\Get-SysmonStatePath -ErrorAction SilentlyContinue
   }
 
   It 'adds a specific finding when wevtutil fails to enable the Sysmon channel' {
@@ -67,6 +68,8 @@ Describe '16-Sysmon-Config-Updater channel failure reporting' -Tag 'Sysmon' -Ski
     Mock -CommandName Write-HealthEvent -MockWith {}
     function global:Test-TrustedSysmonExecutable { $true }
     Mock -CommandName Test-TrustedSysmonExecutable -MockWith { $true }
+    function global:Get-SysmonStatePath { }
+    Mock -CommandName Get-SysmonStatePath -MockWith { $statePath }
     function global:Get-Service {
       param([string]$Name)
       [pscustomobject]@{ Name = $Name }
@@ -275,6 +278,10 @@ Describe '16-Sysmon-Config-Updater policy gates' -Tag 'Sysmon' -Skip:$script:Ski
     Mock -CommandName Write-HealthEvent -MockWith {}
     function global:Test-TrustedSysmonExecutable { $true }
     Mock -CommandName Test-TrustedSysmonExecutable -MockWith { $true }
+    function global:Get-SysmonStatePath { }
+    Mock -CommandName Get-SysmonStatePath -MockWith {
+      Join-Path $TestDrive 'config-updater-state.json'
+    }
     function global:Get-Service {
       param([string]$Name)
       [pscustomobject]@{ Name = $Name }
@@ -289,6 +296,7 @@ Describe '16-Sysmon-Config-Updater policy gates' -Tag 'Sysmon' -Skip:$script:Ski
     if ($null -eq $script:OldComputerName) { Remove-Item -LiteralPath Env:COMPUTERNAME -ErrorAction SilentlyContinue } else { $env:COMPUTERNAME = $script:OldComputerName }
     Remove-Item -LiteralPath Function:\Get-Service -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath Function:\Test-TrustedSysmonExecutable -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath Function:\Get-SysmonStatePath -ErrorAction SilentlyContinue
   }
 
   It 'does not launch Sysmon when the selected hash is not allowlisted' {

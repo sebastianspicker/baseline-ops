@@ -225,8 +225,9 @@ function New-BatchProfileWorkspace {
     if ([string]::IsNullOrWhiteSpace($programData)) {
       throw 'Unable to resolve the protected CommonApplicationData directory.'
     }
-    Assert-RunBatchTrustedWindowsAcl -Path $programData -CheckAncestors
-    $directory = Join-Path $programData ("BaselineOpsForWindows-Batch-{0}" -f [guid]::NewGuid().ToString('N'))
+    $trustedParent = Join-Path $programData 'Microsoft\Windows'
+    Assert-RunBatchTrustedWindowsAcl -Path $trustedParent -CheckAncestors
+    $directory = Join-Path $trustedParent ("BaselineOpsForWindows-Batch-{0}" -f [guid]::NewGuid().ToString('N'))
     [void][System.IO.Directory]::CreateDirectory($directory)
     Set-BatchAdminSystemAcl -Path $directory -Directory
     Assert-RunBatchTrustedWindowsAcl -Path $directory -CheckAncestors
