@@ -319,7 +319,7 @@ function Add-RunLocalTrustedCodeClosureLocks {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string[]]$Roots,
-    [Parameter(Mandatory)][System.Collections.Generic.List[System.IO.FileStream]]$LockedStreams,
+    [Parameter(Mandatory)][AllowEmptyCollection()][System.Collections.Generic.List[System.IO.FileStream]]$LockedStreams,
     [ValidateRange(1, 8192)][int]$MaximumItems = 4096
   )
 

@@ -422,6 +422,8 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     function global:Register-ScheduledTask { }
     function global:Unregister-ScheduledTask { }
     function global:Get-ScheduledTask { }
+    function global:Enter-KillSwitchRemediationLock { }
+    function global:Resolve-CanonicalWindowsPowerShellPath { }
   }
 
   AfterAll {
@@ -438,7 +440,9 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
         'New-ScheduledTaskSettingsSet',
         'Register-ScheduledTask',
         'Unregister-ScheduledTask',
-        'Get-ScheduledTask'
+        'Get-ScheduledTask',
+        'Enter-KillSwitchRemediationLock',
+        'Resolve-CanonicalWindowsPowerShellPath'
       )) {
       Remove-Item -LiteralPath "Function:\$name" -ErrorAction SilentlyContinue
     }
@@ -483,10 +487,8 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     Mock -CommandName Remove-NetFirewallRule -MockWith {
       $global:EmergencyKillSwitchRuleStore.Clear()
     }
-    Mock -CommandName Get-Item -MockWith {
-      param($LiteralPath)
-      [pscustomobject]@{ FullName = [string]$LiteralPath; PSIsContainer = $false; Attributes = [IO.FileAttributes]::Normal }
-    }
+    Mock -CommandName Enter-KillSwitchRemediationLock -MockWith { New-Object System.IO.MemoryStream }
+    Mock -CommandName Resolve-CanonicalWindowsPowerShellPath -MockWith { 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' }
     Mock -CommandName Get-NetAdapter -MockWith { @() }
     Mock -CommandName Disable-NetAdapter -MockWith { param($Name, [switch]$Confirm, $ErrorAction) }
     Mock -CommandName New-ScheduledTaskAction -MockWith {
@@ -741,7 +743,7 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     try {
       $env:SystemRoot = 'C:\attacker'
       $env:WINDIR = 'C:\attacker'
-      Mock -CommandName Get-Item -MockWith { throw 'canonical Windows PowerShell is missing' }
+      Mock -CommandName Resolve-CanonicalWindowsPowerShellPath -MockWith { throw 'canonical Windows PowerShell is missing' }
 
       $output = & $script:KillSwitchScript -Mode Remediate -AutoRollbackMinutes 5 -OutputFormat None -PassThru -Confirm:$false 2>&1 3>&1 6>&1
       $result = @($output | Where-Object { $_.PSObject.Properties.Name -contains 'Result' })[-1]
