@@ -585,7 +585,7 @@ jobs:
           mkdir -p "${install_root}"
           tar -xzf "${archive}" -C "${install_root}"
           chmod 0755 "${install_root}/pwsh"
-          actual_version="$("${install_root}/pwsh" -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()')"
+          actual_version="$("${install_root}/pwsh" -NoLogo -NoProfile -Command "\$PSVersionTable.PSVersion.ToString()")"
           if [[ "${actual_version}" != "${POWERSHELL_VERSION}" ]]; then
             printf 'Expected PowerShell %s exactly, got %s.\n' "${POWERSHELL_VERSION}" "${actual_version}" >&2
             exit 1
@@ -636,7 +636,7 @@ jobs:
           mkdir -p "${install_root}"
           tar -xzf "${archive}" -C "${install_root}"
           chmod 0755 "${install_root}/pwsh"
-          actual_version="$("${install_root}/pwsh" -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()')"
+          actual_version="$("${install_root}/pwsh" -NoLogo -NoProfile -Command "\$PSVersionTable.PSVersion.ToString()")"
           if [[ "${actual_version}" != "${POWERSHELL_VERSION}" ]]; then
             printf 'Expected PowerShell %s exactly, got %s.\n' "${POWERSHELL_VERSION}" "${actual_version}" >&2
             exit 1
@@ -658,7 +658,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          actual_version="$("${PWSH_BIN}" -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()')"
+          actual_version="$("${PWSH_BIN}" -NoLogo -NoProfile -Command "\$PSVersionTable.PSVersion.ToString()")"
           if [[ "${actual_version}" != "${POWERSHELL_VERSION}" ]]; then
             printf 'Expected PowerShell %s exactly, got %s.\n' "${POWERSHELL_VERSION}" "${actual_version}" >&2
             exit 1
