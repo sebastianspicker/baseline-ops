@@ -361,8 +361,26 @@ jobs:
           `$configuration.Output.CIFormat = 'GithubActions'
           `$configuration.TestResult.Enabled = `$true
           `$configuration.TestResult.OutputPath = 'testResults.xml'
+          if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) {
+            `$PSStyle.OutputRendering = 'PlainText'
+          }
           `$result = Invoke-Pester -Configuration `$configuration
-          exit [Math]::Min([int]`$result.FailedCount, 255)
+          if (`$null -eq `$result) {
+            throw 'Pester did not return a result.'
+          }
+          if (-not (Test-Path -LiteralPath 'testResults.xml' -PathType Leaf)) {
+            throw 'Pester did not create testResults.xml.'
+          }
+          try {
+            `$testResults = [xml](Get-Content -LiteralPath 'testResults.xml' -Raw -ErrorAction Stop)
+          } catch {
+            throw "Pester produced invalid testResults.xml: `$(`$_.Exception.Message)"
+          }
+          if (`$null -eq `$testResults.'test-results') {
+            throw 'Pester testResults.xml does not contain test-results.'
+          }
+          `$failedCount = [int]`$result.FailedCount
+          exit [Math]::Min([Math]::Max(`$failedCount, 0), 255)
           "@ | Set-Content -LiteralPath $runnerScript -Encoding utf8
 
           $administrators = New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')
@@ -370,9 +388,14 @@ jobs:
           $runner = [Security.Principal.WindowsIdentity]::GetCurrent().User
           $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
             [Security.AccessControl.InheritanceFlags]::ObjectInherit
-          $items = @(Get-ChildItem -LiteralPath $trustedRoot -Recurse -Force) |
+          $items = @(
+            Get-Item -LiteralPath $trustedRoot -Force
+            Get-Item -LiteralPath $trustedWorkspace -Force
+            Get-Item -LiteralPath $testTemp -Force
+            Get-Item -LiteralPath $runnerScript -Force
+            Get-ChildItem -LiteralPath $trustedRoot -Recurse -Force
+          ) |
             Sort-Object { $_.FullName.Length } -Descending
-          $items += Get-Item -LiteralPath $trustedRoot -Force
           foreach ($item in $items) {
             $isDirectory = $item -is [System.IO.DirectoryInfo]
             $security = if ($isDirectory) {
@@ -403,6 +426,65 @@ jobs:
                   [Security.AccessControl.AccessControlType]::Allow)))
             Set-Acl -LiteralPath $item.FullName -AclObject $security -ErrorAction Stop
           }
+
+          $trustedSids = @{
+            'S-1-5-18' = $true
+            'S-1-5-32-544' = $true
+            'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464' = $true
+          }
+          $writeMask =
+            [Security.AccessControl.FileSystemRights]::Write -bor
+            [Security.AccessControl.FileSystemRights]::Modify -bor
+            [Security.AccessControl.FileSystemRights]::FullControl -bor
+            [Security.AccessControl.FileSystemRights]::Delete -bor
+            [Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles -bor
+            [Security.AccessControl.FileSystemRights]::ChangePermissions -bor
+            [Security.AccessControl.FileSystemRights]::TakeOwnership
+          $ancestorReplacementMask =
+            [Security.AccessControl.FileSystemRights]::Delete -bor
+            [Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles -bor
+            [Security.AccessControl.FileSystemRights]::ChangePermissions -bor
+            [Security.AccessControl.FileSystemRights]::TakeOwnership
+          function Assert-TrustedCiTaskPath {
+            param([Parameter(Mandatory)][string]$Path)
+
+            $current = (Get-Item -LiteralPath $Path -Force -ErrorAction Stop).FullName
+            $isProtectedItem = $true
+            while (-not [string]::IsNullOrWhiteSpace($current)) {
+              $currentItem = Get-Item -LiteralPath $current -Force -ErrorAction Stop
+              if (($currentItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Trusted CI task path contains a reparse point: $current"
+              }
+              $acl = Get-Acl -LiteralPath $currentItem.FullName -ErrorAction Stop
+              $ownerSid = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+              if (-not $trustedSids.ContainsKey($ownerSid)) {
+                throw "Trusted CI task path has an untrusted owner SID '$ownerSid': $current"
+              }
+              $effectiveMask = if ($isProtectedItem) { $writeMask } else { $ancestorReplacementMask }
+              foreach ($rule in @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))) {
+                if ($rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) { continue }
+                if (($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -ne 0) { continue }
+                $sid = [string]$rule.IdentityReference.Value
+                if (-not $trustedSids.ContainsKey($sid) -and
+                    ([int64]$rule.FileSystemRights -band [int64]$effectiveMask) -ne 0) {
+                  Write-Host "Untrusted CI task ACL: SID '$sid'; identity '$($rule.IdentityReference)'; rights '$($rule.FileSystemRights)'; path '$current'."
+                  throw "Trusted CI task path grants write/replace rights to untrusted SID '$sid': $current"
+                }
+              }
+              if ($isProtectedItem -and -not $acl.AreAccessRulesProtected) {
+                throw "Trusted CI task path ACL inherits permissions: $current"
+              }
+              $parent = Split-Path -Parent $currentItem.FullName
+              if ([string]::IsNullOrWhiteSpace($parent) -or
+                  [string]::Equals($parent, $currentItem.FullName, [StringComparison]::OrdinalIgnoreCase)) { break }
+              $current = $parent
+              $isProtectedItem = $false
+            }
+          }
+          Assert-TrustedCiTaskPath -Path $trustedWorkspace
+          Assert-TrustedCiTaskPath -Path $runnerScript
+          Assert-TrustedCiTaskPath -Path $taskExecutable
+          Assert-TrustedCiTaskPath -Path $pesterDestination
 
           $action = New-ScheduledTaskAction -Execute $taskExecutable `
             -Argument "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runnerScript`""
@@ -447,9 +529,11 @@ jobs:
         if: always()
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
           if (Test-Path testResults.xml) {
-            $xml = [xml](Get-Content testResults.xml)
+            $xml = [xml](Get-Content -LiteralPath testResults.xml -Raw -ErrorAction Stop)
             $root = $xml.'test-results'
+            if ($null -eq $root) { throw 'testResults.xml does not contain test-results.' }
             function Get-TestResultValue {
               param([string]$Name)
               $value = $root.$Name

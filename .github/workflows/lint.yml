@@ -98,8 +98,8 @@ jobs:
             grep -F "  ${archive}" "${checksums}" > selected-checksum.txt
             sha256sum --check selected-checksum.txt
             tar -xzf "${archive}" actionlint
-            ./actionlint -color
           )
+          "${tool_root}/actionlint" -color
 
       - name: Markdown links and image descriptions
         shell: pwsh
