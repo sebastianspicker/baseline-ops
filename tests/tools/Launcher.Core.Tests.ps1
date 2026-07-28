@@ -12,10 +12,13 @@ BeforeAll {
   Import-Module (Join-Path $PSScriptRoot '../../tools/Launcher.Core.psm1') -Force
 
   function New-LauncherTrustedFixture {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
       [Parameter(Mandatory)][string]$Root,
       [string]$TargetName = '27-Test.ps1'
     )
+
+    if (-not $PSCmdlet.ShouldProcess($Root, 'Create trusted launcher test fixture')) { return }
 
     $scripts = Join-Path $Root 'scripts'
     $lib = Join-Path $Root 'lib'
