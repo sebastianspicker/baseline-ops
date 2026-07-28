@@ -85,6 +85,7 @@ Describe '21-EmergencyKillSwitch break-glass cleanup failure reporting' -Tag 'Em
     function global:Remove-NetFirewallRule { }
     function global:Get-ScheduledTask { }
     function global:Disable-NetAdapter { }
+    function global:Enter-KillSwitchRemediationLock { }
 
     function Invoke-EmergencyKillSwitchCleanupFailureCase {
       $oldOS = $env:OS
@@ -94,6 +95,13 @@ Describe '21-EmergencyKillSwitch break-glass cleanup failure reporting' -Tag 'Em
         $env:TEMP = $TestDrive
 
         Mock -CommandName Test-IsAdmin -MockWith { $true }
+        Mock -CommandName Enter-KillSwitchRemediationLock -MockWith {
+          [System.IO.File]::Open(
+            (Join-Path $TestDrive ("remediation-{0}.lock" -f [guid]::NewGuid().ToString('N'))),
+            [System.IO.FileMode]::OpenOrCreate,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None)
+        }
         Mock -CommandName Ensure-EventSource -MockWith { $true }
         Mock -CommandName Write-HealthEvent -MockWith { $true }
         Mock -CommandName New-Item -MockWith { [pscustomobject]@{} }
@@ -155,6 +163,13 @@ Describe '21-EmergencyKillSwitch break-glass cleanup failure reporting' -Tag 'Em
         $env:TEMP = $TestDrive
 
         Mock -CommandName Test-IsAdmin -MockWith { $true }
+        Mock -CommandName Enter-KillSwitchRemediationLock -MockWith {
+          [System.IO.File]::Open(
+            (Join-Path $TestDrive ("remediation-{0}.lock" -f [guid]::NewGuid().ToString('N'))),
+            [System.IO.FileMode]::OpenOrCreate,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None)
+        }
         Mock -CommandName Ensure-EventSource -MockWith { $true }
         Mock -CommandName Write-HealthEvent -MockWith { $true }
         Mock -CommandName New-Item -MockWith { [pscustomobject]@{} }
@@ -210,6 +225,13 @@ Describe '21-EmergencyKillSwitch break-glass cleanup failure reporting' -Tag 'Em
         $env:TEMP = $TestDrive
 
         Mock -CommandName Test-IsAdmin -MockWith { $true }
+        Mock -CommandName Enter-KillSwitchRemediationLock -MockWith {
+          [System.IO.File]::Open(
+            (Join-Path $TestDrive ("remediation-{0}.lock" -f [guid]::NewGuid().ToString('N'))),
+            [System.IO.FileMode]::OpenOrCreate,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None)
+        }
         Mock -CommandName Ensure-EventSource -MockWith { $true }
         Mock -CommandName Write-HealthEvent -MockWith { $true }
         Mock -CommandName Get-NetFirewallProfile -MockWith {
@@ -266,7 +288,8 @@ Describe '21-EmergencyKillSwitch break-glass cleanup failure reporting' -Tag 'Em
         'New-NetFirewallRule',
         'Remove-NetFirewallRule',
         'Get-ScheduledTask',
-        'Disable-NetAdapter'
+        'Disable-NetAdapter',
+        'Enter-KillSwitchRemediationLock'
       )) {
       Remove-Item -LiteralPath "Function:\$name" -ErrorAction SilentlyContinue
     }

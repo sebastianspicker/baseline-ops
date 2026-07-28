@@ -255,7 +255,8 @@ Describe '00-Run-Batch orchestration' {
         $programData = [System.Environment]::GetFolderPath(
           [System.Environment+SpecialFolder]::CommonApplicationData
         )
-        return Join-Path $programData ("BaselineOpsForWindows-OrchestrationTests-{0}-{1}" -f $Name, [guid]::NewGuid().ToString('N'))
+        $trustedParent = Join-Path $programData 'Microsoft\Windows'
+        return Join-Path $trustedParent ("BaselineOpsForWindows-OrchestrationTests-{0}-{1}" -f $Name, [guid]::NewGuid().ToString('N'))
       }
 
       return Join-Path $script:TempDir ("{0}-{1}" -f $Name, (Get-Random))

@@ -521,6 +521,22 @@ jobs:
               Copy-Item -LiteralPath $resultPath -Destination (Join-Path $env:GITHUB_WORKSPACE 'testResults.xml') -Force
             }
             if ($taskInfo.LastTaskResult -ne 0) {
+              $copiedResultPath = Join-Path $env:GITHUB_WORKSPACE 'testResults.xml'
+              if (Test-Path -LiteralPath $copiedResultPath -PathType Leaf) {
+                try {
+                  $testResults = [xml](Get-Content -LiteralPath $copiedResultPath -Raw -ErrorAction Stop)
+                } catch {
+                  throw "The SYSTEM Pester task produced invalid testResults.xml: $($_.Exception.Message)"
+                }
+                if ($null -eq $testResults.'test-results') {
+                  throw 'The SYSTEM Pester task testResults.xml does not contain test-results.'
+                }
+                foreach ($testCase in @($testResults.SelectNodes('//test-case[@result="Failure"]'))) {
+                  $failureMessage = $testCase.SelectSingleNode('./failure/message')
+                  $message = if ($null -eq $failureMessage) { '(no failure message)' } else { $failureMessage.InnerText }
+                  Write-Host ("SYSTEM Pester failure: {0}`n{1}" -f $testCase.name, $message)
+                }
+              }
               throw "The SYSTEM Pester task failed with exit code $($taskInfo.LastTaskResult)."
             }
           } finally {

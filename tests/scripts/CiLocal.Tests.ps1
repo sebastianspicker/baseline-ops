@@ -275,6 +275,23 @@ Describe 'PowerShell runtime and toolchain pins' {
     }
   }
 
+  It 'prints failed SYSTEM Pester test names and messages before reporting the task exit code' {
+    $taskFailure = [regex]::Match(
+      $script:CiWorkflowSource,
+      '(?ms)if \(\$taskInfo\.LastTaskResult -ne 0\) \{(?<body>.*?)throw "The SYSTEM Pester task failed with exit code'
+    )
+
+    $taskFailure.Success | Should -BeTrue
+    $body = $taskFailure.Groups['body'].Value
+    $body | Should -Match '\[xml\]\(Get-Content -LiteralPath \$copiedResultPath -Raw -ErrorAction Stop\)'
+    $body | Should -Match ([regex]::Escape('SelectNodes(''//test-case[@result="Failure"]'')'))
+    $body | Should -Match ([regex]::Escape('SelectSingleNode(''./failure/message'')'))
+    $body | Should -Match 'SYSTEM Pester failure:'
+    $body | Should -Match 'produced invalid testResults\.xml'
+    $taskFailure.Value.IndexOf('SYSTEM Pester failure:') |
+      Should -BeLessThan $taskFailure.Value.IndexOf('The SYSTEM Pester task failed with exit code')
+  }
+
   It 'Builds the fuzz image on a maintained digest-pinned Microsoft base with PowerShell 7.6.3' {
     $script:FuzzDockerfileSource | Should -Match 'mcr\.microsoft\.com/dotnet/runtime:10\.0-noble-amd64@sha256:567d204c2121716af76125c401f0684cfe06f8c6ba9a6783374464f625b79acb'
     $script:FuzzDockerfileSource | Should -Match 'releases/download/v7\.6\.3/powershell-7\.6\.3-linux-x64\.tar\.gz'
