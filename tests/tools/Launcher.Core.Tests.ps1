@@ -42,7 +42,7 @@ Describe 'Launcher manifest and state policy' {
   It 'Rejects a reparse-point kit root rather than following it' {
     $targetRoot = Join-Path $TestDrive 'real-kit-root'
     $scripts = Join-Path $targetRoot 'scripts'
-    New-Item -Path $scripts -ItemType Directory -Force | Out-Null
+    New-Item -Path $scripts, (Join-Path $targetRoot 'lib') -ItemType Directory -Force | Out-Null
     'param()' | Set-Content -LiteralPath (Join-Path $scripts '00-Run-Local.ps1') -Encoding UTF8
     'param()' | Set-Content -LiteralPath (Join-Path $scripts '00-Run-Profile.ps1') -Encoding UTF8
     $reparseRoot = Join-Path $TestDrive 'reparse-kit-root'
@@ -59,7 +59,7 @@ Describe 'Launcher manifest and state policy' {
   It 'keeps the complete root closure read-only until explicitly released' -Skip:($env:OS -ne 'Windows_NT') {
     $root = Join-Path $TestDrive 'locked-closure-root'
     $scripts = Join-Path $root 'scripts'
-    New-Item -Path $scripts -ItemType Directory -Force | Out-Null
+    New-Item -Path $scripts, (Join-Path $root 'lib') -ItemType Directory -Force | Out-Null
     foreach ($name in @('00-Run-Local.ps1', '00-Run-Profile.ps1', '27-Test.ps1')) {
       'param()' | Set-Content -LiteralPath (Join-Path $scripts $name) -Encoding UTF8
     }
@@ -446,7 +446,7 @@ exit 2
     foreach ($expectedExit in @(0, 1)) {
       $root = Join-Path $TestDrive "worker-exit-$expectedExit"
       $scripts = Join-Path $root 'scripts'
-      New-Item -Path $scripts -ItemType Directory -Force | Out-Null
+      New-Item -Path $scripts, (Join-Path $root 'lib') -ItemType Directory -Force | Out-Null
       "param(`$ScriptName, `$RootPath, [string[]]`$ScriptArgs, `$OutputFormat, `$Confirm)`nWrite-Output 'exit-$expectedExit'`nexit $expectedExit" |
         Set-Content -LiteralPath (Join-Path $scripts '00-Run-Local.ps1') -Encoding UTF8
       'param()' | Set-Content -LiteralPath (Join-Path $scripts '00-Run-Profile.ps1') -Encoding UTF8
@@ -463,7 +463,7 @@ exit 2
   It 'can terminate a long-running worker and map the request to Stopped' {
     $root = Join-Path $TestDrive 'worker-stop'
     $scripts = Join-Path $root 'scripts'
-    New-Item -Path $scripts -ItemType Directory -Force | Out-Null
+    New-Item -Path $scripts, (Join-Path $root 'lib') -ItemType Directory -Force | Out-Null
     @'
 param($ScriptName, $RootPath, [string[]]$ScriptArgs, $OutputFormat, $Confirm)
 Start-Sleep -Seconds 30

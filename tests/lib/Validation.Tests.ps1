@@ -256,7 +256,11 @@ Describe 'Windows privileged-path ACL validation' {
       @{ Source = (Get-Command Test-TrustedWindowsPathAcl).Definition; Terminator = '\$ancestorReplacementMask' },
       @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/00-Run-Local.ps1') -Raw; Terminator = '\$ancestorReplacementMask' },
       @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/00-Run-Batch.ps1') -Raw; Terminator = '\$ancestorReplacementMask' },
-      @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/00-Copy-Local.ps1') -Raw; Terminator = '\$replaceMask' }
+      @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/00-Copy-Local.ps1') -Raw; Terminator = '\$replaceMask' },
+      @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/00-Run-Profile.ps1') -Raw; Terminator = '\$ancestorReplacementMask' },
+      @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/internal/16-Sysmon-Config-Updater.helpers.ps1') -Raw; Terminator = 'foreach \(\$accessRule' },
+      @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/internal/17-Sysmon-Rule-Drift-Sensor.helpers.ps1') -Raw; Terminator = 'foreach \(\$accessRule' },
+      @{ Source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../scripts/internal/21-EmergencyKillSwitch.helpers.ps1') -Raw; Terminator = 'foreach \(\$rule' }
     )
     $capabilities = @(
       'WriteData', 'AppendData', 'WriteExtendedAttributes', 'WriteAttributes',
@@ -270,6 +274,13 @@ Describe 'Windows privileged-path ACL validation' {
       $leafMask | Should -Not -Match 'FileSystemRights\]::(Write|Modify|FullControl)\s*-bor'
       foreach ($capability in $capabilities) {
         $leafMask | Should -Match ('FileSystemRights\]::{0}' -f $capability)
+        $rights = [int64][System.Security.AccessControl.FileSystemRights]::$capability
+        $readAndExecute = [int64](
+          [System.Security.AccessControl.FileSystemRights]::ReadAndExecute -bor
+          [System.Security.AccessControl.FileSystemRights]::Synchronize
+        )
+        ($readAndExecute -band $rights) | Should -Be 0
+        ($rights -band $rights) | Should -Be $rights
       }
     }
   }

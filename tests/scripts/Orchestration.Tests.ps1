@@ -418,7 +418,7 @@ exit 0
     $scriptsDir = Join-Path $tempRoot 'scripts'
 
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       $unsupportedScript = @'
 param(
   [ValidateSet('Audit','Remediate')]

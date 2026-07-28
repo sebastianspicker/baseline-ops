@@ -154,7 +154,7 @@ Describe '16-Sysmon-Config-Updater trust boundaries' -Tag 'Sysmon' {
     $source | Should -Not -Match 'Everyone\|Users\|Authenticated Users\|Guests'
   }
 
-  It 'ignores inherit-only updater state ACL templates but rejects an effective Users Modify ACE' -Skip:([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+  It 'allows effective Users ReadAndExecute but rejects an atomic Users WriteData ACE' -Skip:([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     . (Join-Path $PSScriptRoot '../../scripts/internal/16-Sysmon-Config-Updater.helpers.ps1')
     $path = Join-Path $TestDrive 'trusted-updater-state-acl'
     New-Item -Path $path -ItemType Directory -Force | Out-Null
@@ -182,6 +182,13 @@ Describe '16-Sysmon-Config-Updater trust boundaries' -Tag 'Sysmon' {
             $inheritance,
             [Security.AccessControl.PropagationFlags]::InheritOnly,
             [Security.AccessControl.AccessControlType]::Allow)))
+      [void]$security.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
+            $users,
+            ([Security.AccessControl.FileSystemRights]::ReadAndExecute -bor
+              [Security.AccessControl.FileSystemRights]::Synchronize),
+            $inheritance,
+            [Security.AccessControl.PropagationFlags]::None,
+            [Security.AccessControl.AccessControlType]::Allow)))
       Set-Acl -LiteralPath $path -AclObject $security -ErrorAction Stop
     } catch {
       Set-ItResult -Skipped -Because "The current Windows test identity cannot create the required ACL fixture: $($_.Exception.Message)"
@@ -192,7 +199,7 @@ Describe '16-Sysmon-Config-Updater trust boundaries' -Tag 'Sysmon' {
     $unsafe = Get-Acl -LiteralPath $path
     [void]$unsafe.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
           $users,
-          [Security.AccessControl.FileSystemRights]::Modify,
+          [Security.AccessControl.FileSystemRights]::WriteData,
           $inheritance,
           [Security.AccessControl.PropagationFlags]::None,
           [Security.AccessControl.AccessControlType]::Allow)))

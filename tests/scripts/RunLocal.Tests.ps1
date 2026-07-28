@@ -12,7 +12,7 @@ Describe '00-Run-Local argument forwarding' {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-v2-fail-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptContent = @'
 param(
@@ -54,7 +54,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-v2-warn-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptContent = @'
 param(
@@ -96,7 +96,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-v2-ok-bad-exit-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptContent = @'
 param(
@@ -140,7 +140,7 @@ exit 1
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-v2-multiple-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       $scriptContent = @'
 param([switch]$PassThru, [string]$OutputFormat)
 if ($PassThru) {
@@ -168,7 +168,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-v2-extraneous-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       $valid = "[pscustomobject]@{ SchemaVersion='2.0'; ScriptName='01-Mixed.ps1'; Mode='Audit'; Result='OK'; Findings=@(); Summary=[pscustomobject]@{}; Metadata=@{} }"
       $malformed = "[pscustomobject]@{ Result='OK' }"
       $variants = [ordered]@{
@@ -196,7 +196,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-v2-malformed-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       $scriptContent = @'
 param([switch]$PassThru, [string]$OutputFormat)
 if ($PassThru) { [pscustomobject]@{ Result='OK' } }
@@ -219,7 +219,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-root-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptContent = @'
 param(
@@ -246,7 +246,7 @@ exit 1
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-colon-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptContent = @'
 param(
@@ -272,7 +272,7 @@ exit 1
     $scriptsDir = Join-Path $tempRoot 'scripts'
     $outsideDir = Join-Path $tempRoot 'scripts2'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       New-Item -Path $outsideDir -ItemType Directory -Force | Out-Null
       Set-Content -LiteralPath (Join-Path $outsideDir 'evil.ps1') -Value 'exit 0' -Encoding UTF8
 
@@ -298,7 +298,7 @@ exit 1
     $scriptsDir = Join-Path $tempRoot 'scripts'
     $markerPath = Join-Path $tempRoot 'marker.txt'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptContent = @"
 [System.IO.File]::WriteAllText('$markerPath', 'executed')
@@ -324,7 +324,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-strict-whatif-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       Set-Content -LiteralPath (Join-Path $scriptsDir '00-Strict-WhatIf.ps1') -Value 'exit 0' -Encoding UTF8
       $runner = Join-Path $PSScriptRoot '../../scripts/00-Run-Local.ps1'
       $result = & $runner -ScriptName '00-Strict-WhatIf.ps1' -RootPath $tempRoot -OutputFormat None -PassThru -Strict -WhatIf
@@ -341,7 +341,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-v2-controls-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       $target = @'
 param(
   [ValidateSet('Audit','Remediate')][string]$Mode,
@@ -384,7 +384,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-default-args-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       $target = @'
 param(
   [ValidateSet('Audit','Remediate')][string]$Mode = 'Audit',
@@ -416,7 +416,7 @@ exit 0
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("runlocal-finding-output-{0}" -f [guid]::NewGuid().ToString('N'))
     $scriptsDir = Join-Path $tempRoot 'scripts'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
       $resultsModulePath = (Resolve-Path (Join-Path $PSScriptRoot '../../lib/Results.psm1')).Path.Replace("'", "''")
       $target = @'
 param(
@@ -453,7 +453,7 @@ exit 0
     $scriptsDir = Join-Path $tempRoot 'scripts'
     $markerPath = Join-Path $tempRoot 'marker.txt'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptPath = Join-Path $scriptsDir '00-Hash.ps1'
       $scriptContent = @"
@@ -479,7 +479,7 @@ exit 0
     $scriptsDir = Join-Path $tempRoot 'scripts'
     $markerPath = Join-Path $tempRoot 'marker.txt'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptPath = Join-Path $scriptsDir '00-HashMismatch.ps1'
       $scriptContent = @"
@@ -510,7 +510,7 @@ exit 0
     $scriptsDir = Join-Path $tempRoot 'scripts'
     $markerPath = Join-Path $tempRoot 'marker.txt'
     try {
-      New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+      New-Item -Path $scriptsDir, (Join-Path $tempRoot 'lib') -ItemType Directory -Force | Out-Null
 
       $scriptPath = Join-Path $scriptsDir '00-StrongHash.ps1'
       $scriptContent = @"
