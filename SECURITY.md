@@ -2,7 +2,7 @@
 
 ## Requirement levels
 
-"Must" and "do not" identify mandatory security controls. "Should" identifies recommendations.
+Required controls use "must" or "do not". Recommendations use "should". A required control applies unless this policy documents an exception.
 
 ## Supported versions
 
@@ -40,7 +40,7 @@ If trusted Git is unavailable, they use recursive package discovery. This fallba
 
 Do not use a per-user Git shim to bypass this policy.
 
-`tools/Test-Documentation.ps1` uses the Git executable found on the `PATH` executable search path for repository file discovery. It does not execute endpoint scripts.
+`tools/Test-Documentation.ps1` uses the Git executable found on PATH (the executable search path) for repository file discovery. It does not execute endpoint scripts.
 
 ## Sensitive artifacts
 
@@ -56,7 +56,7 @@ Keep sensitive artifacts outside the repository.
 
 Restrict access and redact them before sharing. Delete them according to the applicable retention policy.
 
-Launcher crash residue can remain in `baselineops-windows-launcher` under the Windows temporary directory identified by `%TEMP%`.
+Launcher crash residue can remain in `baselineops-windows-launcher` under the directory identified by the TEMP (Windows temporary-directory) environment variable, written as `%TEMP%`.
 
 ## Reporting a vulnerability
 
