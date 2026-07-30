@@ -4,6 +4,8 @@ BaselineOps for Windows is a collection of PowerShell scripts for auditing Windo
 
 The repository contains individual endpoint scripts, profile and batch runners, shared PowerShell modules, example JSON inputs, a Windows Forms launcher, verification tools, and automated tests. It does not install or run a background service.
 
+Explore the [static operator-console demo](https://sebastianspicker.github.io/baseline-ops/). It uses sanitized fixture data, does not execute commands, and does not inspect an endpoint.
+
 ## Project scope
 
 The numbered scripts cover Microsoft Defender, Attack Surface Reduction, Windows Firewall, BitLocker, LAPS, Credential Guard, VBS, HVCI, LSA protection, AppLocker, App Control for Business, PowerShell logging, Windows Update, WinGet, Sysmon, remote access, event logs, storage, backup readiness, identity, and related endpoint state.
