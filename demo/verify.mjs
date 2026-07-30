@@ -1,3 +1,4 @@
+// Verifies the static demo's assets, safety disclosures, and offline contract.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
