@@ -14,6 +14,8 @@ const [html, css, js, favicon] = await Promise.all([
 
 for (const asset of ["styles.css", "app.js", "favicon.svg"]) assert.match(html, new RegExp(`(?:href|src)="${asset.replace(".", "\\.")}"`));
 assert.match(favicon, /<svg[\s\S]*viewBox="0 0 32 32"/);
+assert.equal((html.match(/<h1\b/g) || []).length, 1, "the demo must expose one page heading");
+assert.match(html, /href="https:\/\/github\.com\/sebastianspicker\/baseline-ops"/);
 for (const disclosure of ["STATIC DEMO", "No commands run", "Sanitized fixture data"]) assert.ok(html.includes(disclosure), `missing disclosure: ${disclosure}`);
 for (const action of ["Browse kit", "Refresh", "Validate profile", "Run audit", "Stop run", "Clear view", "Save fixture output"]) {
   const actionWindow = html.slice(Math.max(0, html.indexOf(action) - 80), html.indexOf(action) + 180);
