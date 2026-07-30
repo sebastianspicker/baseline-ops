@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Static, fixture-only simulation of the BaselineOps for Windows operator console.">
+    <title>BaselineOps for Windows · Static demo</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="window" aria-labelledby="window-title">
+      <header class="titlebar">
+        <div class="app-mark" aria-hidden="true">B</div>
+        <h1 id="window-title">BaselineOps for Windows - Operator Console (Alpha)</h1>
+        <div class="window-controls" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+      </header>
+
+      <div class="demo-notice" role="note">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v6M12 7h.01"></path></svg>
+        <strong>STATIC DEMO</strong>
+        <span>No commands run</span>
+        <span>Sanitized fixture data</span>
+      </div>
+
+      <section class="group environment" aria-labelledby="environment-heading">
+        <h2 id="environment-heading">Environment</h2>
+        <label for="kit-root">Kit root:</label>
+        <input id="kit-root" value="C:\Program Files\BaselineOpsForWindows-v2.3.0-alpha.1" readonly>
+        <button type="button" class="button" data-sim-action="browse">Browse kit <span>[SIMULATED]</span></button>
+        <button type="button" class="button" data-sim-action="refresh">Refresh <span>[SIMULATED]</span></button>
+        <p class="environment-state"><span class="status-dot"></span> 52 fixture scripts · Standard user · LAB-WS-042</p>
+      </section>
+
+      <div class="workspace">
+        <section class="configuration" aria-label="Run configuration">
+          <div class="tabs" role="tablist" aria-label="Target type">
+            <button id="script-tab" class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="script-panel">Run script</button>
+            <button id="profile-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="profile-panel">Run profile</button>
+          </div>
+
+          <div id="script-panel" class="target-panel" role="tabpanel" aria-labelledby="script-tab">
+            <label class="filter-label" for="script-filter">Filter tasks:</label>
+            <div class="filter-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg>
+              <input id="script-filter" type="search" placeholder="Filter by number, task, or synopsis" autocomplete="off">
+            </div>
+
+            <div class="table-wrap script-table-wrap">
+              <table>
+                <thead><tr><th scope="col">Number</th><th scope="col">Task</th><th scope="col">Modes</th></tr></thead>
+                <tbody id="script-rows"></tbody>
+              </table>
+            </div>
+
+            <section class="subgroup details" aria-labelledby="selected-task-heading">
+              <h2 id="selected-task-heading">Selected task details</h2>
+              <dl>
+                <dt>Number:</dt><dd id="detail-number"></dd>
+                <dt>Task:</dt><dd id="detail-task"></dd>
+                <dt>Description:</dt><dd id="detail-description"></dd>
+                <dt>Modes:</dt><dd id="detail-modes"></dd>
+                <dt>Script path:</dt><dd id="detail-path"></dd>
+              </dl>
+            </section>
+          </div>
+
+          <div id="profile-panel" class="target-panel" role="tabpanel" aria-labelledby="profile-tab" hidden>
+            <div class="profile-picker">
+              <label for="profile-path">Profile fixture:</label>
+              <input id="profile-path" value="examples\profiles\baseline-audit.json [FIXTURE]" readonly>
+              <button type="button" class="button" data-sim-action="validate">Validate profile <span>[SIMULATED]</span></button>
+            </div>
+            <p class="profile-summary"><strong>baseline-audit</strong> · version 2.0 · default Audit · 3 steps<br><span>Example only. Signatures and expected hashes are not configured.</span></p>
+            <div class="table-wrap profile-table-wrap">
+              <table>
+                <thead><tr><th scope="col">Order</th><th scope="col">Script</th><th scope="col">Continue</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>01-ASR-Defender-Allowlist.ps1</td><td>On warning</td></tr>
+                  <tr><td>2</td><td>31-PowerShell-Logging-Baseline.ps1</td><td>On warning</td></tr>
+                  <tr><td>3</td><td>43-AppControlForBusiness-Audit.ps1</td><td>On warning</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="profile-safety">The real runner treats profile JSON as untrusted input. This demo does not read or validate files.</p>
+          </div>
+
+          <fieldset class="subgroup policy">
+            <legend>Execution policy</legend>
+            <div class="policy-grid">
+              <label><input type="radio" name="mode" checked> Audit <em>(simulated setting)</em></label>
+              <label><input id="strict" type="checkbox"> Strict <em>(simulated setting)</em></label>
+              <label class="disabled"><input type="radio" name="mode" disabled> Remediate <em>(simulated · disabled)</em></label>
+              <label><input id="signature" type="checkbox"> Require valid signature <em>(simulated setting)</em></label>
+            </div>
+            <p>Real audits can write reports or evidence. This fixture-only demo performs no inspection and writes no endpoint data.</p>
+          </fieldset>
+
+          <div class="run-actions">
+            <button id="run-button" class="button primary" type="button">Run audit · SIMULATED</button>
+            <button id="stop-button" class="button" type="button" disabled>Stop run · SIMULATED</button>
+          </div>
+        </section>
+
+        <section class="output-panel" aria-labelledby="output-heading">
+          <header class="output-header">
+            <h2 id="output-heading">Output</h2>
+            <div>
+              <button id="clear-button" class="button" type="button">Clear view <span>[SIMULATED]</span></button>
+              <button id="save-button" class="button" type="button">Save fixture output <span>[SIMULATED]</span></button>
+            </div>
+          </header>
+          <div class="terminal-shell">
+            <pre id="output" tabindex="0" aria-label="Sanitized simulated launcher output"></pre>
+          </div>
+        </section>
+      </div>
+
+      <footer class="statusbar">
+        <span id="status-text"><span class="status-dot"></span> Ready · Static demo</span>
+        <a href="https://github.com/sebastianspicker/baseline-ops">View source on GitHub</a>
+      </footer>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
