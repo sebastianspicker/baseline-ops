@@ -142,7 +142,7 @@ function Assert-TrustedStateAcl {
     if ($trustedSids -notcontains $sid) { throw "Sysmon state path '$Path' grants write access to untrusted SID '$sid'." }
   }
 }
-function New-TrustedStateAcl {
+function Get-TrustedStateAcl {
   param([switch]$Directory)
   $administrators = New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')
   $system = New-Object Security.Principal.SecurityIdentifier('S-1-5-18')
@@ -162,9 +162,11 @@ function New-TrustedStateAcl {
   return $acl
 }
 function New-TrustedStateDirectory {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param([Parameter(Mandatory)][string]$Path)
+  if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected Sysmon state directory')) { return }
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return [IO.Directory]::CreateDirectory($Path) }
-  $security = New-TrustedStateAcl -Directory
+  $security = Get-TrustedStateAcl -Directory
   if ($PSVersionTable.PSEdition -eq 'Desktop') { return [IO.Directory]::CreateDirectory($Path,$security) }
   return [IO.FileSystemAclExtensions]::CreateDirectory($security,$Path)
 }
@@ -175,7 +177,7 @@ function Open-TrustedStateFile {
     [Parameter(Mandatory)][IO.FileShare]$Share
   )
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return [IO.File]::Open($Path,$Mode,[IO.FileAccess]::ReadWrite,$Share) }
-  $security = New-TrustedStateAcl
+  $security = Get-TrustedStateAcl
   $rights = [Security.AccessControl.FileSystemRights]::Read -bor [Security.AccessControl.FileSystemRights]::Write
   $fileInfo = New-Object IO.FileInfo($Path)
   if ($PSVersionTable.PSEdition -eq 'Desktop') { return $fileInfo.Create($Mode,$rights,$Share,4096,[IO.FileOptions]::WriteThrough,$security) }
@@ -409,8 +411,10 @@ function Validate-ConfigXml([byte[]]$Bytes){
 # Writes configuration bytes to a fresh file and retains the stream so the exact
 # validated content remains pinned until Sysmon has consumed it.
 function New-StagedConfigFile {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)][byte[]]$Bytes)
   $directory = [IO.Path]::GetTempPath()
+  if (-not $PSCmdlet.ShouldProcess($directory, 'Create staged Sysmon configuration file')) { return }
   for ($attempt = 0; $attempt -lt 10; $attempt++) {
     $path = Join-Path $directory ('.sysmon-config-' + [guid]::NewGuid().ToString('N') + '.xml')
     try {
@@ -451,7 +455,9 @@ function Test-TrustedSysmonExecutable {
 # Copies a locked, trusted Sysmon binary into a private stage and verifies its
 # hash, binding later execution to the bytes that passed identity checks.
 function New-StagedTrustedSysmonExecutable {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param([Parameter(Mandatory)][string]$Path)
+  if (-not $PSCmdlet.ShouldProcess($Path, 'Create staged trusted Sysmon executable')) { return }
   # Keep the source locked across its signature validation and byte-for-byte
   # snapshot.  The staged copy is CreateNew and remains read-locked until the
   # native child has exited, so neither path can be swapped between trust and

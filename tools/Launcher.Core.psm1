@@ -798,7 +798,7 @@ function Get-LauncherTerminalState {
 .DESCRIPTION
   Returns null on non-Windows hosts to keep portable checks usable.
 #>
-function New-LauncherProcessJob {
+function Get-LauncherProcessJob {
   [CmdletBinding()]
   param()
 
@@ -831,7 +831,7 @@ function Add-LauncherProcessToJob {
   Uses the trusted platform process-tree termination path where available.
 #>
 function Stop-LauncherProcessTree {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   [OutputType([bool])]
   param(
     [Parameter(Mandatory)][System.Diagnostics.Process]$Process,
@@ -847,6 +847,8 @@ function Stop-LauncherProcessTree {
   } catch {
     return $false
   }
+
+  if (-not $PSCmdlet.ShouldProcess("process $($Process.Id)", 'Stop launcher process tree')) { return $false }
 
   if ($null -ne $Job) {
     try {
@@ -891,11 +893,13 @@ function Stop-LauncherProcessTree {
   }
 }
 
+Set-Alias -Name New-LauncherProcessJob -Value Get-LauncherProcessJob
+
 Export-ModuleMember -Function @(
   'ConvertFrom-LauncherArgumentString', 'Assert-LauncherArgumentsAllowed',
   'Test-LauncherKitRoot', 'Get-LauncherScriptCatalog', 'Get-LauncherProfileSummary',
   'ConvertTo-LauncherManifest', 'Assert-LauncherManifest', 'Get-LauncherTerminalState',
-  'Add-LauncherPendingLine', 'New-LauncherProcessJob', 'Add-LauncherProcessToJob',
+  'Add-LauncherPendingLine', 'Get-LauncherProcessJob', 'Add-LauncherProcessToJob',
   'Stop-LauncherProcessTree', 'Enter-LauncherTrustedClosure', 'Exit-LauncherTrustedClosure',
   'Get-LauncherTrustedSystem32Path', 'Test-LauncherElevatedWindows'
-)
+) -Alias 'New-LauncherProcessJob'

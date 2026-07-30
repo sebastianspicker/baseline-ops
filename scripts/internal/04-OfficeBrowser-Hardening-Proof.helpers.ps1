@@ -217,7 +217,7 @@ function Clear-EdgeStartupUrlValues {
 # Applies one startup URL and returns proof for the attempted write so audit and
 # remediation paths share the same evidence shape.
 function Set-EdgeStartupUrlProof {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param(
     [Parameter(Mandatory)][string]$Path,
     [Parameter(Mandatory)][string]$Name,
@@ -227,7 +227,7 @@ function Set-EdgeStartupUrlProof {
 
   $changed = $false
   $message = $null
-  if ($Skipped) {
+  if ($Skipped -or -not $PSCmdlet.ShouldProcess("$Path\\$Name", 'Set Edge startup URL')) {
     $message = 'Set skipped by confirmation/WhatIf'
   } else {
     try {

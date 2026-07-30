@@ -180,12 +180,13 @@ function Write-BatchTerminalResult {
 }
 
 function Set-BatchAdminSystemAcl {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param(
     [Parameter(Mandatory)][string]$Path,
     [switch]$Directory
   )
 
+  if (-not $PSCmdlet.ShouldProcess($Path, 'Set protected Administrators and SYSTEM ACL')) { return }
   $adminsSid = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
   $systemSid = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')
   $acl = if ($Directory) {
@@ -215,7 +216,7 @@ function Set-BatchAdminSystemAcl {
 }
 
 function New-BatchProfileWorkspace {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param()
 
   if ($isElevatedWindows) {
@@ -228,8 +229,9 @@ function New-BatchProfileWorkspace {
     $trustedParent = Join-Path $programData 'Microsoft\Windows'
     Assert-RunBatchTrustedWindowsAcl -Path $trustedParent -CheckAncestors
     $directory = Join-Path $trustedParent ("BaselineOpsForWindows-Batch-{0}" -f [guid]::NewGuid().ToString('N'))
+    if (-not $PSCmdlet.ShouldProcess($directory, 'Create protected batch profile workspace')) { return }
     [void][System.IO.Directory]::CreateDirectory($directory)
-    Set-BatchAdminSystemAcl -Path $directory -Directory
+    Set-BatchAdminSystemAcl -Path $directory -Directory -Confirm:$false
     Assert-RunBatchTrustedWindowsAcl -Path $directory -CheckAncestors
     return $directory
   }
@@ -237,6 +239,7 @@ function New-BatchProfileWorkspace {
   # There is no elevated Windows boundary on this path. The unique directory
   # preserves portable development runs; the profile itself is locked below.
   $directory = Join-Path ([System.IO.Path]::GetTempPath()) ("baselineops-windows-batch-{0}" -f [guid]::NewGuid().ToString('N'))
+  if (-not $PSCmdlet.ShouldProcess($directory, 'Create batch profile workspace')) { return }
   [void][System.IO.Directory]::CreateDirectory($directory)
   return $directory
 }
@@ -315,11 +318,11 @@ $profileLockStream = $null
 $exitCode = $null
 $invocationError = $null
 try {
-  $tempProfileDirectory = New-BatchProfileWorkspace
+  $tempProfileDirectory = New-BatchProfileWorkspace -Confirm:$false
   $tempProfile = Join-Path $tempProfileDirectory 'profile.json'
   $batchProfile | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $tempProfile -Encoding UTF8
   if ($isElevatedWindows) {
-    Set-BatchAdminSystemAcl -Path $tempProfile
+    Set-BatchAdminSystemAcl -Path $tempProfile -Confirm:$false
     Assert-RunBatchTrustedWindowsAcl -Path $tempProfile
   }
 

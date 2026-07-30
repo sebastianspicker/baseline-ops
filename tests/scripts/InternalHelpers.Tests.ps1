@@ -279,14 +279,14 @@ Describe '11 IOC sweep helpers' {
   }
 
   It 'precompiles catalog regexes with a finite timeout' {
-    $regex = New-IocRegex -Pattern '^safe$' -Label 'test'
+    $regex = ConvertTo-IocRegex -Pattern '^safe$' -Label 'test'
     $regex.IsMatch('safe') | Should -BeTrue
     $regex.MatchTimeout.TotalMilliseconds | Should -Be 250
   }
 
   It 'rejects oversized or invalid catalog regexes before scanning' {
-    { New-IocRegex -Pattern ('a' * 1025) -Label 'test' } | Should -Throw '*1024-character limit*'
-    { New-IocRegex -Pattern '(' -Label 'test' } | Should -Throw '*invalid*'
+    { ConvertTo-IocRegex -Pattern ('a' * 1025) -Label 'test' } | Should -Throw '*1024-character limit*'
+    { ConvertTo-IocRegex -Pattern '(' -Label 'test' } | Should -Throw '*invalid*'
   }
 }
 
@@ -413,21 +413,21 @@ Describe '12 SuspiciousArtifactGrabber helpers' {
 
   Context 'catalog regex hardening' {
     It 'precompiles bounded patterns with a finite timeout' {
-      $regex = New-ArtifactRegex -Pattern '^safe$' -Label 'test'
+      $regex = ConvertTo-ArtifactRegex -Pattern '^safe$' -Label 'test'
       $regex.IsMatch('safe') | Should -BeTrue
       $regex.MatchTimeout.TotalMilliseconds | Should -Be 250
     }
 
     It 'rejects oversized, invalid, and over-count catalog patterns before collection' {
-      { New-ArtifactRegex -Pattern ('a' * 1025) -Label 'test' } | Should -Throw '*1024-character limit*'
-      { New-ArtifactRegex -Pattern '(' -Label 'test' } | Should -Throw '*invalid*'
+      { ConvertTo-ArtifactRegex -Pattern ('a' * 1025) -Label 'test' } | Should -Throw '*1024-character limit*'
+      { ConvertTo-ArtifactRegex -Pattern '(' -Label 'test' } | Should -Throw '*invalid*'
       $catalog = Get-BaseClone -Obj $DefaultCatalog
       $catalog.Tasks.SuspiciousRegex = @(1..257 | ForEach-Object { 'safe' })
       { Initialize-ArtifactRegexRules -Catalog $catalog } | Should -Throw '*at most 256 patterns*'
     }
 
     It 'times out catastrophic catalog matches instead of using unbounded matching' {
-      $regex = New-ArtifactRegex -Pattern '^(a+)+$' -Label 'test'
+      $regex = ConvertTo-ArtifactRegex -Pattern '^(a+)+$' -Label 'test'
       { $regex.IsMatch((('a' * 24000) + '!')) } | Should -Throw
     }
   }

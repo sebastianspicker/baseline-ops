@@ -48,7 +48,7 @@ function Get-WinGetResultToken {
 
 # Builds the protected ACL used for every staging directory so inherited local
 # user write access cannot affect privileged WinGet input.
-function New-WinGetAdminOnlyDirectorySecurity {
+function Get-WinGetAdminOnlyDirectorySecurity {
   [CmdletBinding()]
   param()
 
@@ -72,15 +72,17 @@ function New-WinGetAdminOnlyDirectorySecurity {
 }
 
 function New-WinGetAdminOnlyDirectory {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param([Parameter(Mandatory)][string]$Path)
+
+  if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected WinGet staging directory')) { return }
 
   if ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
     [System.IO.Directory]::CreateDirectory($Path) | Out-Null
     return
   }
 
-  $security = New-WinGetAdminOnlyDirectorySecurity
+  $security = Get-WinGetAdminOnlyDirectorySecurity
   if ($PSVersionTable.PSEdition -eq 'Desktop') {
     [System.IO.Directory]::CreateDirectory($Path, $security) | Out-Null
   } else {
@@ -155,13 +157,14 @@ function Initialize-WinGetStagingRoot {
 # Locks the source, copies bounded bytes into protected staging, and retains a
 # read handle so WinGet consumes the exact configuration that was validated.
 function New-WinGetStagedConfiguration {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param(
     [Parameter(Mandatory)][string]$SourcePath,
     [ValidateRange(1, 16777216)][int64]$MaximumBytes = 16777216,
     [string]$StagingRoot
   )
 
+  if (-not $PSCmdlet.ShouldProcess($SourcePath, 'Create protected staged WinGet configuration')) { return }
   $sourceStream = $null
   $writeStream = $null
   $stageStream = $null
@@ -236,12 +239,12 @@ function New-WinGetStagedConfiguration {
 }
 
 function Remove-WinGetStagedConfiguration {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param([AllowNull()]$StagedConfiguration)
 
   if ($null -eq $StagedConfiguration) { return }
   if ($null -ne $StagedConfiguration.Stream) { $StagedConfiguration.Stream.Dispose() }
-  if ($StagedConfiguration.Directory -and (Test-Path -LiteralPath $StagedConfiguration.Directory -PathType Container)) {
+  if ($StagedConfiguration.Directory -and (Test-Path -LiteralPath $StagedConfiguration.Directory -PathType Container) -and $PSCmdlet.ShouldProcess($StagedConfiguration.Directory, 'Remove staged WinGet configuration')) {
     Remove-Item -LiteralPath $StagedConfiguration.Directory -Recurse -Force -ErrorAction Stop
   }
 }

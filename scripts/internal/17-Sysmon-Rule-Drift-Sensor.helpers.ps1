@@ -62,7 +62,7 @@ function Assert-TrustedStateAcl {
     if ($trustedSids -notcontains $sid) { throw "Sysmon state path '$Path' grants write access to untrusted SID '$sid'." }
   }
 }
-function New-TrustedStateAcl {
+function Get-TrustedStateAcl {
   param([switch]$Directory)
   $administrators = New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544'); $system = New-Object Security.Principal.SecurityIdentifier('S-1-5-18')
   if ($Directory) { $acl = New-Object Security.AccessControl.DirectorySecurity; $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit }
@@ -72,16 +72,18 @@ function New-TrustedStateAcl {
   return $acl
 }
 function New-TrustedStateDirectory {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
   param([Parameter(Mandatory)][string]$Path)
+  if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected Sysmon state directory')) { return }
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return [IO.Directory]::CreateDirectory($Path) }
-  $security = New-TrustedStateAcl -Directory
+  $security = Get-TrustedStateAcl -Directory
   if ($PSVersionTable.PSEdition -eq 'Desktop') { return [IO.Directory]::CreateDirectory($Path,$security) }
   return [IO.FileSystemAclExtensions]::CreateDirectory($security,$Path)
 }
 function Open-TrustedStateFile {
   param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][IO.FileMode]$Mode,[Parameter(Mandatory)][IO.FileShare]$Share)
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return [IO.File]::Open($Path,$Mode,[IO.FileAccess]::ReadWrite,$Share) }
-  $security = New-TrustedStateAcl
+  $security = Get-TrustedStateAcl
   $rights = [Security.AccessControl.FileSystemRights]::Read -bor [Security.AccessControl.FileSystemRights]::Write
   $fileInfo = New-Object IO.FileInfo($Path)
   if ($PSVersionTable.PSEdition -eq 'Desktop') { return $fileInfo.Create($Mode,$rights,$Share,4096,[IO.FileOptions]::WriteThrough,$security) }

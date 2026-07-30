@@ -683,7 +683,7 @@ catch {
   }
   if (-not $firewallActivationCommitted -and $rollbackTaskCancelled -and $createdManagedRules.Count -gt 0) {
     try {
-      Remove-ExactManagedFirewallRules -Rules @($createdManagedRules.ToArray())
+      Remove-ExactManagedFirewallRules -Rules @($createdManagedRules.ToArray()) -Confirm:$false
     } catch {
       Add-RunError "Partial activation cleanup failed: $($_.Exception.Message)"
     }

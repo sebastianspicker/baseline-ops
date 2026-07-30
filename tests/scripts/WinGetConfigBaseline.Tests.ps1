@@ -44,7 +44,7 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
     $helperParseErrors | Should -BeNullOrEmpty
     $requiredHelpers = @(
       'Test-WinGetPhaseSuccess', 'Get-WinGetAggregateExitCode', 'Get-WinGetResultToken',
-      'New-WinGetAdminOnlyDirectorySecurity', 'New-WinGetAdminOnlyDirectory',
+      'Get-WinGetAdminOnlyDirectorySecurity', 'New-WinGetAdminOnlyDirectory',
       'Initialize-WinGetStagingRoot', 'New-WinGetStagedConfiguration',
       'Remove-WinGetStagedConfiguration'
     )
@@ -216,7 +216,7 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
 
     $stageParameters = @{ SourcePath = $sourcePath }
     if (-not $script:IsWindowsHost) { $stageParameters.StagingRoot = $stagingRoot }
-    $staged = New-WinGetStagedConfiguration @stageParameters
+    $staged = New-WinGetStagedConfiguration @stageParameters -Confirm:$false
     $stagedDirectory = $staged.Directory
     try {
       $staged.Path | Should -Not -Be $staged.SourcePath
@@ -236,7 +236,7 @@ Describe 'WinGet config baseline runner config input reporting' -Tag 'Config' {
         { Remove-Item -LiteralPath $staged.Path -Force -ErrorAction Stop } | Should -Throw
       }
     } finally {
-      Remove-WinGetStagedConfiguration -StagedConfiguration $staged
+      Remove-WinGetStagedConfiguration -StagedConfiguration $staged -Confirm:$false
     }
 
     Test-Path -LiteralPath $stagedDirectory | Should -BeFalse

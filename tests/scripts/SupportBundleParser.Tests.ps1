@@ -23,7 +23,7 @@ Describe '10-SupportBundle-Parser archive validation' -Tag 'SupportBundle', 'Sec
 
     $required = @(
       'Ensure-ExtractedWorkDir', 'Test-NoReparsePointAncestor',
-      'Set-AdminOnlyDirectoryAcl', 'New-AdminOnlyDirectorySecurity',
+      'Set-AdminOnlyDirectoryAcl', 'Get-AdminOnlyDirectorySecurity',
       'New-AdminOnlyDirectory', 'Initialize-TrustedExtractRoot',
       'Ensure-AdminOnlyDirectoryTree', 'Get-ValidatedZipEntries'
     )
@@ -35,7 +35,9 @@ Describe '10-SupportBundle-Parser archive validation' -Tag 'SupportBundle', 'Sec
     Add-Type -AssemblyName System.IO.Compression -ErrorAction Stop
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
     function New-ParserTestZip {
+      [CmdletBinding(SupportsShouldProcess)]
       param([string]$Path, [hashtable[]]$Entries)
+      if (-not $PSCmdlet.ShouldProcess($Path, 'create parser test archive')) { return }
       $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
       try {
         $zip = New-Object -TypeName System.IO.Compression.ZipArchive -ArgumentList @($stream, [System.IO.Compression.ZipArchiveMode]::Create, $false)
@@ -186,6 +188,7 @@ Describe '10-SupportBundle-Parser terminal failures and defaults' -Tag 'SupportB
     }
 
     function Remove-NewParserExtractRuns {
+      [CmdletBinding(SupportsShouldProcess)]
       param(
         [Parameter(Mandatory)][string]$ExtractRoot,
         [AllowEmptyCollection()][string[]]$Before = @(),
@@ -197,16 +200,19 @@ Describe '10-SupportBundle-Parser terminal failures and defaults' -Tag 'SupportB
         if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
           throw "Refusing to remove reparse-point extraction test run: $($item.FullName)"
         }
+        if (-not $PSCmdlet.ShouldProcess($item.FullName, 'remove parser test extraction run')) { continue }
         Remove-Item -LiteralPath $item.FullName -Recurse -Force -ErrorAction Stop
       }
     }
 
     function New-SupportBundleParserFixture {
+      [CmdletBinding(SupportsShouldProcess)]
       param(
         [Parameter(Mandatory)][string]$Root,
         [AllowEmptyCollection()][string[]]$FailedRecordErrors = @(),
         [AllowEmptyCollection()][string[]]$LegacyErrors = @()
       )
+      if (-not $PSCmdlet.ShouldProcess($Root, 'create support-bundle parser fixture')) { return }
       $supportDir = Join-Path $Root 'bundles'
       $extractRoot = Get-ParserTestExtractRoot
       $sourceDir = Join-Path $Root 'source'
