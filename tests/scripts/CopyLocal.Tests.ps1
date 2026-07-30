@@ -317,6 +317,7 @@ Describe '00-Copy-Local v2 terminal result contract' {
     $hostPath = (Get-Process -Id $PID).Path
     $tempRoot = Join-Path '/private/tmp' ("copy-local-untrusted-repo-{0}" -f [guid]::NewGuid().ToString('N'))
     if ([Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+      . (Get-CopyLocalFunctionBody -Name 'Get-CopyLocalTrustedWriterSid')
       . (Get-CopyLocalFunctionBody -Name 'Assert-CopyLocalAclObjectTrust')
       . (Get-CopyLocalFunctionBody -Name 'Assert-CopyLocalDestinationAclTrust')
       . (Get-CopyLocalFunctionBody -Name 'Set-CopyLocalNewDestinationAcl')
