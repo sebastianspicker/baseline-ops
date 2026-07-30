@@ -1,3 +1,4 @@
+# Verifies and publishes the fixture-only operator console to GitHub Pages.
 name: Deploy static demo to Pages
 
 on:
