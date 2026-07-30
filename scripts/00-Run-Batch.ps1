@@ -180,7 +180,7 @@ function Write-BatchTerminalResult {
 }
 
 function Set-BatchAdminSystemAcl {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param(
     [Parameter(Mandatory)][string]$Path,
     [switch]$Directory
@@ -216,7 +216,7 @@ function Set-BatchAdminSystemAcl {
 }
 
 function New-BatchProfileWorkspace {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param()
 
   if ($isElevatedWindows) {

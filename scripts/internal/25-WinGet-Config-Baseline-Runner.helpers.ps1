@@ -72,7 +72,7 @@ function Get-WinGetAdminOnlyDirectorySecurity {
 }
 
 function New-WinGetAdminOnlyDirectory {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)][string]$Path)
 
   if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected WinGet staging directory')) { return }
@@ -157,7 +157,7 @@ function Initialize-WinGetStagingRoot {
 # Locks the source, copies bounded bytes into protected staging, and retains a
 # read handle so WinGet consumes the exact configuration that was validated.
 function New-WinGetStagedConfiguration {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param(
     [Parameter(Mandatory)][string]$SourcePath,
     [ValidateRange(1, 16777216)][int64]$MaximumBytes = 16777216,
@@ -239,7 +239,7 @@ function New-WinGetStagedConfiguration {
 }
 
 function Remove-WinGetStagedConfiguration {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([AllowNull()]$StagedConfiguration)
 
   if ($null -eq $StagedConfiguration) { return }

@@ -222,7 +222,7 @@ function Enter-KillSwitchRemediationLock {
   }
 }
 function Remove-ExactJustCreatedFirewallRule {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param(
     [Parameter(Mandatory=$true)][ValidatePattern('^[A-Za-z0-9_-]+$')][ValidateLength(1,256)][string]$Name,
     [Parameter(Mandatory=$true)][ValidateSet('Inbound','Outbound')][string]$Direction,
@@ -302,7 +302,7 @@ function Test-NoManagedFirewallRuleConflicts {
   }
 }
 function Remove-ExactManagedFirewallRules {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory=$true)][object[]]$Rules)
   Assert-ManagedFirewallRules -Rules $Rules
   if (-not $PSCmdlet.ShouldProcess((@($Rules.Name) -join ', '), 'Remove managed firewall rules')) { return $false }

@@ -162,7 +162,7 @@ function Get-TrustedStateAcl {
   return $acl
 }
 function New-TrustedStateDirectory {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)][string]$Path)
   if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected Sysmon state directory')) { return }
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return [IO.Directory]::CreateDirectory($Path) }
@@ -455,7 +455,7 @@ function Test-TrustedSysmonExecutable {
 # Copies a locked, trusted Sysmon binary into a private stage and verifies its
 # hash, binding later execution to the bytes that passed identity checks.
 function New-StagedTrustedSysmonExecutable {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)][string]$Path)
   if (-not $PSCmdlet.ShouldProcess($Path, 'Create staged trusted Sysmon executable')) { return }
   # Keep the source locked across its signature validation and byte-for-byte

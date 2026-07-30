@@ -72,7 +72,7 @@ function Get-TrustedStateAcl {
   return $acl
 }
 function New-TrustedStateDirectory {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)][string]$Path)
   if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected Sysmon state directory')) { return }
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return [IO.Directory]::CreateDirectory($Path) }
@@ -499,7 +499,7 @@ function Assert-LockedSysmonRemediationClosure {
 # Launches only the trusted updater closure in Windows PowerShell and reports a
 # structured outcome; the sensor never remediates inline in its own process.
 function Invoke-RemediationScript {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param(
     [Parameter(Mandatory)][string]$ScriptPath,
     [switch]$RequireSignature

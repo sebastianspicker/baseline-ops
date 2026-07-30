@@ -102,7 +102,7 @@ function Test-NoReparsePointAncestor {
   }
 }
 function Set-AdminOnlyDirectoryAcl {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Path)
   if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) { return }
   if (-not $PSCmdlet.ShouldProcess($Path, 'Set protected directory ACL')) { return }
@@ -131,7 +131,7 @@ function Get-AdminOnlyDirectorySecurity {
   return $security
 }
 function New-AdminOnlyDirectory {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Path)
   if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected directory')) { return }
   if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) {
