@@ -77,7 +77,7 @@ Earlier PowerShell Core versions are not part of the repository's verified toolc
 Clone the repository for development and standard-user inspection:
 
 ```powershell
-git clone https://github.com/sebastianspicker/win-mdm-security-hardening-kit.git baselineops-windows
+git clone https://github.com/sebastianspicker/baseline-ops.git baselineops-windows
 Set-Location -LiteralPath .\baselineops-windows
 ```
 
