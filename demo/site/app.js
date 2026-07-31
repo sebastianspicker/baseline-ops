@@ -77,21 +77,33 @@ let activeTarget = "script";
 let runTimer;
 let toastTimer;
 
-function escapeText(value) {
-  return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" })[character]);
-}
-
 function renderScripts(query = "") {
   const normalized = query.trim().toLowerCase();
   const visible = scripts.filter((item) => [item.number, item.task, item.file, item.description, item.modes].join(" ").toLowerCase().includes(normalized));
-  rows.innerHTML = visible.map((item) => `<tr tabindex="0" data-number="${item.number}" class="${item.number === selectedScript.number ? "is-selected" : ""}" aria-selected="${item.number === selectedScript.number}"><td>${item.number}</td><td>${escapeText(item.task)}</td><td>${escapeText(item.modes)}</td></tr>`).join("");
-  rows.querySelectorAll("tr").forEach((row) => {
-    const select = () => selectScript(row.dataset.number);
-    row.addEventListener("click", select);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); }
-    });
-  });
+  rows.replaceChildren(...visible.map(createScriptRow));
+}
+
+function createScriptRow(item) {
+  const row = document.createElement("tr");
+  const selected = item.number === selectedScript.number;
+  row.tabIndex = 0;
+  row.dataset.number = item.number;
+  row.classList.toggle("is-selected", selected);
+  row.setAttribute("aria-selected", String(selected));
+  for (const value of [item.number, item.task, item.modes]) {
+    const cell = document.createElement("td");
+    cell.textContent = value;
+    row.append(cell);
+  }
+  row.addEventListener("click", () => selectScript(item.number));
+  row.addEventListener("keydown", (event) => selectScriptFromKeyboard(event, item.number));
+  return row;
+}
+
+function selectScriptFromKeyboard(event, number) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  selectScript(number);
 }
 
 function selectScript(number) {
@@ -112,8 +124,10 @@ function showToast(message) {
 }
 
 function setStatus(text, running = false) {
-  statusText.innerHTML = `<span class="status-dot"></span> ${escapeText(text)}`;
-  statusText.querySelector(".status-dot").style.background = running ? "#c77700" : "#27883c";
+  const dot = document.createElement("span");
+  dot.className = "status-dot";
+  dot.style.background = running ? "#c77700" : "#27883c";
+  statusText.replaceChildren(dot, document.createTextNode(` ${text}`));
 }
 
 function activateTab(target) {
@@ -174,15 +188,23 @@ document.querySelector("#save-button").addEventListener("click", () => {
 });
 
 document.querySelectorAll("[data-sim-action]").forEach((button) => button.addEventListener("click", () => {
-  const action = button.dataset.simAction;
-  const messages = {
-    browse: "Browse is simulated. The fixture kit root does not change.",
-    refresh: "Catalog refresh is simulated. No files were scanned.",
-    validate: "Fixture profile validated in the browser. No PowerShell command ran."
-  };
-  showToast(messages[action]);
-  if (action === "validate") setStatus("Profile valid · SIMULATED");
+  showSimulatedAction(button.dataset.simAction);
 }));
+
+function showSimulatedAction(action) {
+  switch (action) {
+    case "browse":
+      showToast("Browse is simulated. The fixture kit root does not change.");
+      break;
+    case "refresh":
+      showToast("Catalog refresh is simulated. No files were scanned.");
+      break;
+    case "validate":
+      showToast("Fixture profile validated in the browser. No PowerShell command ran.");
+      setStatus("Profile valid · SIMULATED");
+      break;
+  }
+}
 
 output.textContent = initialOutput;
 selectScript("27");

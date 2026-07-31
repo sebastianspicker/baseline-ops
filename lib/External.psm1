@@ -287,7 +287,7 @@ function ConvertTo-WindowsCommandLineArgument {
 .DESCRIPTION
   Uses ArgumentList when possible and quotes a legacy command line otherwise.
 #>
-function Set-NativeProcessArguments {
+function Initialize-NativeProcessArguments {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][System.Diagnostics.ProcessStartInfo]$StartInfo,
@@ -587,7 +587,7 @@ public static class NativeProcessWorkerSession {
 .DESCRIPTION
   Encodes the validated execution manifest for the child process environment.
 #>
-function New-NativeWorkerStartInfo {
+function Get-NativeWorkerStartInfo {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$ResolvedCommand,
@@ -613,7 +613,7 @@ function New-NativeWorkerStartInfo {
   $startInfo.CreateNoWindow = $true
   $startInfo.RedirectStandardOutput = $true
   $startInfo.RedirectStandardError = $true
-  Set-NativeProcessArguments -StartInfo $startInfo -Arguments @(
+  Initialize-NativeProcessArguments -StartInfo $startInfo -Arguments @(
     '-NoLogo',
     '-NoProfile',
     '-NonInteractive',
@@ -633,11 +633,14 @@ function New-NativeWorkerStartInfo {
   Uses platform-appropriate termination with a safe failure result.
 #>
 function Stop-NativeProcessTree {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   [OutputType([bool])]
   param(
     [Parameter(Mandatory)][System.Diagnostics.Process]$Process,
     [int]$ProcessGroupId = 0
   )
+  $target = if ($ProcessGroupId -gt 0) { "process group $ProcessGroupId" } else { "process $($Process.Id)" }
+  if (-not $PSCmdlet.ShouldProcess($target, 'Stop native process tree')) { return $false }
   if (-not $script:IsWindowsHost -and $ProcessGroupId -gt 0) {
     try {
       [void][NativeProcessPosix]::KillProcessGroup($ProcessGroupId)
@@ -708,7 +711,7 @@ function Assert-NativeExecutableIdentity {
 .DESCRIPTION
   Holds validation locks and process controls through the launch transition.
 #>
-function New-NativeWorkerLaunchContext {
+function Get-NativeWorkerLaunchContext {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$ResolvedCommand,
@@ -726,7 +729,7 @@ function New-NativeWorkerLaunchContext {
         [Threading.EventResetMode]::ManualReset,
         $gateName
       )
-      $startInfo = New-NativeWorkerStartInfo `
+      $startInfo = Get-NativeWorkerStartInfo `
         -ResolvedCommand $ResolvedCommand `
         -Arguments $Arguments `
         -GateName $gateName
@@ -738,7 +741,7 @@ function New-NativeWorkerLaunchContext {
       )
       $nativeJob = New-Object NativeProcessJob
     } else {
-      $startInfo = New-NativeWorkerStartInfo `
+      $startInfo = Get-NativeWorkerStartInfo `
         -ResolvedCommand $ResolvedCommand `
         -Arguments $Arguments `
         -StartNewSession
@@ -880,7 +883,7 @@ function ConvertTo-NativeOutputLines {
 .DESCRIPTION
   Maps worker completion data to the module's stable result contract.
 #>
-function New-NativeCommandResult {
+function ConvertTo-NativeCommandResult {
   param([Parameter(Mandatory)][object]$Completion)
 
   $success = (-not $Completion.TimedOut -and $Completion.ExitCode -eq 0)
@@ -969,7 +972,7 @@ function Invoke-NativeCommand {
     $executableLock = [System.IO.File]::Open($resolvedCommand, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
     Assert-NativeExecutableIdentity -ResolvedCommand $resolvedCommand
     Initialize-NativeProcessCaptureType
-    $launchContext = New-NativeWorkerLaunchContext -ResolvedCommand $resolvedCommand -Arguments $Arguments
+    $launchContext = Get-NativeWorkerLaunchContext -ResolvedCommand $resolvedCommand -Arguments $Arguments
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $launchContext.StartInfo
     $capture = New-Object NativeProcessCapture($MaxOutputBytes)
@@ -996,7 +999,7 @@ function Invoke-NativeCommand {
       if (-not $Quiet) { Write-Warning $msg }
     }
     if ($CaptureOutput) {
-      return New-NativeCommandResult -Completion $completion
+      return ConvertTo-NativeCommandResult -Completion $completion
     }
     if ($success) { return $true }
     return $false

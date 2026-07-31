@@ -410,6 +410,7 @@ function Get-BaselineFirewallRuleDrift {
   return [pscustomobject]@{ Need = $need; PortFilter = $portFilter }
 }
 function New-BaselineFirewallRule {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)]$RuleSpec,[Parameter(Mandatory)][string]$LocalPolicyStore)
   # Rules can only be added to a store at creation time.
   $params = @{ PolicyStore = $LocalPolicyStore; Direction = $RuleSpec.Direction; Action = $RuleSpec.Action; Protocol = $RuleSpec.Protocol; Enabled = $RuleSpec.Enabled }
@@ -422,10 +423,14 @@ function New-BaselineFirewallRule {
   if ($RuleSpec.Service) { $params['Service'] = $RuleSpec.Service }
   if ($RuleSpec.Profile.Count -gt 0) { $params['Profile'] = $RuleSpec.Profile }
   if ($RuleSpec.Description) { $params['Description'] = $RuleSpec.Description }
-  New-NetFirewallRule @params | Out-Null
+  if ($PSCmdlet.ShouldProcess($RuleSpec.Name, 'Create baseline firewall rule')) {
+    New-NetFirewallRule @params | Out-Null
+  }
 }
 function Set-BaselineFirewallRule {
+  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory)]$Rule,[Parameter(Mandatory)]$RuleSpec,[object]$PortFilter,[Parameter(Mandatory)][string]$LocalPolicyStore)
+  if (-not $PSCmdlet.ShouldProcess($Rule.Name, 'Update baseline firewall rule')) { return }
   $setParams = @{ PolicyStore = $LocalPolicyStore; Name = $Rule.Name; Enabled = $RuleSpec.Enabled }
   if ($RuleSpec.Direction) { $setParams['Direction'] = $RuleSpec.Direction }
   if ($RuleSpec.Action) { $setParams['Action'] = $RuleSpec.Action }
@@ -468,7 +473,7 @@ function Ensure-FwRule {
       $spTarget = "FirewallRule/(create)/$targetId"
       if ($PSCmdlet.ShouldProcess($spTarget, "New-NetFirewallRule")) {
         try {
-          New-BaselineFirewallRule -RuleSpec $ruleSpec -LocalPolicyStore $LocalPolicyStore
+          New-BaselineFirewallRule -RuleSpec $ruleSpec -LocalPolicyStore $LocalPolicyStore -Confirm:$false
           $out += (Get-ResultItem -Category EnsureRule -Target $targetId -Status Changed -Message "Rule created" -Name $name -DisplayName $disp)
         } catch {
           $out += (Get-ResultItem -Category EnsureRule -Target $targetId -Status Error -Message "Rule create failed" -Detail $_.Exception.Message -Name $name -DisplayName $disp)
@@ -491,7 +496,7 @@ function Ensure-FwRule {
       $spTarget = "FirewallRule/$($r.Name)"
       if ($PSCmdlet.ShouldProcess($spTarget, "Set-NetFirewallRule / Set-NetFirewallPortFilter")) {
         try {
-          Set-BaselineFirewallRule -Rule $r -RuleSpec $ruleSpec -PortFilter $drift.PortFilter -LocalPolicyStore $LocalPolicyStore
+          Set-BaselineFirewallRule -Rule $r -RuleSpec $ruleSpec -PortFilter $drift.PortFilter -LocalPolicyStore $LocalPolicyStore -Confirm:$false
           $out += (Get-ResultItem -Category EnsureRule -Target $targetId -Status Changed -Message "Rule remediated" -Name $r.Name -DisplayName $r.DisplayName)
         } catch {
           $out += (Get-ResultItem -Category EnsureRule -Target $targetId -Status Error -Message "Rule remediation failed" -Detail $_.Exception.Message -Name $r.Name -DisplayName $r.DisplayName)

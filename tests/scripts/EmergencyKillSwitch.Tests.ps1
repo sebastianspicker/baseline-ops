@@ -352,27 +352,24 @@ Describe '21-EmergencyKillSwitch exact post-create verification cleanup' -Tag 'E
   BeforeEach {
     $script:Run = [pscustomobject]@{ Errors = (New-Object System.Collections.Generic.List[string]); Actions = @{}; Effective = @{}; Outcome = @{} }
     $script:Findings = Get-FindingsList
-    $global:KillSwitchRuleVerificationQueryCount = 0
-    $global:KillSwitchRuleVerificationMode = 'Empty'
-    $global:KillSwitchRuleVerificationResult = $null
+    $verificationSeam = [pscustomobject]@{ QueryCount = 0; Mode = 'Empty'; Result = $null }
+    $script:KillSwitchRuleVerificationSeam = $verificationSeam
     Mock New-NetFirewallRule {
       param($Name,$Direction,$Action)
       [pscustomobject]@{ Name = $Name; Enabled = 'True'; Direction = [string]$Direction; Action = [string]$Action }
     }
-    Mock Get-NetFirewallRule {
-      $global:KillSwitchRuleVerificationQueryCount++
-      if ($global:KillSwitchRuleVerificationQueryCount -eq 1) { return $null }
-      if ($global:KillSwitchRuleVerificationMode -eq 'QueryError') { throw 'simulated post-create query failure' }
-      return $global:KillSwitchRuleVerificationResult
-    }
+    Mock Get-NetFirewallRule ({
+      $verificationSeam.QueryCount++
+      if ($verificationSeam.QueryCount -eq 1) { return $null }
+      if ($verificationSeam.Mode -eq 'QueryError') { throw 'simulated post-create query failure' }
+      return $verificationSeam.Result
+    }.GetNewClosure())
     Mock Remove-NetFirewallRule { }
   }
 
   AfterAll {
     foreach ($name in @('Get-NetFirewallRule','New-NetFirewallRule','Remove-NetFirewallRule')) { Remove-Item -LiteralPath "Function:\$name" -ErrorAction SilentlyContinue }
-    Remove-Variable KillSwitchRuleVerificationQueryCount -Scope Global -ErrorAction SilentlyContinue
-    Remove-Variable KillSwitchRuleVerificationMode -Scope Global -ErrorAction SilentlyContinue
-    Remove-Variable KillSwitchRuleVerificationResult -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable KillSwitchRuleVerificationSeam -Scope Script -ErrorAction SilentlyContinue
   }
 
   It 'removes the exact just-created rule when verification returns no rule' {
@@ -385,7 +382,7 @@ Describe '21-EmergencyKillSwitch exact post-create verification cleanup' -Tag 'E
   }
 
   It 'removes the exact just-created rule when verification settings mismatch' {
-    $global:KillSwitchRuleVerificationResult = [pscustomobject]@{ Name = $script:ExactCreatedRuleName; Enabled = 'True'; Direction = 'Outbound'; Action = 'Block' }
+    $script:KillSwitchRuleVerificationSeam.Result = [pscustomobject]@{ Name = $script:ExactCreatedRuleName; Enabled = 'True'; Direction = 'Outbound'; Action = 'Block' }
 
     $created = New-OrReplaceRule -Name $script:ExactCreatedRuleName -DisplayName 'test' -Direction Inbound -Action Block -Confirm:$false
 
@@ -395,7 +392,7 @@ Describe '21-EmergencyKillSwitch exact post-create verification cleanup' -Tag 'E
   }
 
   It 'removes the exact just-created rule when the verification query fails' {
-    $global:KillSwitchRuleVerificationMode = 'QueryError'
+    $script:KillSwitchRuleVerificationSeam.Mode = 'QueryError'
 
     $created = New-OrReplaceRule -Name $script:ExactCreatedRuleName -DisplayName 'test' -Direction Inbound -Action Block -Confirm:$false
 
@@ -493,23 +490,26 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
       }
     }
     Mock -CommandName Set-NetFirewallProfile -MockWith { }
-    $global:EmergencyKillSwitchRuleStore = @{}
-    $global:EmergencyKillSwitchTaskStore = @{}
-    Mock -CommandName New-NetFirewallRule -MockWith {
+    $rollbackSeam = [pscustomobject]@{
+      RuleStore = @{}
+      TaskStore = @{}
+      ScheduledTaskCaptures = $null
+      ScheduledTaskCapture = $null
+    }
+    $script:KillSwitchRollbackSeam = $rollbackSeam
+    Mock -CommandName New-NetFirewallRule -MockWith ({
       param($Name, $DisplayName, $Direction, $Action, [Alias('Profile')]$FirewallProfile, $Enabled, $Description, $RemoteAddress, $Protocol, $LocalPort)
-      $global:EmergencyKillSwitchRuleStore[$Name] = [pscustomobject]@{
+      $rollbackSeam.RuleStore[$Name] = [pscustomobject]@{
         Name = $Name; Enabled = 'True'; Direction = [string]$Direction; Action = [string]$Action
       }
-    }
-    Mock -CommandName Get-NetFirewallRule -MockWith {
+    }.GetNewClosure())
+    Mock -CommandName Get-NetFirewallRule -MockWith ({
       param([string]$Name)
-      if ([string]::IsNullOrWhiteSpace($Name)) { return @($global:EmergencyKillSwitchRuleStore.Values) }
-      if ($global:EmergencyKillSwitchRuleStore.ContainsKey($Name)) { return $global:EmergencyKillSwitchRuleStore[$Name] }
-    }
-    Mock -CommandName Get-ScheduledTask -MockWith { @($global:EmergencyKillSwitchTaskStore.Values) }
-    Mock -CommandName Remove-NetFirewallRule -MockWith {
-      $global:EmergencyKillSwitchRuleStore.Clear()
-    }
+      if ([string]::IsNullOrWhiteSpace($Name)) { return @($rollbackSeam.RuleStore.Values) }
+      if ($rollbackSeam.RuleStore.ContainsKey($Name)) { return $rollbackSeam.RuleStore[$Name] }
+    }.GetNewClosure())
+    Mock -CommandName Get-ScheduledTask -MockWith ({ @($rollbackSeam.TaskStore.Values) }.GetNewClosure())
+    Mock -CommandName Remove-NetFirewallRule -MockWith ({ $rollbackSeam.RuleStore.Clear() }.GetNewClosure())
     Mock -CommandName Enter-KillSwitchRemediationLock -MockWith { New-Object System.IO.MemoryStream }
     Mock -CommandName Resolve-CanonicalWindowsPowerShellPath -MockWith { 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' }
     Mock -CommandName Get-NetAdapter -MockWith { @() }
@@ -526,20 +526,19 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
       param([switch]$StartWhenAvailable, [int]$RestartCount, [timespan]$RestartInterval, [timespan]$ExecutionTimeLimit)
       [pscustomobject]@{ StartWhenAvailable = [bool]$StartWhenAvailable; RestartCount = $RestartCount; RestartInterval = $RestartInterval; ExecutionTimeLimit = $ExecutionTimeLimit }
     }
-    Mock -CommandName Register-ScheduledTask -MockWith {
+    Mock -CommandName Register-ScheduledTask -MockWith ({
       param($TaskName)
-      $global:EmergencyKillSwitchTaskStore[$TaskName] = [pscustomobject]@{ TaskName = $TaskName }
+      $rollbackSeam.TaskStore[$TaskName] = [pscustomobject]@{ TaskName = $TaskName }
       [pscustomobject]@{ Registered = $true }
-    }
-    Mock -CommandName Unregister-ScheduledTask -MockWith {
+    }.GetNewClosure())
+    Mock -CommandName Unregister-ScheduledTask -MockWith ({
       param($TaskName)
-      $null = $global:EmergencyKillSwitchTaskStore.Remove([string]$TaskName)
-    }
+      $null = $rollbackSeam.TaskStore.Remove([string]$TaskName)
+    }.GetNewClosure())
   }
 
   AfterEach {
-    Remove-Variable -Name EmergencyKillSwitchRuleStore -Scope Global -ErrorAction SilentlyContinue
-    Remove-Variable -Name EmergencyKillSwitchTaskStore -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable -Name KillSwitchRollbackSeam -Scope Script -ErrorAction SilentlyContinue
     if ($null -eq $script:oldOS) {
       Remove-Item -LiteralPath Env:OS -ErrorAction SilentlyContinue
     } else {
@@ -579,12 +578,13 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
         [pscustomobject]@{ Name = $profileName; Enabled = 'True'; DefaultInboundAction = 'Allow'; DefaultOutboundAction = 'Allow' }
       }
     }
-    $global:ScheduledTaskCaptures = New-Object System.Collections.Generic.List[object]
-    Mock -CommandName Register-ScheduledTask -MockWith {
+    $script:KillSwitchRollbackSeam.ScheduledTaskCaptures = New-Object System.Collections.Generic.List[object]
+    $rollbackSeam = $script:KillSwitchRollbackSeam
+    Mock -CommandName Register-ScheduledTask -MockWith ({
       param($TaskName, $Action, $Trigger, $Settings, $User, $RunLevel, [switch]$Force, $ErrorAction)
-      [void]$global:ScheduledTaskCaptures.Add([pscustomobject]@{ TaskName = $TaskName; Action = $Action; Trigger = $Trigger; Settings = $Settings; User = $User; RunLevel = $RunLevel })
+      [void]$rollbackSeam.ScheduledTaskCaptures.Add([pscustomobject]@{ TaskName = $TaskName; Action = $Action; Trigger = $Trigger; Settings = $Settings; User = $User; RunLevel = $RunLevel })
       [pscustomobject]@{ Registered = $true }
-    }
+    }.GetNewClosure())
 
     $firstOutput = & $script:KillSwitchScript -Mode Remediate -AutoRollbackMinutes 5 -OutputFormat None -PassThru -Confirm:$false 2>&1 3>&1 6>&1
     $secondOutput = & $script:KillSwitchScript -Mode Remediate -AutoRollbackMinutes 5 -OutputFormat None -PassThru -Confirm:$false 2>&1 3>&1 6>&1
@@ -596,9 +596,9 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     @($second.Findings | Where-Object Code -eq 'Firewall-ManagedRuleConflict') | Should -HaveCount 1
     $second.Summary.Actions.RegistryWritten | Should -BeFalse
     $second.Summary.Actions.RollbackScheduled | Should -BeFalse
-    $global:ScheduledTaskCaptures.Count | Should -Be 1
+    $script:KillSwitchRollbackSeam.ScheduledTaskCaptures.Count | Should -Be 1
 
-    $capture = $global:ScheduledTaskCaptures[0]
+    $capture = $script:KillSwitchRollbackSeam.ScheduledTaskCaptures[0]
     $encodedCommand = $capture.Action.Argument.Split()[-1]
     $rollbackScript = [System.Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($encodedCommand))
     $rollbackScript | Should -Match 'foreach \(\$managedRule in'
@@ -608,7 +608,7 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     $embeddedSnapshot = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($snapshotMatch.Groups[1].Value)) | ConvertFrom-Json
     $embeddedSnapshot.Version | Should -Be 3
     @($embeddedSnapshot.ManagedRules) | Should -HaveCount 2
-    Remove-Variable -Name ScheduledTaskCaptures -Scope Global -ErrorAction SilentlyContinue
+    $script:KillSwitchRollbackSeam.ScheduledTaskCaptures = $null
   }
 
   It 'captures and restores only adapters disabled by an auto-rollback run' {
@@ -618,17 +618,18 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
         [pscustomobject]@{ Name = 'Ethernet'; Status = 'Down' }
       )
     }
-    $global:ScheduledTaskCapture = $null
-    Mock -CommandName Register-ScheduledTask -MockWith {
+    $script:KillSwitchRollbackSeam.ScheduledTaskCapture = $null
+    $rollbackSeam = $script:KillSwitchRollbackSeam
+    Mock -CommandName Register-ScheduledTask -MockWith ({
       param($TaskName, $Action, $Trigger, $Settings, $User, $RunLevel, [switch]$Force, $ErrorAction)
-      $global:ScheduledTaskCapture = [pscustomobject]@{ TaskName = $TaskName; Action = $Action; Trigger = $Trigger; Settings = $Settings }
+      $rollbackSeam.ScheduledTaskCapture = [pscustomobject]@{ TaskName = $TaskName; Action = $Action; Trigger = $Trigger; Settings = $Settings }
       [pscustomobject]@{ Registered = $true }
-    }
+    }.GetNewClosure())
 
     $output = & $script:KillSwitchScript -Mode Remediate -DisableAdapters -AutoRollbackMinutes 5 -OutputFormat None -PassThru -Confirm:$false 2>&1 3>&1 6>&1
     $result = @($output | Where-Object { $_.PSObject.Properties.Name -contains 'Result' })[-1]
-    $global:ScheduledTaskCapture | Should -Not -BeNullOrEmpty -Because ($result.Summary.Errors -join '; ')
-    $encodedCommand = $global:ScheduledTaskCapture.Action.Argument.Split()[-1]
+    $script:KillSwitchRollbackSeam.ScheduledTaskCapture | Should -Not -BeNullOrEmpty -Because ($result.Summary.Errors -join '; ')
+    $encodedCommand = $script:KillSwitchRollbackSeam.ScheduledTaskCapture.Action.Argument.Split()[-1]
     $rollbackScript = [System.Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($encodedCommand))
     $snapshotMatch = [regex]::Match($rollbackScript, "FromBase64String\('([^']+)'\)")
     $embeddedSnapshot = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($snapshotMatch.Groups[1].Value)) | ConvertFrom-Json
@@ -638,7 +639,7 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     $rollbackScript | Should -Match 'Enable-NetAdapter -Name'
     Should -Invoke Disable-NetAdapter -Times 1 -ParameterFilter { $Name -eq 'Wi-Fi' }
     Should -Invoke Disable-NetAdapter -Times 0 -ParameterFilter { $Name -eq 'Ethernet' }
-    Remove-Variable -Name ScheduledTaskCapture -Scope Global -ErrorAction SilentlyContinue
+    $script:KillSwitchRollbackSeam.ScheduledTaskCapture = $null
   }
 
   It 'aborts before firewall mutation when captured rollback state is malformed' {
@@ -662,7 +663,7 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
 
   It 'ignores foreign similarly named rules while exact legacy identities block before registry and scheduling' {
     $legacyName = 'KILLSWITCH-' + ('a' * 32) + '-OUT-BLOCK'
-    $global:EmergencyKillSwitchRuleStore[$legacyName] = [pscustomobject]@{
+    $script:KillSwitchRollbackSeam.RuleStore[$legacyName] = [pscustomobject]@{
       Name = $legacyName; Enabled = 'True'; Direction = 'Outbound'; Action = 'Block'
     }
 
@@ -673,8 +674,8 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     Should -Invoke Set-ItemProperty -Times 0 -Scope It
     Should -Invoke Register-ScheduledTask -Times 0 -Scope It
 
-    $global:EmergencyKillSwitchRuleStore.Clear()
-    $global:EmergencyKillSwitchRuleStore['KILLSWITCH-foreign-IN-BLOCK'] = [pscustomobject]@{
+    $script:KillSwitchRollbackSeam.RuleStore.Clear()
+    $script:KillSwitchRollbackSeam.RuleStore['KILLSWITCH-foreign-IN-BLOCK'] = [pscustomobject]@{
       Name = 'KILLSWITCH-foreign-IN-BLOCK'; Enabled = 'True'; Direction = 'Inbound'; Action = 'Block'
     }
 
@@ -684,7 +685,7 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
   }
 
   It 'refuses an orphaned exact rollback task even when its rules are already absent' {
-    $global:EmergencyKillSwitchTaskStore['KILLSWITCH-ROLLBACK'] = [pscustomobject]@{ TaskName = 'KILLSWITCH-ROLLBACK' }
+    $script:KillSwitchRollbackSeam.TaskStore['KILLSWITCH-ROLLBACK'] = [pscustomobject]@{ TaskName = 'KILLSWITCH-ROLLBACK' }
 
     $output = & $script:KillSwitchScript -Mode Remediate -AutoRollbackMinutes 5 -OutputFormat None -PassThru -Confirm:$false 2>&1 3>&1 6>&1
     $result = @($output | Where-Object { $_.PSObject.Properties.Name -contains 'Result' })[-1]
@@ -697,11 +698,12 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
   }
 
   It 'does not isolate when break-glass creation fails' {
-    Mock -CommandName New-NetFirewallRule -MockWith {
+    $rollbackSeam = $script:KillSwitchRollbackSeam
+    Mock -CommandName New-NetFirewallRule -MockWith ({
       param($Name, $Direction, $Action)
       if ([string]$Action -eq 'Allow') { throw 'simulated break-glass creation failure' }
-      $global:EmergencyKillSwitchRuleStore[$Name] = [pscustomobject]@{ Name = $Name; Enabled = 'True'; Direction = [string]$Direction; Action = [string]$Action }
-    }
+      $rollbackSeam.RuleStore[$Name] = [pscustomobject]@{ Name = $Name; Enabled = 'True'; Direction = [string]$Direction; Action = [string]$Action }
+    }.GetNewClosure())
 
     $output = & $script:KillSwitchScript -Mode Remediate -BreakGlassRemoteAddress '192.0.2.10' -BreakGlassLocalPort 5986 -OutputFormat None -PassThru -Confirm:$false 2>&1 3>&1 6>&1
     $result = @($output | Where-Object { $_.PSObject.Properties.Name -contains 'Result' })[-1]
@@ -729,11 +731,12 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
   }
 
   It 'removes only the exact partial identity when later rule creation fails' {
-    Mock -CommandName New-NetFirewallRule -MockWith {
+    $rollbackSeam = $script:KillSwitchRollbackSeam
+    Mock -CommandName New-NetFirewallRule -MockWith ({
       param($Name, $Direction, $Action)
       if ([string]$Direction -eq 'Outbound') { throw 'simulated outbound creation failure' }
-      $global:EmergencyKillSwitchRuleStore[$Name] = [pscustomobject]@{ Name = $Name; Enabled = 'True'; Direction = [string]$Direction; Action = [string]$Action }
-    }
+      $rollbackSeam.RuleStore[$Name] = [pscustomobject]@{ Name = $Name; Enabled = 'True'; Direction = [string]$Direction; Action = [string]$Action }
+    }.GetNewClosure())
 
     $output = & $script:KillSwitchScript -Mode Remediate -AutoRollbackMinutes 5 -OutputFormat None -PassThru -Confirm:$false 2>&1 3>&1 6>&1
     $result = @($output | Where-Object { $_.PSObject.Properties.Name -contains 'Result' })[-1]
@@ -741,7 +744,7 @@ Describe '21-EmergencyKillSwitch rollback safety gate' -Tag 'EmergencyKillSwitch
     $result.Result | Should -Be 'FAIL'
     $result.Summary.Actions.RegistryWritten | Should -BeFalse
     $result.Summary.Actions.FirewallProfileSet | Should -BeFalse
-    $global:EmergencyKillSwitchRuleStore.Count | Should -Be 0
+    $script:KillSwitchRollbackSeam.RuleStore.Count | Should -Be 0
     Should -Invoke Remove-NetFirewallRule -Times 1 -Scope It
     Should -Invoke Unregister-ScheduledTask -Times 1 -Scope It
     Should -Invoke Set-NetFirewallProfile -Times 0 -Scope It

@@ -51,11 +51,13 @@ BeforeAll {
   }
 
   function New-PortableZipForTest {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
       [Parameter(Mandatory)][string]$SourcePath,
       [Parameter(Mandatory)][string]$DestinationPath
     )
+
+    if (-not $PSCmdlet.ShouldProcess($DestinationPath, 'create portable test archive')) { return }
 
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -86,10 +88,13 @@ Describe 'scripts/ci-local.sh gate reporting' {
     $script:CiLocal = Join-Path $script:RepoRoot 'scripts/ci-local.sh'
 
     function New-PwshRuntimeShim {
+      [CmdletBinding(SupportsShouldProcess)]
       param(
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][string]$RuntimeIdentity
       )
+
+      if (-not $PSCmdlet.ShouldProcess($Path, 'create PowerShell runtime test shim')) { return }
 
       $content = @'
 #!/usr/bin/env bash
