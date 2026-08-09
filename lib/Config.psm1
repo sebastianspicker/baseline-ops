@@ -63,7 +63,7 @@ function ConvertTo-Hashtable {
 .DESCRIPTION
   Preserves configuration and load metadata in the caller's requested shape.
 #>
-function ConvertTo-ConfigReadResult {
+function New-ConfigReadResult {
   [CmdletBinding()]
   param(
     [AllowNull()][hashtable]$Config,
@@ -106,7 +106,7 @@ function Complete-ConfigFallback {
   if ($OnWarning -and -not [string]::IsNullOrWhiteSpace($WarningMessage)) {
     & $OnWarning $WarningMessage
   }
-  return ConvertTo-ConfigReadResult -Config $Config -Meta $Meta -AsHashtable:$AsHashtable -NullConfig:$ReturnNull
+  return New-ConfigReadResult -Config $Config -Meta $Meta -AsHashtable:$AsHashtable -NullConfig:$ReturnNull
 }
 
 <#
@@ -217,7 +217,7 @@ function Read-ConfigWithDefaults {
     $meta.UsedDefaults = $false
     $meta.UsedDefaultsBecause = $null
     $config = Merge-ConfigValues -Config $config -Defaults $Defaults -InputObject $obj
-    return ConvertTo-ConfigReadResult -Config $config -Meta $meta -AsHashtable:$AsHashtable
+    return New-ConfigReadResult -Config $config -Meta $meta -AsHashtable:$AsHashtable
   } catch {
     $warning = 'Config parse failed, using defaults.'
     if (-not [string]::IsNullOrWhiteSpace($Path)) {

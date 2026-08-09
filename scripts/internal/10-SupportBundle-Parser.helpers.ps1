@@ -102,11 +102,10 @@ function Test-NoReparsePointAncestor {
   }
 }
 function Set-AdminOnlyDirectoryAcl {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+  [CmdletBinding()]
   param([Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Path)
   if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) { return }
-  if (-not $PSCmdlet.ShouldProcess($Path, 'Set protected directory ACL')) { return }
-  $security = Get-AdminOnlyDirectorySecurity
+  $security = New-AdminOnlyDirectorySecurity
   $directory = New-Object System.IO.DirectoryInfo -ArgumentList $Path
   if ($PSVersionTable.PSEdition -eq 'Desktop') {
     [System.IO.Directory]::SetAccessControl($Path, $security)
@@ -114,7 +113,7 @@ function Set-AdminOnlyDirectoryAcl {
   }
   [System.IO.FileSystemAclExtensions]::SetAccessControl($directory, $security)
 }
-function Get-AdminOnlyDirectorySecurity {
+function New-AdminOnlyDirectorySecurity {
   [CmdletBinding()]
   param()
   $security = New-Object System.Security.AccessControl.DirectorySecurity
@@ -131,14 +130,13 @@ function Get-AdminOnlyDirectorySecurity {
   return $security
 }
 function New-AdminOnlyDirectory {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+  [CmdletBinding()]
   param([Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Path)
-  if (-not $PSCmdlet.ShouldProcess($Path, 'Create protected directory')) { return }
   if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) {
     [System.IO.Directory]::CreateDirectory($Path) | Out-Null
     return
   }
-  $security = Get-AdminOnlyDirectorySecurity
+  $security = New-AdminOnlyDirectorySecurity
   if ($PSVersionTable.PSEdition -eq 'Desktop') {
     [System.IO.Directory]::CreateDirectory($Path, $security) | Out-Null
   } else {

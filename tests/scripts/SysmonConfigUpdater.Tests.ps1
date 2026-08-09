@@ -478,16 +478,17 @@ Describe '16-Sysmon-Config-Updater policy gates' -Tag 'Sysmon' -Skip:$script:Ski
   }
 
   It 'does not let a failed apply suppress the next remediation attempt' {
-    $applySeam = [pscustomobject]@{ Attempt = 0 }
-    Mock -CommandName Invoke-NativeCommand -MockWith ({
-      $applySeam.Attempt++
-      $success = $applySeam.Attempt -ne 1
+    $global:SysmonApplyAttempt = 0
+    Mock -CommandName Invoke-NativeCommand -MockWith {
+      $global:SysmonApplyAttempt++
+      $success = $global:SysmonApplyAttempt -ne 1
       [pscustomobject]@{ ExitCode = if ($success) { 0 } else { 5 }; Success = $success; TimedOut = $false; OutputTruncated = $false; StderrTruncated = $false; Output = '' }
-    }.GetNewClosure())
+    }
 
     & $script:SysmonConfigUpdaterScript -ConfigPath $script:ConfigPath -SysmonExePath $script:ExePath -Mode Remediate -OutputFormat None -NoConsoleSummary -Quiet -NoColor -Confirm:$false
     & $script:SysmonConfigUpdaterScript -ConfigPath $script:ConfigPath -SysmonExePath $script:ExePath -Mode Remediate -OutputFormat None -NoConsoleSummary -Quiet -NoColor -Confirm:$false
 
     Assert-MockCalled -CommandName Invoke-NativeCommand -Times 2 -Exactly
+    Remove-Variable -Name SysmonApplyAttempt -Scope Global -ErrorAction SilentlyContinue
   }
 }

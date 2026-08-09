@@ -127,7 +127,7 @@ function Assert-ArtifactEvidenceOutputBase {
   return $evidenceRoot
 }
 
-function ConvertTo-ArtifactRegex { param([Parameter(Mandatory)][string]$Pattern,[Parameter(Mandatory)][string]$Label); if ($Pattern.Length -gt 1024) { throw "Grabber $Label regex exceeds the 1024-character limit." }; try { New-Object System.Text.RegularExpressions.Regex($Pattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant, ([TimeSpan]::FromMilliseconds(250))) } catch { throw "Grabber $Label regex is invalid: $($_.Exception.Message)" } }
+function New-ArtifactRegex { param([Parameter(Mandatory)][string]$Pattern,[Parameter(Mandatory)][string]$Label); if ($Pattern.Length -gt 1024) { throw "Grabber $Label regex exceeds the 1024-character limit." }; try { New-Object System.Text.RegularExpressions.Regex($Pattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant, ([TimeSpan]::FromMilliseconds(250))) } catch { throw "Grabber $Label regex is invalid: $($_.Exception.Message)" } }
 # Compiles and bounds all catalog patterns before collection so timeouts and
 # malformed rules fail early, before partial evidence has been written.
 function Initialize-ArtifactRegexRules {
@@ -135,7 +135,7 @@ function Initialize-ArtifactRegexRules {
   foreach ($rule in @(@{ Section='Process'; Property='UserPathsRegex'; Compiled='__UserPathsRegex' },@{ Section='Samples'; Property='PathIncludeRegex'; Compiled='__PathIncludeRegex' },@{ Section='Tasks'; Property='SuspiciousRegex'; Compiled='__SuspiciousRegex' })) {
     $section = $Catalog.($rule.Section); $patterns = @($section.($rule.Property))
     if ($patterns.Count -gt 256) { throw "Grabber $($rule.Section).$($rule.Property) supports at most 256 patterns." }
-    $compiled = foreach ($pattern in $patterns) { if ($pattern -isnot [string]) { throw "Grabber $($rule.Section).$($rule.Property) must contain strings." }; ConvertTo-ArtifactRegex -Pattern $pattern -Label "$($rule.Section).$($rule.Property)" }
+    $compiled = foreach ($pattern in $patterns) { if ($pattern -isnot [string]) { throw "Grabber $($rule.Section).$($rule.Property) must contain strings." }; New-ArtifactRegex -Pattern $pattern -Label "$($rule.Section).$($rule.Property)" }
     $section | Add-Member -NotePropertyName $rule.Compiled -NotePropertyValue @($compiled) -Force
   }
 }

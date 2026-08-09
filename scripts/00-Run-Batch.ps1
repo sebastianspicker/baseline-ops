@@ -180,13 +180,12 @@ function Write-BatchTerminalResult {
 }
 
 function Set-BatchAdminSystemAcl {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+  [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$Path,
     [switch]$Directory
   )
 
-  if (-not $PSCmdlet.ShouldProcess($Path, 'Set protected Administrators and SYSTEM ACL')) { return }
   $adminsSid = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
   $systemSid = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')
   $acl = if ($Directory) {
@@ -216,7 +215,7 @@ function Set-BatchAdminSystemAcl {
 }
 
 function New-BatchProfileWorkspace {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+  [CmdletBinding()]
   param()
 
   if ($isElevatedWindows) {
@@ -229,9 +228,8 @@ function New-BatchProfileWorkspace {
     $trustedParent = Join-Path $programData 'Microsoft\Windows'
     Assert-RunBatchTrustedWindowsAcl -Path $trustedParent -CheckAncestors
     $directory = Join-Path $trustedParent ("BaselineOpsForWindows-Batch-{0}" -f [guid]::NewGuid().ToString('N'))
-    if (-not $PSCmdlet.ShouldProcess($directory, 'Create protected batch profile workspace')) { return }
     [void][System.IO.Directory]::CreateDirectory($directory)
-    Set-BatchAdminSystemAcl -Path $directory -Directory -Confirm:$false
+    Set-BatchAdminSystemAcl -Path $directory -Directory
     Assert-RunBatchTrustedWindowsAcl -Path $directory -CheckAncestors
     return $directory
   }
@@ -239,22 +237,82 @@ function New-BatchProfileWorkspace {
   # There is no elevated Windows boundary on this path. The unique directory
   # preserves portable development runs; the profile itself is locked below.
   $directory = Join-Path ([System.IO.Path]::GetTempPath()) ("baselineops-windows-batch-{0}" -f [guid]::NewGuid().ToString('N'))
-  if (-not $PSCmdlet.ShouldProcess($directory, 'Create batch profile workspace')) { return }
   [void][System.IO.Directory]::CreateDirectory($directory)
   return $directory
+}
+
+function Get-BatchCategoryMap {
+  [CmdletBinding()]
+  param()
+
+  return @{
+    Audit       = @('01','02','03','04','05','06','07','09','10','11','13','14','15','18','19','20','22','23','24','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52')
+    Remediation = @('01','02','03','04','05','06','07','08','13','14','16','18','21','22','25','31','32','33','38','39','40','44')
+    Collection  = @('09','10','11','12','20')
+    Utility     = @('08','25')
+    Monitoring  = @('17','32','34','38')
+  }
+}
+
+function Get-BatchSelectedScripts {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$Category,
+    [Parameter(Mandatory)][string[]]$ScriptNames
+  )
+
+  if ($Category -eq 'All') {
+    return @($ScriptNames | Sort-Object)
+  }
+
+  $selected = foreach ($prefix in (Get-BatchCategoryMap)[$Category]) {
+    $ScriptNames | Where-Object { $_ -like "$prefix-*" }
+  }
+  return @($selected | Sort-Object -Unique)
+}
+
+function New-BatchProfileDocument {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)][string]$Category,
+    [Parameter(Mandatory)][string]$Mode,
+    [Parameter(Mandatory)][bool]$Strict,
+    [Parameter(Mandatory)][bool]$RequireSigned,
+    [Parameter(Mandatory)][bool]$ContinueOnError,
+    [Parameter(Mandatory)][string[]]$SelectedScripts
+  )
+
+  $batchProfile = [ordered]@{
+    ProfileName = "batch-$($Category.ToLowerInvariant())"
+    Version     = '2.0'
+    Defaults    = [ordered]@{
+      Mode         = $Mode
+      Strict       = $Strict
+      OutputFormat = 'Console'
+      OutputPath   = $null
+    }
+    Steps        = @()
+    Integrity    = [ordered]@{
+      RequireSigned = $RequireSigned
+      ExpectedHashes = @{}
+    }
+  }
+
+  foreach ($scriptName in $SelectedScripts) {
+    $batchProfile.Steps += [ordered]@{
+      Script          = $scriptName
+      Args            = @()
+      ContinueOnError = $ContinueOnError
+      DependsOn       = @()
+    }
+  }
+
+  return $batchProfile
 }
 
 if (-not (Test-Path -LiteralPath $runProfilePath -PathType Leaf)) {
   Write-BatchTerminalResult -Result FAIL -Code 'Batch-MissingProfileRunner' -Message "Missing Run-Profile script: $runProfilePath"
   exit (Get-V2ExitCode -Result 'FAIL')
-}
-
-$categoryMap = @{
-  Audit       = @('01','02','03','04','05','06','07','09','10','11','13','14','15','18','19','20','22','23','24','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52')
-  Remediation = @('01','02','03','04','05','06','07','08','13','14','16','18','21','22','25','31','32','33','38','39','40','44')
-  Collection  = @('09','10','11','12','20')
-  Utility     = @('08','25')
-  Monitoring  = @('17','32','34','38')
 }
 
 $scriptsDir = [System.IO.Path]::Combine($RootPath, 'scripts')
@@ -263,49 +321,17 @@ if (-not (Test-Path -LiteralPath $scriptsDir -PathType Container)) {
   exit (Get-V2ExitCode -Result 'FAIL')
 }
 
-$allScripts = @(Get-ChildItem -LiteralPath $scriptsDir -Filter '*.ps1' -File | Where-Object { $_.Name -match '^\d{2}-' -and $_.Name -notmatch '^00-' })
-$selected = @()
-
-if ($Category -eq 'All') {
-  $selected = @($allScripts | Sort-Object Name | Select-Object -ExpandProperty Name)
-} else {
-  $prefixes = $categoryMap[$Category]
-  foreach ($prefix in $prefixes) {
-    $match = @($allScripts | Where-Object { $_.Name -like "$prefix-*" } | Select-Object -ExpandProperty Name)
-    $selected += $match
-  }
-  $selected = @($selected | Sort-Object -Unique)
-}
+$allScriptNames = @(Get-ChildItem -LiteralPath $scriptsDir -Filter '*.ps1' -File |
+    Where-Object { $_.Name -match '^\d{2}-' -and $_.Name -notmatch '^00-' } |
+    Select-Object -ExpandProperty Name)
+$selected = @(Get-BatchSelectedScripts -Category $Category -ScriptNames $allScriptNames)
 
 if ($selected.Count -eq 0) {
   Write-BatchTerminalResult -Result FAIL -Code 'Batch-NoScriptsSelected' -Message "No scripts found for category '$Category'."
   exit (Get-V2ExitCode -Result 'FAIL')
 }
 
-$batchProfile = [ordered]@{
-  ProfileName = "batch-$($Category.ToLowerInvariant())"
-  Version     = '2.0'
-  Defaults    = [ordered]@{
-    Mode         = $Mode
-    Strict       = [bool]$Strict
-    OutputFormat = 'Console'
-    OutputPath   = $null
-  }
-  Steps        = @()
-  Integrity    = [ordered]@{
-    RequireSigned = [bool]$RequireSigned
-    ExpectedHashes = @{}
-  }
-}
-
-foreach ($scriptName in $selected) {
-  $batchProfile.Steps += [ordered]@{
-    Script          = $scriptName
-    Args            = @()
-    ContinueOnError = [bool]$ContinueOnError
-    DependsOn       = @()
-  }
-}
+$batchProfile = New-BatchProfileDocument -Category $Category -Mode $Mode -Strict ([bool]$Strict) -RequireSigned ([bool]$RequireSigned) -ContinueOnError ([bool]$ContinueOnError) -SelectedScripts $selected
 
 if (-not $PSCmdlet.ShouldProcess("batch-$($Category.ToLowerInvariant())", "Execute $($selected.Count) scripts via profile")) {
   Write-BatchTerminalResult -Result WARN -Code 'Batch-ExecutionSkipped' -Message 'Batch execution was skipped by WhatIf or confirmation.' -SelectedScripts $selected
@@ -318,11 +344,11 @@ $profileLockStream = $null
 $exitCode = $null
 $invocationError = $null
 try {
-  $tempProfileDirectory = New-BatchProfileWorkspace -Confirm:$false
+  $tempProfileDirectory = New-BatchProfileWorkspace
   $tempProfile = Join-Path $tempProfileDirectory 'profile.json'
   $batchProfile | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $tempProfile -Encoding UTF8
   if ($isElevatedWindows) {
-    Set-BatchAdminSystemAcl -Path $tempProfile -Confirm:$false
+    Set-BatchAdminSystemAcl -Path $tempProfile
     Assert-RunBatchTrustedWindowsAcl -Path $tempProfile
   }
 

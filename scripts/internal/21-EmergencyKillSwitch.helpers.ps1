@@ -222,13 +222,11 @@ function Enter-KillSwitchRemediationLock {
   }
 }
 function Remove-ExactJustCreatedFirewallRule {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param(
     [Parameter(Mandatory=$true)][ValidatePattern('^[A-Za-z0-9_-]+$')][ValidateLength(1,256)][string]$Name,
     [Parameter(Mandatory=$true)][ValidateSet('Inbound','Outbound')][string]$Direction,
     [Parameter(Mandatory=$true)][ValidateSet('Block','Allow')][string]$Action
   )
-  if (-not $PSCmdlet.ShouldProcess($Name, 'Remove exact just-created firewall rule')) { return $false }
   try {
     Remove-NetFirewallRule -Name $Name -ErrorAction Stop
     return $true
@@ -259,7 +257,7 @@ function New-OrReplaceRule {
     $message = if ($verificationError) { "Firewall rule '$Name' post-create verification query failed: $verificationError" } else { "Firewall rule '$Name' was not found, was not enabled, or did not match requested settings after creation." }
     Add-RunError $message
     $null = Add-Finding -FindingList $Findings -Code 'Firewall-RuleCreateFailed' -Severity 'High' -Message $message -Extra @{ RuleName = $Name; Direction = $Direction; Action = $Action; VerificationError = $verificationError }
-    [void](Remove-ExactJustCreatedFirewallRule -Name $Name -Direction $Direction -Action $Action -Confirm:$false)
+    [void](Remove-ExactJustCreatedFirewallRule -Name $Name -Direction $Direction -Action $Action)
     return $false
   }
   return $true
@@ -302,10 +300,8 @@ function Test-NoManagedFirewallRuleConflicts {
   }
 }
 function Remove-ExactManagedFirewallRules {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   param([Parameter(Mandatory=$true)][object[]]$Rules)
   Assert-ManagedFirewallRules -Rules $Rules
-  if (-not $PSCmdlet.ShouldProcess((@($Rules.Name) -join ', '), 'Remove managed firewall rules')) { return $false }
   foreach ($managedRule in $Rules) {
     $existingRules = @(Get-NetFirewallRule -Name $managedRule.Name -ErrorAction SilentlyContinue | Where-Object { $null -ne $_ })
     $ownedRules = @($existingRules | Where-Object {
@@ -318,7 +314,6 @@ function Remove-ExactManagedFirewallRules {
     }
     if ($ownedRules.Count -gt 0) { $ownedRules | Remove-NetFirewallRule -ErrorAction Stop }
   }
-  return $true
 }
 function Resolve-CanonicalWindowsPowerShellPath {
   $systemDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::System)

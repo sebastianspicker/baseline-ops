@@ -287,7 +287,7 @@ function ConvertTo-WindowsCommandLineArgument {
 .DESCRIPTION
   Uses ArgumentList when possible and quotes a legacy command line otherwise.
 #>
-function Initialize-NativeProcessArguments {
+function Set-NativeProcessArguments {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][System.Diagnostics.ProcessStartInfo]$StartInfo,
@@ -587,7 +587,7 @@ public static class NativeProcessWorkerSession {
 .DESCRIPTION
   Encodes the validated execution manifest for the child process environment.
 #>
-function Get-NativeWorkerStartInfo {
+function New-NativeWorkerStartInfo {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$ResolvedCommand,
@@ -613,7 +613,7 @@ function Get-NativeWorkerStartInfo {
   $startInfo.CreateNoWindow = $true
   $startInfo.RedirectStandardOutput = $true
   $startInfo.RedirectStandardError = $true
-  Initialize-NativeProcessArguments -StartInfo $startInfo -Arguments @(
+  Set-NativeProcessArguments -StartInfo $startInfo -Arguments @(
     '-NoLogo',
     '-NoProfile',
     '-NonInteractive',
@@ -633,14 +633,11 @@ function Get-NativeWorkerStartInfo {
   Uses platform-appropriate termination with a safe failure result.
 #>
 function Stop-NativeProcessTree {
-  [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
   [OutputType([bool])]
   param(
     [Parameter(Mandatory)][System.Diagnostics.Process]$Process,
     [int]$ProcessGroupId = 0
   )
-  $target = if ($ProcessGroupId -gt 0) { "process group $ProcessGroupId" } else { "process $($Process.Id)" }
-  if (-not $PSCmdlet.ShouldProcess($target, 'Stop native process tree')) { return $false }
   if (-not $script:IsWindowsHost -and $ProcessGroupId -gt 0) {
     try {
       [void][NativeProcessPosix]::KillProcessGroup($ProcessGroupId)
@@ -711,7 +708,7 @@ function Assert-NativeExecutableIdentity {
 .DESCRIPTION
   Holds validation locks and process controls through the launch transition.
 #>
-function Get-NativeWorkerLaunchContext {
+function New-NativeWorkerLaunchContext {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)][string]$ResolvedCommand,
@@ -729,7 +726,7 @@ function Get-NativeWorkerLaunchContext {
         [Threading.EventResetMode]::ManualReset,
         $gateName
       )
-      $startInfo = Get-NativeWorkerStartInfo `
+      $startInfo = New-NativeWorkerStartInfo `
         -ResolvedCommand $ResolvedCommand `
         -Arguments $Arguments `
         -GateName $gateName
@@ -741,7 +738,7 @@ function Get-NativeWorkerLaunchContext {
       )
       $nativeJob = New-Object NativeProcessJob
     } else {
-      $startInfo = Get-NativeWorkerStartInfo `
+      $startInfo = New-NativeWorkerStartInfo `
         -ResolvedCommand $ResolvedCommand `
         -Arguments $Arguments `
         -StartNewSession
@@ -883,7 +880,7 @@ function ConvertTo-NativeOutputLines {
 .DESCRIPTION
   Maps worker completion data to the module's stable result contract.
 #>
-function ConvertTo-NativeCommandResult {
+function New-NativeCommandResult {
   param([Parameter(Mandatory)][object]$Completion)
 
   $success = (-not $Completion.TimedOut -and $Completion.ExitCode -eq 0)
@@ -972,7 +969,7 @@ function Invoke-NativeCommand {
     $executableLock = [System.IO.File]::Open($resolvedCommand, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
     Assert-NativeExecutableIdentity -ResolvedCommand $resolvedCommand
     Initialize-NativeProcessCaptureType
-    $launchContext = Get-NativeWorkerLaunchContext -ResolvedCommand $resolvedCommand -Arguments $Arguments
+    $launchContext = New-NativeWorkerLaunchContext -ResolvedCommand $resolvedCommand -Arguments $Arguments
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $launchContext.StartInfo
     $capture = New-Object NativeProcessCapture($MaxOutputBytes)
@@ -999,7 +996,7 @@ function Invoke-NativeCommand {
       if (-not $Quiet) { Write-Warning $msg }
     }
     if ($CaptureOutput) {
-      return ConvertTo-NativeCommandResult -Completion $completion
+      return New-NativeCommandResult -Completion $completion
     }
     if ($success) { return $true }
     return $false
@@ -1026,15 +1023,17 @@ function Invoke-NativeCommand {
 
 <#
 .SYNOPSIS
-  Invokes an external tool through the native command boundary.
+  Invokes an approved fixed native tool through the native command boundary.
 .DESCRIPTION
-  Provides a compatibility wrapper around the validated native invocation path.
+  Restricts callers to the Windows tools exposed by the public compatibility
+  wrappers while keeping their native invocation semantics consistent.
 #>
-function Invoke-ExternalTool {
+function Invoke-FixedNativeTool {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory)]
-    [string]$Command,
+    [ValidateSet('schtasks.exe', 'auditpol.exe', 'wevtutil.exe', 'wecutil.exe', 'reg.exe')]
+    [string]$Tool,
 
     [Parameter(Mandatory)]
     [string[]]$Arguments,
@@ -1046,7 +1045,7 @@ function Invoke-ExternalTool {
     [ValidateRange(1024, 10485760)][int]$MaxOutputBytes = 1048576
   )
 
-  return (Invoke-NativeCommand -Command $Command -Arguments $Arguments `
+  return (Invoke-NativeCommand -Command $Tool -Arguments $Arguments `
       -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput -TimeoutSeconds $TimeoutSeconds -MaxOutputBytes $MaxOutputBytes)
 }
 
@@ -1065,7 +1064,7 @@ function Invoke-Schtasks {
     [switch]$CaptureOutput
   )
 
-  return (Invoke-ExternalTool -Command 'schtasks.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
+  return (Invoke-FixedNativeTool -Tool 'schtasks.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
 }
 
 <#
@@ -1083,7 +1082,7 @@ function Invoke-Auditpol {
     [switch]$CaptureOutput
   )
 
-  return (Invoke-ExternalTool -Command 'auditpol.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
+  return (Invoke-FixedNativeTool -Tool 'auditpol.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
 }
 
 <#
@@ -1101,7 +1100,7 @@ function Invoke-Wevtutil {
     [switch]$CaptureOutput
   )
 
-  return (Invoke-ExternalTool -Command 'wevtutil.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
+  return (Invoke-FixedNativeTool -Tool 'wevtutil.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
 }
 
 <#
@@ -1119,7 +1118,7 @@ function Invoke-Wecutil {
     [switch]$CaptureOutput
   )
 
-  return (Invoke-ExternalTool -Command 'wecutil.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
+  return (Invoke-FixedNativeTool -Tool 'wecutil.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
 }
 
 <#
@@ -1137,7 +1136,7 @@ function Invoke-RegExe {
     [switch]$CaptureOutput
   )
 
-  return (Invoke-ExternalTool -Command 'reg.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
+  return (Invoke-FixedNativeTool -Tool 'reg.exe' -Arguments $Arguments -ThrowOnError:$ThrowOnError -CaptureOutput:$CaptureOutput)
 }
 
 <#

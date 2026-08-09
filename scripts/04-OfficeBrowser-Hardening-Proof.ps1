@@ -332,7 +332,7 @@ function Ensure-Edge {
     foreach ($name in @($desiredUrls.Keys | Sort-Object { [int]$_ })) {
       $expected = $desiredUrls[$name]
       if ($PSCmdlet.ShouldProcess("$urlsKey\$name", 'Set Edge startup URL')) {
-        $items.Add((Set-EdgeStartupUrlProof -Path $urlsKey -Name $name -Expected $expected -Confirm:$false)) | Out-Null
+        $items.Add((Set-EdgeStartupUrlProof -Path $urlsKey -Name $name -Expected $expected)) | Out-Null
       } else {
         $items.Add((Set-EdgeStartupUrlProof -Path $urlsKey -Name $name -Expected $expected -Skipped)) | Out-Null
       }

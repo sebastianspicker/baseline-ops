@@ -4,8 +4,6 @@ BaselineOps for Windows is a collection of PowerShell scripts for auditing Windo
 
 The repository contains individual endpoint scripts, profile and batch runners, shared PowerShell modules, example JSON inputs, a Windows Forms launcher, verification tools, and automated tests. It does not install or run a background service.
 
-Explore the [static operator-console demo](https://sebastianspicker.github.io/baseline-ops/). It uses sanitized fixture data, does not execute commands, and does not inspect an endpoint.
-
 ## Project scope
 
 The numbered scripts cover Microsoft Defender, Attack Surface Reduction, Windows Firewall, BitLocker, LAPS, Credential Guard, VBS, HVCI, LSA protection, AppLocker, App Control for Business, PowerShell logging, Windows Update, WinGet, Sysmon, remote access, event logs, storage, backup readiness, identity, and related endpoint state.
@@ -281,13 +279,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for source, test, and documentation requi
 Run the complete PowerShell 7 gate from Bash or Git Bash:
 
 ```bash
-./scripts/ci-local.sh
+bash ./scripts/ci-local.sh
 ```
 
 The wrapper requires PowerShell Core 7.6.3, installs missing PSScriptAnalyzer 1.25.0 and Pester 5.8.0 in the current-user scope, runs the secret scan, runs static verification, and runs Pester. Set `PWSH_BIN` to an absolute PowerShell 7.6.3 executable path when it is not available as `pwsh`:
 
 ```bash
-PWSH_BIN='/absolute/path/to/pwsh' ./scripts/ci-local.sh
+PWSH_BIN='/absolute/path/to/pwsh' bash ./scripts/ci-local.sh
 ```
 
 Run gates separately from PowerShell:
