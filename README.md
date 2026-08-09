@@ -75,7 +75,7 @@ Earlier PowerShell Core versions are not part of the repository's verified toolc
 Clone the repository for development and standard-user inspection:
 
 ```powershell
-git clone https://github.com/sebastianspicker/win-mdm-security-hardening-kit.git baselineops-windows
+git clone https://github.com/sebastianspicker/baseline-ops.git baselineops-windows
 Set-Location -LiteralPath .\baselineops-windows
 ```
 
@@ -279,13 +279,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for source, test, and documentation requi
 Run the complete PowerShell 7 gate from Bash or Git Bash:
 
 ```bash
-./scripts/ci-local.sh
+bash ./scripts/ci-local.sh
 ```
 
 The wrapper requires PowerShell Core 7.6.3, installs missing PSScriptAnalyzer 1.25.0 and Pester 5.8.0 in the current-user scope, runs the secret scan, runs static verification, and runs Pester. Set `PWSH_BIN` to an absolute PowerShell 7.6.3 executable path when it is not available as `pwsh`:
 
 ```bash
-PWSH_BIN='/absolute/path/to/pwsh' ./scripts/ci-local.sh
+PWSH_BIN='/absolute/path/to/pwsh' bash ./scripts/ci-local.sh
 ```
 
 Run gates separately from PowerShell:
