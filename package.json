@@ -8,6 +8,6 @@
     "fuzz": "node --test tests/fuzz/*.test.mjs"
   },
   "devDependencies": {
-    "fast-check": "4.8.0"
+    "fast-check": "4.9.0"
   }
 }
