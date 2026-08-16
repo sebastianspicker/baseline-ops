@@ -102,7 +102,10 @@ secrets/
 /ralph-loop/
 /plans/
 /.claude/
-/.codacy/
+/.codacy/*
+!/.codacy/codacy.config.json
+!/.codacy/codacy.yaml
+!/.codacy/codacy.yml
 
 # Local-only workspace and release-readiness state
 /AGENTS.md
