@@ -106,6 +106,8 @@ secrets/
 !/.codacy/codacy.config.json
 !/.codacy/codacy.yaml
 !/.codacy/codacy.yml
+/.codacy/codacy.config.json
+/.codacy/codacy.yaml
 
 # Local-only workspace and release-readiness state
 /AGENTS.md
