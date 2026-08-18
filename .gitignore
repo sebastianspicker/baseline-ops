@@ -1,4 +1,5 @@
 # OS and editor
+/.mcp.json
 .DS_Store
 Thumbs.db
 .vscode/
