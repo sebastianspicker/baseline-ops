@@ -21,7 +21,11 @@ param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Values)
     $expected = @('', 'value with spaces', 'quote"value', 'trailing\\')
     $result = Invoke-NativeCommand -Command $script:NativeHost -Arguments (@('-NoProfile', '-File', $echo) + $expected) -CaptureOutput -Quiet
     $result.Success | Should -BeTrue
-    @([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($result.Stdout)) | ConvertFrom-Json) | Should -Be $expected
+    $actual = [string[]]@([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($result.Stdout)) | ConvertFrom-Json)
+    $actual.Count | Should -Be $expected.Count
+    for ($index = 0; $index -lt $expected.Count; $index++) {
+      $actual[$index] | Should -BeExactly $expected[$index]
+    }
 
     $source = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../lib/External.psm1') -Raw
     $source | Should -Match 'UseShellExecute = \$false'
