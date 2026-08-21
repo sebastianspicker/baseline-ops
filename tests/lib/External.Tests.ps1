@@ -21,7 +21,8 @@ param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Values)
     $expected = @('', 'value with spaces', 'quote"value', 'trailing\\')
     $result = Invoke-NativeCommand -Command $script:NativeHost -Arguments (@('-NoProfile', '-File', $echo) + $expected) -CaptureOutput -Quiet
     $result.Success | Should -BeTrue
-    $actual = [string[]]@([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($result.Stdout)) | ConvertFrom-Json)
+    $decoded = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($result.Stdout)) | ConvertFrom-Json
+    $actual = [string[]]$decoded
     $actual.Count | Should -Be $expected.Count
     for ($index = 0; $index -lt $expected.Count; $index++) {
       $actual[$index] | Should -BeExactly $expected[$index]
