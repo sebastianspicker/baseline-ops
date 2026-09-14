@@ -17,7 +17,7 @@ or calls the other at runtime.
 
 [Get started](#get-started) · [Script catalog](scripts/README.md) ·
 [Screenshot tour](#screenshot-tour) · [Documentation](docs/README.md) ·
-[Browser demo setup](docs/demo.md)
+[Live demo](https://sebastianspicker.github.io/baseline-ops/)
 
 ## Capabilities
 
@@ -87,7 +87,7 @@ not a trusted elevated execution root. Follow the
 
 ## Screenshot tour
 
-Explore the [interactive browser demo](docs/demo.md) without a Windows device.
+Explore the [interactive browser demo](https://sebastianspicker.github.io/baseline-ops/) without a Windows device.
 The screenshots below show that browser tour, using repository example
 profiles and fictional results. It does not run PowerShell or reproduce the
 native Windows Forms launcher.

@@ -1,7 +1,7 @@
 # Browser demo and screenshot tour
 
-Use the browser demo to inspect a profile, prepare an Audit command, and read
-a sample result. It runs from static HTML, CSS, and JavaScript files. It has no
+Open the [live demo](https://sebastianspicker.github.io/baseline-ops/) to inspect
+a profile, prepare an Audit command, and read a sample result. It runs from static HTML, CSS, and JavaScript files. It has no
 backend, telemetry, external fonts, or connection to an endpoint.
 
 The three profiles match the reviewed repository examples exactly. The
